@@ -1,0 +1,72 @@
+{
+  "phase": 4,
+  "services": [
+    {
+      "name": "notification-service",
+      "port": 8006,
+      "app_name": "notifications",
+      "db_name": "lawbridge_notifications",
+      "extra_requirements": []
+    },
+    {
+      "name": "calendar-service",
+      "port": 8008,
+      "app_name": "calendar",
+      "db_name": "lawbridge_calendar",
+      "extra_requirements": ["python-dateutil"]
+    },
+    {
+      "name": "search-service",
+      "port": 8010,
+      "app_name": "search",
+      "db_name": "lawbridge_search",
+      "extra_requirements": ["langdetect", "aiohttp"]
+    },
+    {
+      "name": "monitoring-service",
+      "port": 8009,
+      "app_name": "monitoring",
+      "db_name": "lawbridge_monitoring",
+      "extra_requirements": ["django-channels", "channels-redis", "daphne"],
+      "has_asgi": true
+    }
+  ],
+  "common_requirements": [
+    "Django>=4.2",
+    "djangorestframework",
+    "djangorestframework-simplejwt",
+    "django-cors-headers",
+    "python-decouple",
+    "gunicorn",
+    "psycopg2-binary",
+    "redis",
+    "celery",
+    "requests",
+    "pytest",
+    "pytest-django",
+    "drf-spectacular"
+  ],
+  "files_to_create": {
+    "each_service": [
+      "core/__init__.py",
+      "core/settings.py",
+      "core/urls.py",
+      "core/wsgi.py",
+      "apps/__init__.py",
+      "apps/{app_name}/__init__.py",
+      "apps/{app_name}/migrations/__init__.py",
+      "apps/{app_name}/models.py",
+      "apps/{app_name}/serializers.py",
+      "apps/{app_name}/views.py",
+      "apps/{app_name}/urls.py",
+      "apps/{app_name}/admin.py",
+      "apps/{app_name}/apps.py",
+      "tests/__init__.py",
+      "pytest.ini",
+      "requirements.txt"
+    ],
+    "monitoring_service_only": [
+      "core/asgi.py"
+    ]
+  }
+}

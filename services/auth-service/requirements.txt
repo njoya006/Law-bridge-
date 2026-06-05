@@ -1,0 +1,9 @@
+Django>=4.2
+djangorestframework
+djangorestframework-simplejwt
+python-decouple
+gunicorn
+psycopg2-binary
+pytest
+pytest-django
+django-cors-headers

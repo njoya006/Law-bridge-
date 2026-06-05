@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+env/
+venv/
+.env
+.env.*
+
+# Node
+node_modules/
+.next/
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# VSCode
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# SQLite / local DB
+*.sqlite3
+
+# AWS / deploy keys
+*.pem
+
+# Monitoring local
+.monitoring/
+
+# Python cache in services
+services/**/__pycache__/
+services/**/.pytest_cache/

@@ -1,0 +1,15 @@
+Django>=4.2
+djangorestframework
+djangorestframework-simplejwt
+django-cors-headers
+python-decouple
+gunicorn
+psycopg2-binary
+redis
+aiohttp
+langdetect
+requests
+pytest
+pytest-django
+drf-spectacular
+typing-extensions

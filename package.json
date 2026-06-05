@@ -1,0 +1,9 @@
+{
+  "name": "lawbridge-root",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix lawbridge-frontend run dev",
+    "build": "npm --prefix lawbridge-frontend run build",
+    "start": "npm --prefix lawbridge-frontend run start"
+  }
+}
