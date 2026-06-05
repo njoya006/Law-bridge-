@@ -1,0 +1,38 @@
+# Local Jenkins for LawBridge — run from repo root:
+#   docker compose -f jenkins/docker-compose.jenkins.yml up -d
+services:
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: lawbridge-jenkins
+    user: root
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ..:/workspace/lawbridge:ro
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    networks:
+      - jenkins-net
+
+  # Optional SonarQube for local quality gates
+  sonarqube:
+    image: sonarqube:community
+    container_name: lawbridge-sonarqube
+    profiles: ["sonar"]
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+    networks:
+      - jenkins-net
+
+volumes:
+  jenkins_home:
+  sonarqube_data:
+
+networks:
+  jenkins-net:
+    driver: bridge

@@ -1,0 +1,17 @@
+# Install via Jenkins UI: Manage Jenkins → Plugins → Available
+# Or use jenkins-plugin-cli in a custom image.
+git
+github
+github-branch-source
+workflow-aggregator
+pipeline-stage-view
+blueocean
+docker-workflow
+kubernetes
+credentials-binding
+junit
+cobertura
+sonar
+ws-cleanup
+timestamper
+configuration-as-code

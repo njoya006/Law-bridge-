@@ -1,0 +1,192 @@
+// LawBridge — main CI/CD pipeline (develop + main)
+// Registry: GitHub Container Registry — ghcr.io/njoya006/lawbridge-<service>
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+    }
+
+    environment {
+        REGISTRY = 'ghcr.io/njoya006'
+        IMAGE_PREFIX = 'lawbridge'
+        PYTHON_VERSION = '3.11'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: 'git rev-parse --short HEAD',
+                        returnStdout: true
+                    ).trim()
+                    env.GIT_BRANCH_NAME = env.BRANCH_NAME ?: sh(
+                        script: 'git rev-parse --abbrev-ref HEAD',
+                        returnStdout: true
+                    ).trim()
+                }
+            }
+        }
+
+        stage('Detect Changed Services') {
+            steps {
+                script {
+                    def output = sh(
+                        script: 'bash jenkins/scripts/detect-changed-services.sh',
+                        returnStdout: true
+                    ).trim()
+                    env.CHANGED_SERVICES = output ?: 'auth-service'
+                    env.FRONTEND_CHANGED = sh(
+                        script: 'bash jenkins/scripts/detect-frontend-changed.sh',
+                        returnStdout: true
+                    ).trim()
+                    echo "Branch: ${env.GIT_BRANCH_NAME}"
+                    echo "Changed services: ${env.CHANGED_SERVICES}"
+                    echo "Frontend changed: ${env.FRONTEND_CHANGED}"
+                }
+            }
+        }
+
+        stage('Unit Tests') {
+            steps {
+                sh 'bash jenkins/scripts/run-service-tests.sh'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: '**/test-results/*.xml, **/junit.xml, **/results/*.xml'
+                }
+            }
+        }
+
+        stage('Frontend Build') {
+            when {
+                expression { env.FRONTEND_CHANGED == 'true' }
+            }
+            steps {
+                dir('lawbridge-frontend') {
+                    sh '''
+                        npm ci
+                        npm run build
+                    '''
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            when {
+                expression { env.SONAR_SKIP != 'true' }
+            }
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        if command -v sonar-scanner >/dev/null 2>&1; then
+                          sonar-scanner \
+                            -Dsonar.projectKey=lawbridge \
+                            -Dsonar.projectBaseDir=. \
+                            -Dsonar.sources=services/ \
+                            -Dsonar.python.coverage.reportPaths=**/coverage.xml \
+                            -Dsonar.exclusions=**/migrations/**,**/node_modules/**,**/.next/**
+                        else
+                          echo "sonar-scanner not installed — skipping (set SONAR_SKIP=true to silence)"
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            when {
+                allOf {
+                    expression { env.SONAR_SKIP != 'true' }
+                    branch 'develop'
+                }
+            }
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: false
+                }
+            }
+        }
+
+        stage('Docker Build & Push') {
+            when {
+                anyOf {
+                    branch 'develop'
+                    branch 'main'
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'ghcr-credentials',
+                    usernameVariable: 'REGISTRY_USER',
+                    passwordVariable: 'REGISTRY_PASSWORD'
+                )]) {
+                    sh 'bash jenkins/scripts/build-and-push.sh'
+                }
+            }
+        }
+
+        stage('Deploy to Staging') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig-staging', variable: 'KUBECONFIG_FILE')]) {
+                    sh 'bash jenkins/scripts/deploy-staging.sh'
+                }
+            }
+        }
+
+        stage('Integration Tests') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                sh 'bash jenkins/scripts/run-integration-tests.sh'
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'results/integration-tests.xml'
+                }
+            }
+        }
+
+        stage('Manual Approval — Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                input message: 'Deploy LawBridge to production?',
+                      ok: 'Deploy',
+                      submitterParameter: 'APPROVER'
+            }
+        }
+
+        stage('Deploy to Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                withCredentials([file(credentialsId: 'kubeconfig-production', variable: 'KUBECONFIG_FILE')]) {
+                    sh 'bash jenkins/scripts/deploy-production.sh'
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline succeeded for ${env.GIT_COMMIT_SHORT} on ${env.GIT_BRANCH_NAME}"
+        }
+        failure {
+            echo 'Pipeline failed — inspect stage logs above.'
+        }
+        always {
+            cleanWs(deleteDirs: true, patterns: [[pattern: '**/node_modules/**', type: 'INCLUDE']])
+        }
+    }
+}
