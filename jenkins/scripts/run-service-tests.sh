@@ -22,10 +22,18 @@ for service in "${SERVICES[@]}"; do
     cd "$DIR"
     mkdir -p test-results
     python3 -m venv .venv-ci
-    # shellcheck disable=SC1091
-    source .venv-ci/bin/activate
-    pip install --quiet --upgrade pip
-    pip install --quiet -r requirements.txt
+    if [ -f .venv-ci/bin/activate ]; then
+      # shellcheck disable=SC1091
+      source .venv-ci/bin/activate
+    elif [ -f .venv-ci/Scripts/activate ]; then
+      # shellcheck disable=SC1091
+      source .venv-ci/Scripts/activate
+    else
+      echo "Could not activate venv in ${service}"
+      exit 1
+    fi
+    pip install --quiet --upgrade pip || python -m pip install --quiet --upgrade pip
+    pip install --quiet -r requirements.txt || python -m pip install --quiet -r requirements.txt
     if [ -f pytest.ini ] || [ -d tests ] || find . -name 'test_*.py' -print -quit | grep -q .; then
       pytest -v --tb=short \
         --junitxml="test-results/${service}-junit.xml" \
