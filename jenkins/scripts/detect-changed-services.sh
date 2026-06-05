@@ -12,8 +12,14 @@ else
   exit 0
 fi
 
-if echo "$CHANGED_FILES" | grep -qE '^(docker-compose|gateway/|jenkins/|\.github/)'; then
+if echo "$CHANGED_FILES" | grep -qE '^(docker-compose|gateway/|\.github/)'; then
   echo "$ALL_SERVICES"
+  exit 0
+fi
+
+# Jenkins-only commits: smoke-test auth-service (full stack not required for CI config changes)
+if echo "$CHANGED_FILES" | grep -q '^jenkins/' && ! echo "$CHANGED_FILES" | grep -q '^services/'; then
+  echo "auth-service"
   exit 0
 fi
 

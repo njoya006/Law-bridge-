@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock, patch
+
 from django.urls import reverse
 from rest_framework.test import APITestCase, APIClient
 from django.contrib.auth import get_user_model
@@ -29,7 +31,13 @@ class FirmsAPITest(APITestCase):
         self.assertEqual(len(r.json()), 1)
         self.assertEqual(r.json()[0]['firm'], self.firm.id)
 
-    def test_invite_create_by_admin(self):
+    @patch('httpx.get')
+    def test_invite_create_by_admin(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {'role': 'lawyer'}
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
         url = f'/api/v1/firms/{self.firm.id}/invites/'
         data = {'email': 'invitee@example.com', 'role': 'associate'}
         r = self.client.post(url, data)
@@ -42,7 +50,13 @@ class FirmsAPITest(APITestCase):
         r = self.client.post(url, data)
         self.assertEqual(r.status_code, 403)
 
-    def test_invite_rejects_invalid_role(self):
+    @patch('httpx.get')
+    def test_invite_rejects_invalid_role(self, mock_get):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {'role': 'lawyer'}
+        mock_resp.raise_for_status = MagicMock()
+        mock_get.return_value = mock_resp
         url = f'/api/v1/firms/{self.firm.id}/invites/'
         data = {'email': 'invitee@example.com', 'role': 'not-a-role'}
         r = self.client.post(url, data)
