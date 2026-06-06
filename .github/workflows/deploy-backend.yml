@@ -1,0 +1,93 @@
+name: Build & Deploy Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/**'
+      - 'k8s/**'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.detect.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed services
+        id: detect
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'services/**' \
+            | grep '^services/' \
+            | cut -d'/' -f2 \
+            | sort -u \
+            | tr '\n' ',' \
+            | sed 's/,$//')
+          echo "services=${CHANGED:-none}" >> "$GITHUB_OUTPUT"
+          echo "Changed: ${CHANGED:-none}"
+
+  build-and-push:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != 'none'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJson(format('["{0}"]', join(split(needs.detect-changes.outputs.services, ','), '","'))) }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: services/${{ matrix.service }}
+          push: true
+          tags: |
+            ghcr.io/njoya006/lawbridge-${{ matrix.service }}:latest
+            ghcr.io/njoya006/lawbridge-${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  rollout:
+    needs: [detect-changes, build-and-push]
+    if: needs.detect-changes.outputs.services != 'none'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > ~/.kube/config
+
+      - name: Restart changed service pods
+        run: |
+          IFS=',' read -ra SERVICES <<< "${{ needs.detect-changes.outputs.services }}"
+          for svc in "${SERVICES[@]}"; do
+            svc=$(echo "$svc" | xargs)
+            echo "Restarting deployment/$svc in namespace lawbridge"
+            kubectl rollout restart deployment/"$svc" -n lawbridge 2>/dev/null \
+              && kubectl rollout status deployment/"$svc" -n lawbridge --timeout=120s \
+              || echo "No deployment named $svc (skipping)"
+          done
