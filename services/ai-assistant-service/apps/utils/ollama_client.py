@@ -174,4 +174,12 @@ class OllamaClient:
             return response.json().get('models', [])
 
 
-ollama = OllamaClient()
+_ollama_instance = None
+
+def _get_ollama():
+    global _ollama_instance
+    if _ollama_instance is None:
+        _ollama_instance = OllamaClient()
+    return _ollama_instance
+
+ollama = _get_ollama()
