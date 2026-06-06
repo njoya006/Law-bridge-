@@ -36,6 +36,7 @@ export function clearSession() {
 }
 
 export async function loginWithEmail(email: string, password: string) {
+  clearSession()
   const tokenResponse = await api.post<LoginResponse>('auth', '/auth/login/', { email, password })
   saveSession(tokenResponse.access, tokenResponse.refresh)
 
