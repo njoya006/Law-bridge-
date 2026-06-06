@@ -28,7 +28,7 @@ Guidelines:
 class GroqClient:
     """Groq cloud inference — free tier, fast, no GPU required."""
 
-    def __init__(self, api_key: str, model: str = "llama-3.1-70b-versatile"):
+    def __init__(self, api_key: str, model: str = "llama-3.3-70b-versatile"):
         from groq import Groq
         self.client = Groq(api_key=api_key)
         self.model = model

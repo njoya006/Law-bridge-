@@ -115,7 +115,7 @@ INTERNAL_API_KEY = config('INTERNAL_API_KEY', default='dev-internal-key')
 
 # Groq (primary AI backend — free tier, fast, no GPU required)
 GROQ_API_KEY = config('GROQ_API_KEY', default='')
-GROQ_MODEL = config('GROQ_MODEL', default='llama-3.1-70b-versatile')
+GROQ_MODEL = config('GROQ_MODEL', default='llama-3.3-70b-versatile')
 
 # Ollama (fallback local inference — only if Groq key is not set)
 OLLAMA_URL = config('OLLAMA_URL', default='http://ollama:11434')
