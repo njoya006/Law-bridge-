@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: lawbridge
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+
+    scrape_configs:
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      - job_name: 'auth-service'
+        static_configs:
+          - targets: ['auth-service.lawbridge.svc.cluster.local:80']
+
+      - job_name: 'client-service'
+        static_configs:
+          - targets: ['client-service.lawbridge.svc.cluster.local:80']
+
+      - job_name: 'lawyer-service'
+        static_configs:
+          - targets: ['lawyer-service.lawbridge.svc.cluster.local:80']
+
+      - job_name: 'case-service'
+        static_configs:
+          - targets: ['case-service.lawbridge.svc.cluster.local:80']
+
+      - job_name: 'document-service'
+        static_configs:
+          - targets: ['document-service.lawbridge.svc.cluster.local:80']
+
+      - job_name: 'notification-service'
+        static_configs:
+          - targets: ['notification-service.lawbridge.svc.cluster.local:80']
+
+      - job_name: 'payment-service'
+        static_configs:
+          - targets: ['payment-service.lawbridge.svc.cluster.local:80']
+
+      - job_name: 'calendar-service'
+        static_configs:
+          - targets: ['calendar-service.lawbridge.svc.cluster.local:80']
+
+      - job_name: 'monitoring-service'
+        static_configs:
+          - targets: ['monitoring-service.lawbridge.svc.cluster.local:80']
+
+      - job_name: 'search-service'
+        static_configs:
+          - targets: ['search-service.lawbridge.svc.cluster.local:80']
+
+      - job_name: 'ai-assistant-service'
+        static_configs:
+          - targets: ['ai-assistant-service.lawbridge.svc.cluster.local:80']
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: lawbridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: prometheus }
+  template:
+    metadata:
+      labels: { app: prometheus }
+    spec:
+      containers:
+      - name: prometheus
+        image: prom/prometheus:latest
+        ports:
+        - containerPort: 9090
+        args:
+        - "--config.file=/etc/prometheus/prometheus.yml"
+        - "--storage.tsdb.retention.time=15d"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus/prometheus.yml
+          subPath: prometheus.yml
+        - name: data
+          mountPath: /prometheus
+        resources:
+          requests: { cpu: 200m, memory: 256Mi }
+          limits: { cpu: 1000m, memory: 1Gi }
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-config
+      - name: data
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: lawbridge
+spec:
+  selector: { app: prometheus }
+  ports:
+  - port: 9090
+    targetPort: 9090

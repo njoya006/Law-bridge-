@@ -1,0 +1,109 @@
+# Single public entrypoint for all Lawbridge microservices.
+# nginx routes /api/v1/<resource>/ to the matching ClusterIP service.
+# Exposed via one LoadBalancer; the Vercel frontend proxies HTTPS -> this gateway.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-conf
+  namespace: lawbridge
+data:
+  nginx.conf: |
+    events { worker_connections 1024; }
+    http {
+      # use the cluster DNS so service IP changes are picked up
+      resolver kube-dns.kube-system.svc.cluster.local valid=30s ipv6=off;
+
+      # upstream service host:port (ClusterIP svc on port 80)
+      map $uri $unused { default 0; }
+
+      server {
+        listen 80;
+        client_max_body_size 50m;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        proxy_http_version 1.1;
+        proxy_connect_timeout 10s;
+        proxy_read_timeout 60s;
+
+        # Django (APPEND_SLASH) requires a trailing slash and cannot redirect a
+        # POST body. The Vercel proxy strips trailing slashes, so re-add one to
+        # any /api/v1 path that lacks it. Internal rewrite -> method & body kept.
+        rewrite ^(/api/v1/.*[^/])$ $1/ last;
+
+        # health for the load balancer
+        location = /healthz { return 200 'ok'; add_header Content-Type text/plain; }
+
+        # --- resource -> service routing (normalized $uri, query preserved) ---
+        location /api/v1/auth/          { set $u auth-service.lawbridge.svc.cluster.local;          proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/clients/       { set $u client-service.lawbridge.svc.cluster.local;        proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/lawyers/       { set $u lawyer-service.lawbridge.svc.cluster.local;        proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/firms/         { set $u lawyer-service.lawbridge.svc.cluster.local;        proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/cases/         { set $u case-service.lawbridge.svc.cluster.local;          proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/conflicts/     { set $u case-service.lawbridge.svc.cluster.local;          proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/deadlines/     { set $u case-service.lawbridge.svc.cluster.local;          proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/documents/     { set $u document-service.lawbridge.svc.cluster.local;      proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/audit/         { set $u document-service.lawbridge.svc.cluster.local;      proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/notifications/ { set $u notification-service.lawbridge.svc.cluster.local;  proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/payments/      { set $u payment-service.lawbridge.svc.cluster.local;       proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/invoices/      { set $u payment-service.lawbridge.svc.cluster.local;       proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/calendar/      { set $u calendar-service.lawbridge.svc.cluster.local;      proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/monitoring/    { set $u monitoring-service.lawbridge.svc.cluster.local;    proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/search/        { set $u search-service.lawbridge.svc.cluster.local;        proxy_pass http://$u:80$uri$is_args$args; }
+        location /api/v1/ai/            { set $u ai-assistant-service.lawbridge.svc.cluster.local;  proxy_pass http://$u:80$uri$is_args$args; }
+
+        location / { return 404 'no route'; add_header Content-Type text/plain; }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: lawbridge
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: api-gateway }
+  template:
+    metadata:
+      labels: { app: api-gateway }
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27-alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: conf
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        readinessProbe:
+          httpGet: { path: /healthz, port: 80 }
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        livenessProbe:
+          httpGet: { path: /healthz, port: 80 }
+          initialDelaySeconds: 5
+          periodSeconds: 20
+      volumes:
+      - name: conf
+        configMap:
+          name: api-gateway-conf
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway-lb
+  namespace: lawbridge
+spec:
+  type: LoadBalancer
+  selector:
+    app: api-gateway
+  ports:
+  - name: http
+    port: 80
+    targetPort: 80
+    protocol: TCP

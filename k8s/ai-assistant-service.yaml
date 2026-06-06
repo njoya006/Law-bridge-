@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-assistant-service
+  namespace: lawbridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: ai-assistant-service }
+  template:
+    metadata:
+      labels: { app: ai-assistant-service }
+    spec:
+      containers:
+      - name: ai-assistant-service
+        image: lawbridge/ai-assistant-service:latest
+        ports:
+        - containerPort: 8011
+        env:
+        - name: DB_HOST
+          value: ai-db.lawbridge.svc.cluster.local
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: AI_DB }
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        envFrom:
+        - secretRef:
+            name: lawbridge-secrets
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8011
+          initialDelaySeconds: 20
+          periodSeconds: 15
+          timeoutSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8011
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+        resources:
+          requests: { cpu: 200m, memory: 256Mi }
+          limits: { cpu: 1000m, memory: 1Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-assistant-service
+  namespace: lawbridge
+spec:
+  selector: { app: ai-assistant-service }
+  ports:
+  - port: 80
+    targetPort: 8011
+---
+# Celery worker for AI async task processing (LLM inference jobs)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-assistant-celery
+  namespace: lawbridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: ai-assistant-celery }
+  template:
+    metadata:
+      labels: { app: ai-assistant-celery }
+    spec:
+      containers:
+      - name: celery-worker
+        image: lawbridge/ai-assistant-service:latest
+        command: ["celery", "-A", "core", "worker", "--loglevel=info", "--concurrency=1"]
+        env:
+        - name: DB_HOST
+          value: ai-db.lawbridge.svc.cluster.local
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: AI_DB }
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        envFrom:
+        - secretRef:
+            name: lawbridge-secrets
+        resources:
+          requests: { cpu: 200m, memory: 512Mi }
+          limits: { cpu: 2000m, memory: 2Gi }

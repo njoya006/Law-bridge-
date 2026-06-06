@@ -1,0 +1,100 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-service
+  namespace: lawbridge
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: client-service }
+  template:
+    metadata:
+      labels: { app: client-service }
+    spec:
+      containers:
+      - name: client-service
+        image: lawbridge/client-service:latest
+        ports:
+        - containerPort: 8002
+        env:
+        - name: DB_HOST
+          value: client-db.lawbridge.svc.cluster.local
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: CLIENT_DB }
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        envFrom:
+        - secretRef:
+            name: lawbridge-secrets
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health/
+            port: 8002
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health/
+            port: 8002
+          initialDelaySeconds: 20
+          periodSeconds: 20
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: client-service
+  namespace: lawbridge
+spec:
+  selector: { app: client-service }
+  ports:
+  - port: 80
+    targetPort: 8002
+---
+# Celery worker for client-service (handles async email invites, etc.)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-celery-worker
+  namespace: lawbridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: client-celery-worker }
+  template:
+    metadata:
+      labels: { app: client-celery-worker }
+    spec:
+      containers:
+      - name: celery-worker
+        image: lawbridge/client-service:latest
+        command: ["celery", "-A", "core", "worker", "--loglevel=info", "--concurrency=4"]
+        env:
+        - name: DB_HOST
+          value: client-db.lawbridge.svc.cluster.local
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: CLIENT_DB }
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        envFrom:
+        - secretRef:
+            name: lawbridge-secrets
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 256Mi }

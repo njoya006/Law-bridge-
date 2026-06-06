@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lawbridge
+  labels:
+    app.kubernetes.io/name: lawbridge
+    app.kubernetes.io/part-of: lawbridge-platform

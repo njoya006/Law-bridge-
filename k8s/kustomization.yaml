@@ -1,0 +1,42 @@
+# Apply in this order: kubectl apply -k k8s/
+# Or imperatively: kubectl apply -f k8s/namespace.yaml && kubectl apply -f k8s/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: lawbridge
+
+resources:
+  # 1. Namespace (must exist before everything else)
+  - namespace.yaml
+
+  # 2. Secrets (must exist before any workload that refs them)
+  - secrets.yaml
+
+  # 3. Infrastructure — no app dependencies
+  - redis.yaml
+  - rabbitmq.yaml
+  - minio.yaml
+  - ollama.yaml
+
+  # 4. Databases — app services depend on these
+  - databases.yaml
+
+  # 5. Core application services
+  - auth-service.yaml
+  - client-service.yaml
+  - lawyer-service.yaml
+  - case-service.yaml
+  - document-service.yaml
+  - notification-service.yaml
+  - payment-service.yaml
+  - calendar-service.yaml
+  - monitoring-service.yaml
+  - search-service.yaml
+  - ai-assistant-service.yaml
+
+  # 6. Observability
+  - prometheus.yaml
+  - alertmanager.yaml
+
+  # 7. API gateway (public entrypoint — depends on all services)
+  - api-gateway.yaml

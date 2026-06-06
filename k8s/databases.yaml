@@ -1,0 +1,684 @@
+# One StatefulSet + headless Service per microservice database.
+# Each database is isolated: no cross-service direct DB access.
+
+# ─── AUTH DATABASE ───────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: auth-db
+  namespace: lawbridge
+spec:
+  serviceName: auth-db
+  replicas: 1
+  selector:
+    matchLabels: { app: auth-db }
+  template:
+    metadata:
+      labels: { app: auth-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: AUTH_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: auth-db }
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# ─── CLIENT DATABASE ─────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: client-db
+  namespace: lawbridge
+spec:
+  serviceName: client-db
+  replicas: 1
+  selector:
+    matchLabels: { app: client-db }
+  template:
+    metadata:
+      labels: { app: client-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: CLIENT_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: client-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: client-db }
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# ─── LAWYER DATABASE ─────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: lawyer-db
+  namespace: lawbridge
+spec:
+  serviceName: lawyer-db
+  replicas: 1
+  selector:
+    matchLabels: { app: lawyer-db }
+  template:
+    metadata:
+      labels: { app: lawyer-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: LAWYER_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lawyer-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: lawyer-db }
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# ─── CASE DATABASE ───────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: case-db
+  namespace: lawbridge
+spec:
+  serviceName: case-db
+  replicas: 1
+  selector:
+    matchLabels: { app: case-db }
+  template:
+    metadata:
+      labels: { app: case-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: CASE_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: case-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: case-db }
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# ─── DOCUMENT DATABASE ───────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: document-db
+  namespace: lawbridge
+spec:
+  serviceName: document-db
+  replicas: 1
+  selector:
+    matchLabels: { app: document-db }
+  template:
+    metadata:
+      labels: { app: document-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DOCUMENT_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: document-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: document-db }
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# ─── NOTIFICATION DATABASE ───────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: notification-db
+  namespace: lawbridge
+spec:
+  serviceName: notification-db
+  replicas: 1
+  selector:
+    matchLabels: { app: notification-db }
+  template:
+    metadata:
+      labels: { app: notification-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: NOTIFICATION_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: notification-db }
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# ─── PAYMENT DATABASE ────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: payment-db
+  namespace: lawbridge
+spec:
+  serviceName: payment-db
+  replicas: 1
+  selector:
+    matchLabels: { app: payment-db }
+  template:
+    metadata:
+      labels: { app: payment-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: PAYMENT_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: payment-db }
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# ─── CALENDAR DATABASE ───────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: calendar-db
+  namespace: lawbridge
+spec:
+  serviceName: calendar-db
+  replicas: 1
+  selector:
+    matchLabels: { app: calendar-db }
+  template:
+    metadata:
+      labels: { app: calendar-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: CALENDAR_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: calendar-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: calendar-db }
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# ─── MONITORING DATABASE ─────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: monitoring-db
+  namespace: lawbridge
+spec:
+  serviceName: monitoring-db
+  replicas: 1
+  selector:
+    matchLabels: { app: monitoring-db }
+  template:
+    metadata:
+      labels: { app: monitoring-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: MONITORING_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: monitoring-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: monitoring-db }
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# ─── SEARCH DATABASE ─────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: search-db
+  namespace: lawbridge
+spec:
+  serviceName: search-db
+  replicas: 1
+  selector:
+    matchLabels: { app: search-db }
+  template:
+    metadata:
+      labels: { app: search-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: SEARCH_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: search-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: search-db }
+  ports:
+  - port: 5432
+    targetPort: 5432
+---
+# ─── AI DATABASE ─────────────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ai-db
+  namespace: lawbridge
+spec:
+  serviceName: ai-db
+  replicas: 1
+  selector:
+    matchLabels: { app: ai-db }
+  template:
+    metadata:
+      labels: { app: ai-db }
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:16-alpine
+        ports:
+        - containerPort: 5432
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: AI_DB }
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        readinessProbe:
+          exec:
+            command: ["pg_isready", "-U", "lawbridge_user"]
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-db
+  namespace: lawbridge
+spec:
+  clusterIP: None
+  selector: { app: ai-db }
+  ports:
+  - port: 5432
+    targetPort: 5432

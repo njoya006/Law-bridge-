@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-databases
+  namespace: lawbridge
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: postgres-client
+        image: postgres:15-alpine
+        env:
+        - name: PGPASSWORD
+          value: "LawBridgePass2024"
+        - name: PGHOST
+          value: "lawbridge-postgres.cvn0ogw1uqg0.us-east-1.rds.amazonaws.com"
+        - name: PGUSER
+          value: "postgres"
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          for db in lawbridge_auth lawbridge_client lawbridge_lawyer lawbridge_case \
+                    lawbridge_document lawbridge_notification lawbridge_payment \
+                    lawbridge_calendar lawbridge_monitoring lawbridge_search \
+                    lawbridge_ai_assistant; do
+            if psql -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1; then
+              echo "exists: $db"
+            else
+              echo "creating: $db"
+              psql -c "CREATE DATABASE $db"
+            fi
+          done
+          echo "All databases ready."

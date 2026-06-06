@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: lawbridge
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: auth-service }
+  template:
+    metadata:
+      labels: { app: auth-service }
+    spec:
+      containers:
+      - name: auth-service
+        image: lawbridge/auth-service:latest
+        ports:
+        - containerPort: 8001
+        env:
+        - name: DB_HOST
+          value: auth-db.lawbridge.svc.cluster.local
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: AUTH_DB }
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        envFrom:
+        - secretRef:
+            name: lawbridge-secrets
+        readinessProbe:
+          httpGet:
+            path: /api/v1/health/
+            port: 8001
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /api/v1/health/
+            port: 8001
+          initialDelaySeconds: 20
+          periodSeconds: 20
+          timeoutSeconds: 5
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: lawbridge
+spec:
+  selector: { app: auth-service }
+  ports:
+  - port: 80
+    targetPort: 8001

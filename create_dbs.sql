@@ -1,0 +1,11 @@
+﻿CREATE DATABASE IF NOT EXISTS lawbridge_auth;
+CREATE DATABASE IF NOT EXISTS lawbridge_client;
+CREATE DATABASE IF NOT EXISTS lawbridge_lawyer;
+CREATE DATABASE IF NOT EXISTS lawbridge_case;
+CREATE DATABASE IF NOT EXISTS lawbridge_document;
+CREATE DATABASE IF NOT EXISTS lawbridge_notification;
+CREATE DATABASE IF NOT EXISTS lawbridge_payment;
+CREATE DATABASE IF NOT EXISTS lawbridge_calendar;
+CREATE DATABASE IF NOT EXISTS lawbridge_monitoring;
+CREATE DATABASE IF NOT EXISTS lawbridge_search;
+CREATE DATABASE IF NOT EXISTS lawbridge_ai_assistant;
