@@ -1,0 +1,157 @@
+---
+# Grafana admin credentials secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: grafana-secret
+  namespace: lawbridge
+type: Opaque
+stringData:
+  GF_SECURITY_ADMIN_USER: admin
+  GF_SECURITY_ADMIN_PASSWORD: LawBridge2024!
+---
+# Auto-provision Prometheus datasource
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: lawbridge
+data:
+  prometheus.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.lawbridge.svc.cluster.local:9090
+        isDefault: true
+        editable: false
+---
+# Auto-provision LawBridge server dashboard
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-provider
+  namespace: lawbridge
+data:
+  provider.yaml: |
+    apiVersion: 1
+    providers:
+      - name: LawBridge
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-lawbridge
+  namespace: lawbridge
+data:
+  lawbridge.json: |
+    {
+      "id": null,
+      "title": "LawBridge — Servers & Services",
+      "tags": ["lawbridge"],
+      "timezone": "browser",
+      "refresh": "30s",
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Services Up",
+          "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+          "targets": [{"expr": "count(up == 1)", "legendFormat": "Up"}],
+          "options": {"colorMode": "background"}
+        },
+        {
+          "id": 2,
+          "type": "stat",
+          "title": "Services Down",
+          "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+          "targets": [{"expr": "count(up == 0) or vector(0)", "legendFormat": "Down"}],
+          "options": {"colorMode": "background", "reduceOptions": {"calcs": ["lastNotNull"]}}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "HTTP Request Rate (all services)",
+          "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+          "targets": [{"expr": "sum by (job) (rate(django_http_requests_total_by_method_total[5m]))", "legendFormat": "{{job}}"}]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "HTTP Response Latency p95 (ms)",
+          "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+          "targets": [{"expr": "histogram_quantile(0.95, sum by (le, job) (rate(django_http_requests_latency_seconds_by_view_method_bucket[5m]))) * 1000", "legendFormat": "{{job}}"}]
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Service Health (up=1 / down=0)",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+          "targets": [{"expr": "up", "legendFormat": "{{job}}"}]
+        }
+      ],
+      "schemaVersion": 38,
+      "version": 1
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: lawbridge
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: grafana }
+  template:
+    metadata:
+      labels: { app: grafana }
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:latest
+        ports:
+        - containerPort: 3000
+        envFrom:
+        - secretRef:
+            name: grafana-secret
+        env:
+        - name: GF_PATHS_PROVISIONING
+          value: /etc/grafana/provisioning
+        volumeMounts:
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
+        - name: dashboards-provider
+          mountPath: /etc/grafana/provisioning/dashboards
+        - name: dashboards
+          mountPath: /var/lib/grafana/dashboards
+        - name: storage
+          mountPath: /var/lib/grafana
+        resources:
+          requests: { cpu: 100m, memory: 128Mi }
+          limits: { cpu: 500m, memory: 512Mi }
+      volumes:
+      - name: datasources
+        configMap: { name: grafana-datasources }
+      - name: dashboards-provider
+        configMap: { name: grafana-dashboards-provider }
+      - name: dashboards
+        configMap: { name: grafana-dashboard-lawbridge }
+      - name: storage
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-lb
+  namespace: lawbridge
+spec:
+  type: LoadBalancer
+  selector: { app: grafana }
+  ports:
+  - port: 80
+    targetPort: 3000
