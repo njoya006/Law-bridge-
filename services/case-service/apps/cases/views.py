@@ -80,18 +80,19 @@ def extract_token_payload(request):
 
 
 def user_can_access_case(request, case):
-    user_id = extract_user_id_from_token(request)
+    payload = extract_token_payload(request)
+    user_id = payload.get('user_id') or extract_user_id_from_token(request)
+    role = payload.get('role', 'client')
+
     if str(case.client_id) == str(user_id):
         return True
 
-    role = extract_role_from_token(request)
     if role not in STAFF_ROLES:
         return False
 
     if case.assigned_lawyer_id and str(case.assigned_lawyer_id) == str(user_id):
         return True
 
-    # firm_admin can see all cases assigned to anyone in their firm
     auth_header = get_auth_header(request)
     if not auth_header:
         return False

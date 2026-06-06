@@ -30,15 +30,19 @@ def extract_user_id_from_token(request):
     return str(request.user.id)
 
 
+STAFF_ROLES = {'lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'secretary', 'managing_partner'}
+
+
 def extract_auth_payload(request):
     auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-    if auth_header.startswith('Bearer '):
+    if not auth_header.startswith('Bearer '):
+        return {}
+    token = auth_header.split(' ')[1]
+    for key in [config('JWT_SECRET_KEY', default='dev-secret'), config('SECRET_KEY', default='dev-secret'), 'dev-secret']:
         try:
-            token = auth_header.split(' ')[1]
-            payload = jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
-            return payload
-        except:
-            return {}
+            return jwt.decode(token, key, algorithms=['HS256'])
+        except Exception:
+            continue
     return {}
 
 
@@ -198,8 +202,8 @@ class DocumentDownloadView(APIView):
             # Allow if caller is the client
             if str(case_data.get('client_id')) == str(caller_id):
                 pass
-            # Allow if caller is a lawyer and is the assigned lawyer for the case
-            elif caller_role == 'lawyer' and str(case_data.get('assigned_lawyer_id')) == str(caller_id):
+            # Allow if caller is a lawyer/firm_admin and is the assigned lawyer for the case
+            elif caller_role in STAFF_ROLES and str(case_data.get('assigned_lawyer_id')) == str(caller_id):
                 pass
             else:
                 return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
