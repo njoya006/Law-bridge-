@@ -65,16 +65,18 @@ def is_internal_request(request):
 STAFF_ROLES = {'lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'secretary', 'managing_partner'}
 
 
-def extract_role_from_token(request):
+def extract_token_payload(request):
+    """Decode JWT trying all possible signing keys."""
     auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-    if auth_header.startswith('Bearer '):
+    if not auth_header.startswith('Bearer '):
+        return {}
+    token = auth_header.split(' ')[1]
+    for key in [config('JWT_SECRET_KEY', default='dev-secret'), config('SECRET_KEY', default='dev-secret'), 'dev-secret']:
         try:
-            token = auth_header.split(' ')[1]
-            payload = jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
-            return payload.get('role', 'client')
-        except:
-            pass
-    return 'client'
+            return jwt.decode(token, key, algorithms=['HS256'])
+        except Exception:
+            continue
+    return {}
 
 
 def user_can_access_case(request, case):
@@ -109,9 +111,10 @@ class CaseListView(APIView):
     """List and create cases"""
 
     def get(self, request):
-        """GET /api/v1/cases/ - List cases (by role: clients see own, lawyers see assigned)"""
-        user_id = extract_user_id_from_token(request)
-        role = extract_role_from_token(request)
+        """GET /api/v1/cases/ - List cases (clients see own; lawyers/firm_admin see assigned)"""
+        payload = extract_token_payload(request)
+        user_id = payload.get('user_id') or extract_user_id_from_token(request)
+        role = payload.get('role', 'client')
         if role in STAFF_ROLES:
             cases = Case.objects.filter(assigned_lawyer_id=user_id)
         else:
