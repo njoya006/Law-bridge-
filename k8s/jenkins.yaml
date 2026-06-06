@@ -58,6 +58,8 @@ spec:
         volumeMounts:
         - name: jenkins-home
           mountPath: /var/jenkins_home
+        - name: init-scripts
+          mountPath: /var/jenkins_home/init.groovy.d
         resources:
           requests: { cpu: 500m, memory: 512Mi }
           limits: { cpu: 2000m, memory: 2Gi }
@@ -71,38 +73,14 @@ spec:
           initialDelaySeconds: 90
           periodSeconds: 30
           timeoutSeconds: 10
-      initContainers:
-      - name: install-plugins
-        image: jenkins/jenkins:lts-jdk21
-        command:
-        - sh
-        - -c
-        - |
-          jenkins-plugin-cli --plugins \
-            git:latest \
-            workflow-aggregator:latest \
-            docker-workflow:latest \
-            kubernetes:latest \
-            blueocean:latest \
-            configuration-as-code:latest \
-            credentials-binding:latest \
-            timestamper:latest \
-            pipeline-stage-view:latest \
-            junit:latest \
-            ws-cleanup:latest \
-          && cp -r /var/jenkins_home/plugins /plugins-out/
-        volumeMounts:
-        - name: jenkins-home
-          mountPath: /var/jenkins_home
-        - name: plugins-out
-          mountPath: /plugins-out
       volumes:
       - name: jenkins-home
         hostPath:
           path: /var/jenkins_home
           type: DirectoryOrCreate
-      - name: plugins-out
-        emptyDir: {}
+      - name: init-scripts
+        configMap:
+          name: jenkins-init-scripts
 ---
 apiVersion: v1
 kind: Service
