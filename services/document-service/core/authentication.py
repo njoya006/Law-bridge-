@@ -44,3 +44,4 @@ class CustomJWTAuthentication(BaseAuthentication):
             raise AuthenticationFailed('Invalid token')
         except Exception as e:
             raise AuthenticationFailed(f'Authentication failed: {str(e)}')
+

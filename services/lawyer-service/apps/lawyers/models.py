@@ -96,3 +96,4 @@ class LawyerAvailability(models.Model):
 
     def __str__(self):
         return f"{self.lawyer.user_id} - {self.get_day_of_week_display()}"
+
