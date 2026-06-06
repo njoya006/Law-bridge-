@@ -13,36 +13,36 @@ spec:
     spec:
       containers:
       - name: ai-assistant-service
-        image: ghcr.io/njoya006/lawbridge-ai-assistant-service:latest
+        image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/ai-assistant-service:latest
         ports:
         - containerPort: 8011
         env:
         - name: DB_HOST
-          value: ai-db.lawbridge.svc.cluster.local
+          value: lawbridge-postgres.cvn0ogw1uqg0.us-east-1.rds.amazonaws.com
         - name: DB_PORT
           value: "5432"
         - name: DB_NAME
-          valueFrom:
-            secretKeyRef: { name: lawbridge-db-secrets, key: AI_DB }
+          value: lawbridge_ai_assistant
         - name: DB_USER
-          valueFrom:
-            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+          value: postgres
         - name: DB_PASSWORD
+          value: LawBridgePass2024
+        - name: GROQ_API_KEY
           valueFrom:
-            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+            secretKeyRef: { name: groq-secret, key: GROQ_API_KEY }
         envFrom:
         - secretRef:
             name: lawbridge-secrets
         readinessProbe:
           httpGet:
-            path: /
+            path: /api/v1/health/
             port: 8011
           initialDelaySeconds: 20
           periodSeconds: 15
           timeoutSeconds: 10
         livenessProbe:
           httpGet:
-            path: /
+            path: /api/v1/health/
             port: 8011
           initialDelaySeconds: 30
           periodSeconds: 30
@@ -78,22 +78,22 @@ spec:
     spec:
       containers:
       - name: celery-worker
-        image: ghcr.io/njoya006/lawbridge-ai-assistant-service:latest
+        image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/ai-assistant-service:latest
         command: ["celery", "-A", "core", "worker", "--loglevel=info", "--concurrency=1"]
         env:
         - name: DB_HOST
-          value: ai-db.lawbridge.svc.cluster.local
+          value: lawbridge-postgres.cvn0ogw1uqg0.us-east-1.rds.amazonaws.com
         - name: DB_PORT
           value: "5432"
         - name: DB_NAME
-          valueFrom:
-            secretKeyRef: { name: lawbridge-db-secrets, key: AI_DB }
+          value: lawbridge_ai_assistant
         - name: DB_USER
-          valueFrom:
-            secretKeyRef: { name: lawbridge-db-secrets, key: DB_USER }
+          value: postgres
         - name: DB_PASSWORD
+          value: LawBridgePass2024
+        - name: GROQ_API_KEY
           valueFrom:
-            secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+            secretKeyRef: { name: groq-secret, key: GROQ_API_KEY }
         envFrom:
         - secretRef:
             name: lawbridge-secrets
