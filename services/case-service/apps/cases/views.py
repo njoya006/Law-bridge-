@@ -62,18 +62,34 @@ def is_internal_request(request):
     return request.headers.get('X-Internal-Api-Key') == config('INTERNAL_API_KEY', default='dev-internal-key')
 
 
+STAFF_ROLES = {'lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'secretary', 'managing_partner'}
+
+
+def extract_role_from_token(request):
+    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    if auth_header.startswith('Bearer '):
+        try:
+            token = auth_header.split(' ')[1]
+            payload = jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
+            return payload.get('role', 'client')
+        except:
+            pass
+    return 'client'
+
+
 def user_can_access_case(request, case):
     user_id = extract_user_id_from_token(request)
     if str(case.client_id) == str(user_id):
         return True
 
-    payload = getattr(request, 'auth_payload', {}) or {}
-    if payload.get('role') != 'lawyer' or not case.assigned_lawyer_id:
+    role = extract_role_from_token(request)
+    if role not in STAFF_ROLES:
         return False
 
-    if str(case.assigned_lawyer_id) == str(user_id):
+    if case.assigned_lawyer_id and str(case.assigned_lawyer_id) == str(user_id):
         return True
 
+    # firm_admin can see all cases assigned to anyone in their firm
     auth_header = get_auth_header(request)
     if not auth_header:
         return False
@@ -82,17 +98,24 @@ def user_can_access_case(request, case):
     if not current_firms:
         return False
 
-    assigned_firms = get_user_firm_ids_from_lawyer_service(case.assigned_lawyer_id, internal=True)
-    return bool(current_firms.intersection(assigned_firms))
+    if case.assigned_lawyer_id:
+        assigned_firms = get_user_firm_ids_from_lawyer_service(case.assigned_lawyer_id, internal=True)
+        return bool(current_firms.intersection(assigned_firms))
+
+    return False
 
 
 class CaseListView(APIView):
     """List and create cases"""
-    
+
     def get(self, request):
-        """GET /api/v1/cases/ - List all cases for current user"""
+        """GET /api/v1/cases/ - List cases (by role: clients see own, lawyers see assigned)"""
         user_id = extract_user_id_from_token(request)
-        cases = Case.objects.filter(client_id=user_id)
+        role = extract_role_from_token(request)
+        if role in STAFF_ROLES:
+            cases = Case.objects.filter(assigned_lawyer_id=user_id)
+        else:
+            cases = Case.objects.filter(client_id=user_id)
         serializer = CaseSerializer(cases, many=True)
         return Response({
             'count': cases.count(),
