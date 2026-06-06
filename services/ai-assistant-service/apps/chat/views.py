@@ -1,15 +1,19 @@
 import json
+import logging
 from datetime import datetime
 
-import requests
 from django.conf import settings
 from django.http import StreamingHttpResponse
-from langdetect import detect
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.renderers import JSONRenderer, BaseRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from .models import ChatSession
+from .serializers import ChatSessionSerializer
+from apps.utils.ai_client import get_ai_client
+
+logger = logging.getLogger(__name__)
 
 
 class ServerSentEventRenderer(BaseRenderer):
@@ -20,31 +24,6 @@ class ServerSentEventRenderer(BaseRenderer):
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
         return data
-
-from .models import ChatSession
-from .serializers import ChatSessionSerializer
-from apps.utils.ollama_client import ollama
-
-
-def get_case_context(case_id: str, internal_api_key: str) -> str:
-    try:
-        response = requests.get(
-            f"{settings.CASE_SERVICE_URL}/api/v1/cases/{case_id}/summary/",
-            headers={'X-Internal-Api-Key': internal_api_key},
-            timeout=5,
-        )
-        if response.status_code == 200:
-            data = response.json()
-            return f"""
-CASE CONTEXT (Use this to answer case-specific questions):
-Case Type: {data.get('case_type')}
-Circuit: {data.get('circuit')} ({data.get('legal_tradition')})
-Status: {data.get('status')}
-Description: {data.get('description', '')[:500]}
-"""
-    except Exception:
-        pass
-    return ""
 
 
 class ChatView(APIView):
@@ -59,12 +38,16 @@ class ChatView(APIView):
         if not user_message:
             return Response({'error': 'Message is required'}, status=400)
 
+        # Detect language
+        language = 'en'
         try:
-            detected_lang = detect(user_message)
-            language = 'fr' if detected_lang == 'fr' else 'en'
+            from langdetect import detect
+            detected = detect(user_message)
+            language = 'fr' if detected == 'fr' else 'en'
         except Exception:
-            language = 'en'
+            pass
 
+        # Get or create session
         if session_id:
             try:
                 session = ChatSession.objects.get(id=session_id, user_id=str(request.user.id))
@@ -75,28 +58,11 @@ class ChatView(APIView):
                 user_id=str(request.user.id),
                 case_id=case_id,
                 language=language,
-                title=user_message[:50],
+                title=user_message[:60],
                 messages=[],
             )
 
-        history = ''
-        for msg in session.messages[-10:]:
-            role = 'User' if msg.get('role') == 'user' else 'LexAI'
-            history += f"{role}: {msg.get('content')}\n"
-
-        case_context = ''
-        if session.case_id:
-            case_context = get_case_context(str(session.case_id), settings.INTERNAL_API_KEY)
-
-        full_prompt = f"""
-{case_context}
-
-CONVERSATION HISTORY:
-{history}
-
-User: {user_message}
-LexAI:"""
-
+        # Append user message to history
         session.messages.append({
             'role': 'user',
             'content': user_message,
@@ -104,37 +70,66 @@ LexAI:"""
         })
         session.save()
 
+        # Optional case context from case-service
+        case_context = ''
+        if session.case_id:
+            try:
+                import requests as req
+                r = req.get(
+                    f"{settings.CASE_SERVICE_URL}/api/v1/cases/{session.case_id}/summary/",
+                    headers={'X-Internal-Api-Key': getattr(settings, 'INTERNAL_API_KEY', '')},
+                    timeout=4,
+                )
+                if r.status_code == 200:
+                    d = r.json()
+                    case_context = (
+                        f"CASE CONTEXT:\nType: {d.get('case_type')} | "
+                        f"Circuit: {d.get('circuit')} ({d.get('legal_tradition')}) | "
+                        f"Status: {d.get('status')}\n"
+                        f"Description: {str(d.get('description', ''))[:400]}"
+                    )
+            except Exception:
+                pass
+
         def stream_response():
-            full_response = ''
             yield f"data: {json.dumps({'session_id': str(session.id)})}\n\n"
 
+            full_response = ''
             try:
-                for chunk in ollama.generate(
-                    model=settings.OLLAMA_CHAT_MODEL,
-                    prompt=full_prompt,
-                    stream=True,
+                ai = get_ai_client(settings)
+                for token in ai.stream(
+                    user_message=user_message,
+                    history=session.messages[:-1],  # exclude the message we just appended
+                    case_context=case_context,
                 ):
-                    token = chunk.get('response', '')
-                    if token:
-                        full_response += token
-                        yield f"data: {json.dumps({'token': token})}\n\n"
+                    full_response += token
+                    yield f"data: {json.dumps({'token': token})}\n\n"
 
-                    if chunk.get('done'):
-                        session.messages.append({
-                            'role': 'assistant',
-                            'content': full_response,
-                            'timestamp': datetime.utcnow().isoformat(),
-                        })
-                        session.save()
-                        yield f"data: {json.dumps({'done': True})}\n\n"
-                        break
+                # Persist assistant reply
+                session.messages.append({
+                    'role': 'assistant',
+                    'content': full_response,
+                    'timestamp': datetime.utcnow().isoformat(),
+                })
+                session.save()
+                yield f"data: {json.dumps({'done': True})}\n\n"
+
             except Exception as exc:
-                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+                logger.exception("AI generation error")
+                err = str(exc)
+                # Translate raw connection errors into friendly messages
+                if 'Name or service not known' in err or 'Connection refused' in err or 'Connect call failed' in err:
+                    friendly = (
+                        "The AI model is not reachable right now. "
+                        "Please contact support or try again later."
+                    )
+                elif 'api_key' in err.lower() or 'authentication' in err.lower():
+                    friendly = "AI service is not configured yet. Contact your administrator."
+                else:
+                    friendly = f"AI error: {err}"
+                yield f"data: {json.dumps({'error': friendly})}\n\n"
 
-        response = StreamingHttpResponse(
-            stream_response(),
-            content_type='text/event-stream',
-        )
+        response = StreamingHttpResponse(stream_response(), content_type='text/event-stream')
         response['Cache-Control'] = 'no-cache'
         response['X-Accel-Buffering'] = 'no'
         return response
@@ -167,25 +162,3 @@ class ChatSessionDetailView(APIView):
             return Response(status=204)
         except ChatSession.DoesNotExist:
             return Response({'error': 'Not found'}, status=404)
-
-
-class TestGenerateView(APIView):
-    """Lightweight unauthenticated proxy endpoint for frontend development.
-    POST payload: {"model": "phi3", "prompt": "..."}
-    Returns: {"response": "..."}
-    """
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        model = request.data.get('model') or request.query_params.get('model')
-        prompt = request.data.get('prompt') or request.query_params.get('prompt')
-        if not model or not prompt:
-            return Response({'error': 'model and prompt are required'}, status=400)
-
-        try:
-            result = ollama.generate(model=model, prompt=prompt, stream=False)
-            return Response({'response': result.get('response', '')})
-        except Exception as exc:
-            return Response({'error': str(exc)}, status=500)
-
-

@@ -16,3 +16,5 @@ pdfplumber
 pytest
 pytest-django
 prometheus-client
+groq
+PyJWT
