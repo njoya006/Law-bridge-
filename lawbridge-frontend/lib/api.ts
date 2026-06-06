@@ -25,8 +25,10 @@ function clearStoredSession() {
 function redirectToLogin() {
   if (typeof window === 'undefined') return
 
-  if (!window.location.pathname.startsWith('/auth/login')) {
-    window.location.assign('/auth/login?reason=session-expired')
+  const portalRole = localStorage.getItem('portalRole')
+  const loginPath = portalRole === 'lawyer' ? '/auth/lawyer-login' : '/auth/login'
+  if (!window.location.pathname.startsWith('/auth/')) {
+    window.location.assign(`${loginPath}?reason=session-expired`)
   }
 }
 
@@ -54,6 +56,9 @@ async function request<T>(service: ServiceName, path: string, options: RequestOp
     if (typeof window !== 'undefined' && tokenExpired && (response.status === 401 || response.status === 403)) {
       const refresh = localStorage.getItem('refresh')
       if (refresh) {
+        let refreshOk = false
+        let newAccess: string | undefined
+
         try {
           const refreshResponse = await fetch(`${SERVICE_URLS.auth.replace(/\/$/, '')}/auth/token/refresh/`, {
             method: 'POST',
@@ -65,40 +70,47 @@ async function request<T>(service: ServiceName, path: string, options: RequestOp
             const refreshed = await refreshResponse.json() as { access?: string }
             if (refreshed.access) {
               localStorage.setItem('access', refreshed.access)
-              const retry = await fetch(url, {
-                ...rest,
-                headers: {
-                  ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-                  Authorization: `Bearer ${refreshed.access}`,
-                  ...(headers || {}),
-                },
-                body: requestBody,
-              })
-
-              if (retry.ok) {
-                if (retry.status === 204) return undefined as T
-                return retry.json() as Promise<T>
-              }
-
-              const retryMessage = await retry.text().catch(() => 'Request failed')
-              const retryShort = (retryMessage || `Request failed with status ${retry.status}`).slice(0, 1000)
-              throw new Error(`${retry.status} ${url}: ${retryShort}`)
+              newAccess = refreshed.access
+              refreshOk = true
             }
           } else {
+            // Auth service explicitly rejected the refresh token — session is truly dead
             clearStoredSession()
             redirectToLogin()
             throw new Error('Session expired. Please sign in again.')
           }
-        } catch {
-          clearStoredSession()
-          redirectToLogin()
-          throw new Error('Session expired. Please sign in again.')
+        } catch (refreshErr) {
+          if (refreshErr instanceof Error && refreshErr.message === 'Session expired. Please sign in again.') {
+            throw refreshErr
+          }
+          // Network error during refresh — don't log out, just surface the original error
+          throw new Error(`${response.status} ${url}: ${short}`)
+        }
+
+        if (refreshOk && newAccess) {
+          const retry = await fetch(url, {
+            ...rest,
+            headers: {
+              ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+              Authorization: `Bearer ${newAccess}`,
+              ...(headers || {}),
+            },
+            body: requestBody,
+          })
+
+          if (retry.ok) {
+            if (retry.status === 204) return undefined as T
+            return retry.json() as Promise<T>
+          }
+
+          const retryMessage = await retry.text().catch(() => 'Request failed')
+          const retryShort = (retryMessage || `Request failed with status ${retry.status}`).slice(0, 1000)
+          throw new Error(`${retry.status} ${url}: ${retryShort}`)
         }
       }
 
-      clearStoredSession()
-      redirectToLogin()
-      throw new Error('Session expired. Please sign in again.')
+      // No refresh token stored — don't clear session, just throw so the page can handle it
+      throw new Error(`${response.status} ${url}: ${short}`)
     }
 
     throw new Error(`${response.status} ${url}: ${short}`)
