@@ -7,8 +7,19 @@ from django.http import StreamingHttpResponse
 from langdetect import detect
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
+from rest_framework.renderers import JSONRenderer, BaseRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+
+class ServerSentEventRenderer(BaseRenderer):
+    """Allows DRF content negotiation to accept Accept: text/event-stream."""
+    media_type = 'text/event-stream'
+    format = 'text'
+    charset = 'utf-8'
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        return data
 
 from .models import ChatSession
 from .serializers import ChatSessionSerializer
@@ -38,6 +49,7 @@ Description: {data.get('description', '')[:500]}
 
 class ChatView(APIView):
     permission_classes = [IsAuthenticated]
+    renderer_classes = [ServerSentEventRenderer, JSONRenderer]
 
     def post(self, request):
         user_message = request.data.get('message', '').strip()
