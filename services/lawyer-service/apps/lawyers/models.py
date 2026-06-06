@@ -20,7 +20,8 @@ class LawyerProfile(models.Model):
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.UUIDField(unique=True)  # Cross-ref to auth_db
-    
+    full_name = models.CharField(max_length=255, blank=True, default='')
+
     # Profile info
     specialization = models.CharField(max_length=255, db_index=True)
     qualifications = models.TextField(blank=True)

@@ -1,18 +1,17 @@
 from rest_framework import serializers
 from apps.lawyers.models import LawyerProfile
-from apps.lawyers.serializers import LawyerAvailabilitySerializer
 
 
 class LawyerDiscoverySerializer(serializers.ModelSerializer):
     """Simplified lawyer profile for public discovery"""
-    availability_slots = LawyerAvailabilitySerializer(many=True, read_only=True)
-    
+    name = serializers.CharField(source='full_name')
+
     class Meta:
         model = LawyerProfile
         fields = (
-            'id', 'specialization', 'qualifications', 'bio',
+            'id', 'name', 'specialization', 'qualifications', 'bio',
             'years_of_experience', 'bijural_flag', 'consultation_fee',
-            'availability_status', 'active_cases', 'average_rating', 'availability_slots'
+            'availability_status', 'active_cases', 'average_rating',
         )
 
 

@@ -24,7 +24,7 @@ function aiBase() {
 }
 
 export async function listChatSessions(token: string): Promise<ChatSession[]> {
-  const res = await fetch(`${aiBase()}/chat/sessions/`, {
+  const res = await fetch(`${aiBase()}/ai/sessions/`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error(`Failed to load sessions (${res.status})`)
@@ -33,7 +33,7 @@ export async function listChatSessions(token: string): Promise<ChatSession[]> {
 }
 
 export async function getChatSession(sessionId: string, token: string): Promise<ChatSession> {
-  const res = await fetch(`${aiBase()}/chat/sessions/${sessionId}/`, {
+  const res = await fetch(`${aiBase()}/ai/sessions/${sessionId}/`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error(`Session not found (${res.status})`)
@@ -41,7 +41,7 @@ export async function getChatSession(sessionId: string, token: string): Promise<
 }
 
 export async function deleteChatSession(sessionId: string, token: string): Promise<void> {
-  const res = await fetch(`${aiBase()}/chat/sessions/${sessionId}/`, {
+  const res = await fetch(`${aiBase()}/ai/sessions/${sessionId}/`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   })
@@ -66,7 +66,7 @@ export async function sendChatMessage(
   sessionId?: string,
   caseId?: string,
 ): Promise<void> {
-  const res = await fetch(`${aiBase()}/chat/chat/`, {
+  const res = await fetch(`${aiBase()}/ai/chat/`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -95,12 +95,21 @@ export default function DocumentsPage(){
           cases.results.map(async item => ({
             caseId: item.id,
             title: item.title,
-            items: (await listDocuments(item.id, access)).results,
+            items: (await listDocuments(item.id, access).catch(() => ({ results: [] }))).results,
           }))
         )
         setGroups(nextGroups.filter(group => group.items.length > 0))
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'Unable to load documents')
+        const raw = cause instanceof Error ? cause.message : String(cause)
+        const isHtml = raw.includes('<!DOCTYPE') || raw.includes('<html')
+        const isJwt = /invalid token|token_not_valid|token has expired/i.test(raw)
+        if (isJwt) {
+          setError('Session expired. Please sign in again.')
+        } else if (isHtml) {
+          setError('The documents service is temporarily unavailable. Please try again shortly.')
+        } else {
+          setError(raw.slice(0, 200))
+        }
       }
     }
     void run()

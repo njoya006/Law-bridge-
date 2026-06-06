@@ -28,27 +28,38 @@ export default function CasesPage(){
         setError('Sign in to see your matters.')
         return
       }
-      try {
-        const [casesResponse, progressResponse] = await Promise.all([
-          getMyCases(access),
-          getCaseProgress(access),
-        ])
 
-        setItems(casesResponse.results)
+      const [casesResult, progressResult] = await Promise.allSettled([
+        getMyCases(access),
+        getCaseProgress(access),
+      ])
 
+      if (casesResult.status === 'fulfilled') {
+        setItems(casesResult.value.results)
+      } else {
+        const raw = casesResult.reason instanceof Error ? casesResult.reason.message : String(casesResult.reason)
+        const isHtml = raw.includes('<!DOCTYPE') || raw.includes('<html')
+        const isJwt = /invalid token|token_not_valid|token has expired/i.test(raw)
+        if (isJwt) {
+          setError('Session expired. Please sign in again.')
+        } else if (isHtml) {
+          setError('The matters service is temporarily unavailable. Please try again shortly.')
+        } else {
+          setError(raw.slice(0, 200))
+        }
+      }
+
+      if (progressResult.status === 'fulfilled') {
         const statusMap: Record<string, string> = {}
         const updatedMap: Record<string, string> = {}
-        for (const progressItem of progressResponse.results ?? []) {
+        for (const progressItem of progressResult.value.results ?? []) {
           if (progressItem.case_id) {
             statusMap[progressItem.case_id] = progressItem.status
             updatedMap[progressItem.case_id] = progressItem.updated_at
           }
         }
-
         setMonitoringMap(statusMap)
         setMonitoringUpdatedAt(updatedMap)
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : 'Unable to load matters')
       }
     }
     void run()

@@ -78,8 +78,10 @@ export default function DiscoverPage() {
         }
 
         const causeMsg = cause instanceof Error ? cause.message : String(cause)
+        const isHtml = causeMsg.includes('<!DOCTYPE') || causeMsg.includes('<html')
+        const friendlyCause = isHtml ? 'service error' : causeMsg.slice(0, 120)
         if (lawyers.length === 0 && firms.length === 0) {
-          setError(`Search failed: ${causeMsg}`)
+          setError(`Search unavailable (${friendlyCause}). Try the fallback buttons below.`)
         } else {
           setError(`Central search unavailable; showing public browse fallback.`)
         }
@@ -93,7 +95,14 @@ export default function DiscoverPage() {
       setLawyers(lawyerResult.results)
     } catch (cause) {
       setLawyers([])
-      setError(`Lawyers fetch failed: ${cause instanceof Error ? cause.message : String(cause)}`)
+      const raw = cause instanceof Error ? cause.message : String(cause)
+      const isHtml = raw.includes('<!DOCTYPE') || raw.includes('<html')
+      const statusMatch = raw.match(/^(\d{3}) /)
+      const status = statusMatch ? statusMatch[1] : ''
+      const friendly = isHtml
+        ? `Lawyers service is temporarily unavailable${status ? ` (${status})` : ''}.`
+        : raw.slice(0, 200)
+      setError(`${friendly}`)
     }
 
     try {
@@ -101,10 +110,15 @@ export default function DiscoverPage() {
       setFirms((firmResult.results ?? []).filter(f => !ownFirmIds.has(String(f.id))))
     } catch (cause) {
       setFirms([])
-      const msg = cause instanceof Error ? cause.message : String(cause)
-      // If auth is required, give a helpful hint
-      const hint = /403|Authentication credentials were not provided/.test(msg) ? ' — Sign in to view firms.' : ''
-      setError(prev => (prev ? prev + ' — ' : '') + `Firms fetch failed: ${msg}${hint}`)
+      const raw = cause instanceof Error ? cause.message : String(cause)
+      const isHtml = raw.includes('<!DOCTYPE') || raw.includes('<html')
+      const statusMatch = raw.match(/^(\d{3}) /)
+      const status = statusMatch ? statusMatch[1] : ''
+      const hint = /403|Authentication credentials were not provided/.test(raw) ? ' Sign in to view firms.' : ''
+      const msg = isHtml
+        ? `Firms service is temporarily unavailable${status ? ` (${status})` : ''}.${hint}`
+        : `${raw.slice(0, 200)}${hint}`
+      setError(prev => (prev ? `${prev} — ` : '') + msg)
     }
   }
 

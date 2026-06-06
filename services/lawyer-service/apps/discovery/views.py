@@ -1,4 +1,5 @@
-from django.db.models import Q, F
+import logging
+from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
@@ -8,6 +9,8 @@ from .serializers import (
     LawyerMatchingRequestSerializer,
     LawyerMatchingResponseSerializer
 )
+
+logger = logging.getLogger(__name__)
 
 
 class LawyerBrowseView(APIView):
@@ -44,17 +47,19 @@ class LawyerBrowseView(APIView):
                     Q(bijural_flag='civil_law') | Q(bijural_flag='both')
                 )
         
-        serializer = LawyerDiscoverySerializer(queryset, many=True)
-        return Response({
-            'count': queryset.count(),
-            'results': serializer.data
-        })
+        try:
+            serializer = LawyerDiscoverySerializer(queryset, many=True)
+            return Response({'count': queryset.count(), 'results': serializer.data})
+        except Exception as exc:
+            logger.exception('LawyerBrowseView error')
+            return Response({'count': 0, 'results': [], 'error': str(exc)},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class LawyerSearchView(APIView):
     """Full-text search endpoint (bilingual)"""
     permission_classes = [permissions.AllowAny]
-    
+
     def get(self, request):
         """
         GET /api/v1/lawyers/search/ - Search lawyers by name, specialization, bio
@@ -64,19 +69,20 @@ class LawyerSearchView(APIView):
         query = request.query_params.get('q', '').strip()
         if not query or len(query) < 2:
             return Response({'results': []})
-        
+
         queryset = LawyerProfile.objects.filter(
+            Q(full_name__icontains=query) |
             Q(specialization__icontains=query) |
             Q(bio__icontains=query),
             availability_status='available'
         ).order_by('-average_rating')
-        
-        serializer = LawyerDiscoverySerializer(queryset, many=True)
-        return Response({
-            'query': query,
-            'count': queryset.count(),
-            'results': serializer.data
-        })
+
+        try:
+            serializer = LawyerDiscoverySerializer(queryset, many=True)
+            return Response({'query': query, 'count': queryset.count(), 'results': serializer.data})
+        except Exception as exc:
+            logger.exception('LawyerSearchView error')
+            return Response({'results': []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class LawyerMatchingView(APIView):

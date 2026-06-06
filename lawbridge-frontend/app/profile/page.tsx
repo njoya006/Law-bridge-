@@ -1,12 +1,16 @@
 'use client'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Card from '../../components/ui/Card'
 import { LogoutIcon, UserIcon } from '../../components/icons/Icons'
 import { api } from '../../lib/api'
 import { clearSession } from '../../lib/authSession'
+import { getMyCases } from '../../lib/casesApi'
+import { listDocuments } from '../../lib/documentsApi'
+import { unreadNotificationCount } from '../../lib/notificationsApi'
 
 type AuthMe = {
   id: string
@@ -23,6 +27,9 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [openMatters, setOpenMatters] = useState<number | null>(null)
+  const [sharedFiles, setSharedFiles] = useState<number | null>(null)
+  const [unreadUpdates, setUnreadUpdates] = useState<number | null>(null)
   const [profile, setProfile] = useState({
     firstName: '',
     lastName: '',
@@ -58,6 +65,19 @@ export default function ProfilePage() {
       } finally {
         setLoading(false)
       }
+
+      // Load stats independently — don't block profile render on these
+      void getMyCases(access).then(data => {
+        const open = data.results.filter(c => c.status !== 'closed').length
+        setOpenMatters(open)
+        // Count total documents across all cases
+        void Promise.all(data.results.map(c => listDocuments(c.id, access).catch(() => ({ count: 0 }))))
+          .then(docs => setSharedFiles(docs.reduce((sum, d) => sum + (d.count ?? 0), 0)))
+      }).catch(() => { /* service unavailable — leave null */ })
+
+      void unreadNotificationCount(access)
+        .then(data => setUnreadUpdates(data.unread_count ?? 0))
+        .catch(() => { /* service unavailable — leave null */ })
     }
 
     void run()
@@ -256,18 +276,30 @@ export default function ProfilePage() {
       {/* Stats Grid */}
       {!loading && !error && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-6 text-center">
-            <div className="font-display text-display-sm text-gold-400 mb-2">3</div>
-            <p className="text-neutral-400">Open Matters</p>
-          </Card>
-          <Card className="p-6 text-center">
-            <div className="font-display text-display-sm text-emerald-500 mb-2">18</div>
-            <p className="text-neutral-400">Shared Files</p>
-          </Card>
-          <Card className="p-6 text-center">
-            <div className="font-display text-display-sm text-primary-400 mb-2">12</div>
-            <p className="text-neutral-400">Unread Updates</p>
-          </Card>
+          <Link href="/cases" className="block group">
+            <Card className="p-6 text-center transition-colors group-hover:border-gold-400/40">
+              <div className="font-display text-display-sm text-gold-400 mb-2">
+                {openMatters === null ? '—' : openMatters}
+              </div>
+              <p className="text-neutral-400 group-hover:text-neutral-300 transition-colors">Open Matters</p>
+            </Card>
+          </Link>
+          <Link href="/documents" className="block group">
+            <Card className="p-6 text-center transition-colors group-hover:border-emerald-500/40">
+              <div className="font-display text-display-sm text-emerald-500 mb-2">
+                {sharedFiles === null ? '—' : sharedFiles}
+              </div>
+              <p className="text-neutral-400 group-hover:text-neutral-300 transition-colors">Shared Files</p>
+            </Card>
+          </Link>
+          <Link href="/analyses" className="block group">
+            <Card className="p-6 text-center transition-colors group-hover:border-primary-400/40">
+              <div className="font-display text-display-sm text-primary-400 mb-2">
+                {unreadUpdates === null ? '—' : unreadUpdates}
+              </div>
+              <p className="text-neutral-400 group-hover:text-neutral-300 transition-colors">Unread Updates</p>
+            </Card>
+          </Link>
         </div>
       )}
 
