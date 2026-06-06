@@ -1,220 +1,212 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
-import Button from '../components/ui/Button'
-import Card from '../components/ui/Card'
+import PublicHeader from '../components/layout/PublicHeader'
 import { CaseIcon, AnalysisIcon, ChatIcon, DocumentIcon, PaymentIcon, LawIcon, ArrowRightIcon } from '../components/icons/Icons'
 
-export default function Home(){
+const features = [
+  {
+    icon: CaseIcon,
+    title: 'Case Management',
+    desc: 'Organise and track every case with precision. Powerful tools built for the demands of African legal practice.',
+    accent: 'from-gold-500 to-gold-600',
+    border: 'hover:border-gold-400/50',
+  },
+  {
+    icon: AnalysisIcon,
+    title: 'AI Legal Research',
+    desc: 'Intelligent research powered by AI. Surface relevant precedents, statutes, and arguments in seconds.',
+    accent: 'from-emerald-500 to-emerald-600',
+    border: 'hover:border-emerald-400/50',
+  },
+  {
+    icon: ChatIcon,
+    title: 'Team Collaboration',
+    desc: 'Real-time collaboration with your firm. Share updates, assign tasks, and stay aligned on every matter.',
+    accent: 'from-primary-500 to-primary-600',
+    border: 'hover:border-primary-400/50',
+  },
+  {
+    icon: DocumentIcon,
+    title: 'Document Vault',
+    desc: 'Secure, encrypted storage with full audit trails. Access any document instantly, from anywhere.',
+    accent: 'from-amber-500 to-amber-600',
+    border: 'hover:border-amber-400/50',
+  },
+  {
+    icon: PaymentIcon,
+    title: 'Billing & Invoicing',
+    desc: 'Track time, generate invoices, and manage client payments — all in one place.',
+    accent: 'from-crimson-500 to-crimson-600',
+    border: 'hover:border-crimson-400/50',
+  },
+  {
+    icon: LawIcon,
+    title: 'Enterprise Security',
+    desc: 'Bank-grade encryption, role-based access control, and compliance standards built for legal data.',
+    accent: 'from-gold-600 to-amber-500',
+    border: 'hover:border-gold-400/50',
+  },
+]
+
+export default function Home() {
   return (
-    <main className="min-h-screen w-full overflow-hidden">
-      {/* Hero Section */}
-      <section className="relative px-6 py-24 md:py-40 lg:py-52">
-        {/* Minimal background */}
-        <div className="absolute inset-0 -z-10 opacity-40">
-          <div className="absolute top-20 right-10 w-72 h-72 bg-gold-500/5 rounded-full blur-2xl" />
-          <div className="absolute bottom-20 left-10 w-72 h-72 bg-primary-600/5 rounded-full blur-2xl" />
+    <div className="min-h-screen pub-page">
+      <PublicHeader />
+
+      {/* ─── Hero ─── */}
+      <section className="relative px-6 pt-40 pb-32 md:pt-52 md:pb-44 overflow-hidden">
+        {/* Background glows */}
+        <div className="absolute inset-0 -z-10 pointer-events-none">
+          <div className="absolute top-24 right-1/4 w-96 h-96 bg-gold-500/6 rounded-full blur-3xl" />
+          <div className="absolute bottom-16 left-1/4 w-80 h-80 bg-primary-600/6 rounded-full blur-3xl" />
         </div>
 
-        <div className="max-w-5xl mx-auto">
-          {/* Tagline */}
-          <div className="flex items-center justify-center gap-3 mb-8 animate-fade-in">
+        <div className="max-w-5xl mx-auto text-center">
+          <div className="inline-flex items-center gap-3 mb-8 animate-fade-in">
             <div className="h-px w-8 bg-gradient-to-r from-gold-500/60 to-transparent" />
-            <span className="text-label-md text-gold-400/80 tracking-widest">LEGAL EXCELLENCE</span>
+            <span className="text-label-md text-gold-400/90 tracking-widest font-semibold">LEGAL EXCELLENCE FOR AFRICA</span>
             <div className="h-px w-8 bg-gradient-to-l from-gold-500/60 to-transparent" />
           </div>
 
-          {/* Main headline - Extra Bold */}
-          <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-center leading-tight font-bold mb-10 text-neutral-50 animate-fade-up">
-            Reimagined Legal Practice
+          <h1 className="font-display text-5xl md:text-6xl lg:text-7xl pub-heading font-bold leading-tight mb-8 animate-fade-up">
+            Reimagined<br />Legal Practice
           </h1>
 
-          {/* Subheader - Generous whitespace */}
-          <p className="text-center text-xl md:text-2xl text-neutral-400 max-w-3xl mx-auto mb-16 leading-relaxed animate-fade-up animation-delay-100">
-            Enterprise-grade legal management for Africa's elite professionals
+          <p className="text-xl md:text-2xl pub-subtext max-w-2xl mx-auto mb-12 leading-relaxed animate-fade-up animation-delay-100">
+            Enterprise-grade legal management for Cameroon's elite legal professionals — bijural, bilingual, and built for growth.
           </p>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-24 animate-fade-up animation-delay-200">
-            <Link href="/auth/login">
-              <Button size="lg" variant="gold" className="text-lg px-8 py-3">
-                Get Started
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20 animate-fade-up animation-delay-200">
+            <Link href="/auth/register">
+              <button className="flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-gold-500 to-gold-400 text-primary-900 font-bold text-lg hover:opacity-90 active:scale-95 transition-all duration-200 shadow-xl shadow-gold-500/25">
+                Get Started Free
                 <ArrowRightIcon width={20} height={20} />
-              </Button>
+              </button>
             </Link>
             <Link href="#features">
-              <Button size="lg" variant="outline" className="text-lg px-8 py-3">
-                Learn More
-              </Button>
+              <button className="px-8 py-4 rounded-xl border border-[var(--border-default)] pub-subtext font-semibold text-lg hover:border-gold-400/50 hover:text-gold-400 transition-all duration-200">
+                See Features
+              </button>
             </Link>
           </div>
 
-          {/* Stats - Cleaner layout with more spacing */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-12 text-center">
-            <div className="space-y-2">
-              <div className="text-5xl md:text-6xl font-bold text-gold-400">2K+</div>
-              <p className="text-neutral-500 text-lg">Active Professionals</p>
-            </div>
-            <div className="space-y-2">
-              <div className="text-5xl md:text-6xl font-bold text-gold-400">5K+</div>
-              <p className="text-neutral-500 text-lg">Cases Managed</p>
-            </div>
-            <div className="space-y-2">
-              <div className="text-5xl md:text-6xl font-bold text-gold-400">98%</div>
-              <p className="text-neutral-500 text-lg">Satisfaction</p>
-            </div>
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-8 max-w-lg mx-auto">
+            {[
+              { value: '2K+', label: 'Professionals' },
+              { value: '5K+', label: 'Cases Managed' },
+              { value: '98%', label: 'Satisfaction' },
+            ].map(stat => (
+              <div key={stat.label} className="space-y-1">
+                <div className="text-4xl md:text-5xl font-bold text-gold-400">{stat.value}</div>
+                <p className="pub-muted text-sm">{stat.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Features Section - Cleaner with more whitespace */}
-      <section id="features" className="relative px-6 py-32 md:py-48 bg-gradient-to-b from-primary-800/0 to-primary-800/20">
+      {/* ─── Features ─── */}
+      <section id="features" className="px-6 py-32 md:py-44 pub-section-alt">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-24">
-            <h2 className="font-display text-5xl md:text-6xl text-neutral-50 mb-6 font-bold">
-              Powerful Features
+          <div className="text-center mb-20">
+            <h2 className="font-display text-4xl md:text-5xl pub-heading font-bold mb-5">
+              Everything your firm needs
             </h2>
-            <p className="text-xl text-neutral-400 max-w-2xl mx-auto">
-              Everything you need to manage legal practice efficiently
+            <p className="text-lg pub-subtext max-w-xl mx-auto">
+              A complete platform built around how Cameroonian lawyers actually work
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {/* Feature 1 */}
-            <Card className="group p-8 space-y-4 hover:border-gold-400/60 cursor-pointer">
-              <div className="w-14 h-14 bg-gradient-to-br from-gold-500 to-gold-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform text-neutral-900">
-                <CaseIcon width={28} height={28} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {features.map(f => (
+              <div
+                key={f.title}
+                className={`group pub-card rounded-2xl p-8 space-y-4 border border-[var(--border-default)] transition-all duration-300 cursor-default ${f.border} hover:shadow-lg hover:-translate-y-0.5`}
+              >
+                <div className={`w-13 h-13 bg-gradient-to-br ${f.accent} rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 text-white shadow-md`}
+                  style={{ width: 52, height: 52 }}>
+                  <f.icon width={26} height={26} />
+                </div>
+                <h3 className="font-heading text-lg font-bold pub-heading">{f.title}</h3>
+                <p className="pub-subtext leading-relaxed text-sm">{f.desc}</p>
               </div>
-              <h3 className="font-heading text-xl font-bold text-neutral-50">Case Management</h3>
-              <p className="text-neutral-400 leading-relaxed">
-                Organize and track every case with precision. Powerful tools designed for legal practice.
-              </p>
-            </Card>
-
-            {/* Feature 2 */}
-            <Card className="group p-8 space-y-4 hover:border-emerald-400/60 cursor-pointer">
-              <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform text-neutral-900">
-                <AnalysisIcon width={28} height={28} />
-              </div>
-              <h3 className="font-heading text-xl font-bold text-neutral-50">AI Research</h3>
-              <p className="text-neutral-400 leading-relaxed">
-                Intelligent legal research powered by AI. Find precedents in seconds.
-              </p>
-            </Card>
-
-            {/* Feature 3 */}
-            <Card className="group p-8 space-y-4 hover:border-primary-400/60 cursor-pointer">
-              <div className="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform text-neutral-900">
-                <ChatIcon width={28} height={28} />
-              </div>
-              <h3 className="font-heading text-xl font-bold text-neutral-50">Collaboration</h3>
-              <p className="text-neutral-400 leading-relaxed">
-                Real-time collaboration with your team. Share and update instantly.
-              </p>
-            </Card>
-
-            {/* Feature 4 */}
-            <Card className="group p-8 space-y-4 hover:border-amber-400/60 cursor-pointer">
-              <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform text-neutral-900">
-                <DocumentIcon width={28} height={28} />
-              </div>
-              <h3 className="font-heading text-xl font-bold text-neutral-50">Documents</h3>
-              <p className="text-neutral-400 leading-relaxed">
-                Secure storage with full audit trails and compliance built-in.
-              </p>
-            </Card>
-
-            {/* Feature 5 */}
-            <Card className="group p-8 space-y-4 hover:border-crimson-400/60 cursor-pointer">
-              <div className="w-14 h-14 bg-gradient-to-br from-crimson-500 to-crimson-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform text-neutral-900">
-                <PaymentIcon width={28} height={28} />
-              </div>
-              <h3 className="font-heading text-xl font-bold text-neutral-50">Billing</h3>
-              <p className="text-neutral-400 leading-relaxed">
-                Track time and manage billing with comprehensive analytics.
-              </p>
-            </Card>
-
-            {/* Feature 6 */}
-            <Card className="group p-8 space-y-4 hover:border-gold-400/60 cursor-pointer">
-              <div className="w-14 h-14 bg-gradient-to-br from-gold-600 to-amber-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform text-neutral-900">
-                <LawIcon width={28} height={28} />
-              </div>
-              <h3 className="font-heading text-xl font-bold text-neutral-50">Security</h3>
-              <p className="text-neutral-400 leading-relaxed">
-                Enterprise security with encryption and compliance standards.
-              </p>
-            </Card>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section - Minimalist design */}
-      <section className="relative px-6 py-32 md:py-48 overflow-hidden">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="font-display text-5xl md:text-6xl text-neutral-50 mb-8 font-bold">
-            Ready to transform?
+      {/* ─── CTA ─── */}
+      <section className="px-6 py-32 md:py-44 text-center relative overflow-hidden">
+        <div className="absolute inset-0 -z-10 pointer-events-none">
+          <div className="absolute inset-0 bg-gradient-to-b from-gold-500/3 to-transparent" />
+        </div>
+        <div className="max-w-3xl mx-auto">
+          <h2 className="font-display text-4xl md:text-5xl pub-heading font-bold mb-6">
+            Ready to transform your practice?
           </h2>
-          <p className="text-xl text-neutral-400 mb-12 max-w-2xl mx-auto leading-relaxed">
-            Join leading legal professionals across Africa
+          <p className="text-lg pub-subtext mb-10 max-w-xl mx-auto leading-relaxed">
+            Join leading legal professionals across Cameroon and the CEMAC region
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-            <Link href="/auth/login">
-              <Button size="lg" variant="gold" className="text-lg px-8 py-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/auth/register">
+              <button className="px-8 py-4 rounded-xl bg-gradient-to-r from-gold-500 to-gold-400 text-primary-900 font-bold text-lg hover:opacity-90 active:scale-95 transition-all shadow-xl shadow-gold-500/25">
                 Start Free Trial
-              </Button>
+              </button>
             </Link>
-            <Link href="#contact">
-              <Button size="lg" variant="outline" className="text-lg px-8 py-3">
-                Schedule Demo
-              </Button>
+            <Link href="/support">
+              <button className="px-8 py-4 rounded-xl border border-[var(--border-default)] pub-subtext font-semibold text-lg hover:border-gold-400/50 hover:text-gold-400 transition-all duration-200">
+                Talk to Us
+              </button>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-neutral-700 px-6 py-12 bg-primary-900">
+      {/* ─── Footer ─── */}
+      <footer className="pub-footer border-t border-[var(--border-default)] px-6 py-14">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900 font-bold text-sm">⚖</div>
+                <span className="font-display text-lg font-bold pub-heading">LawBridge</span>
+              </div>
+              <p className="text-sm pub-muted leading-relaxed">
+                Legal technology built for Africa's legal professionals.
+              </p>
+            </div>
             <div>
-              <h4 className="font-heading text-body-sm text-gold-400 mb-4">Product</h4>
-              <ul className="space-y-2 text-body-sm text-neutral-400">
-                <li><Link href="/dashboard">Dashboard</Link></li>
-                <li><Link href="/cases">Cases</Link></li>
-                <li><Link href="/chat">AI Assistant</Link></li>
+              <h4 className="text-sm font-bold text-gold-400 mb-4 tracking-wide uppercase">Product</h4>
+              <ul className="space-y-2.5 text-sm pub-muted">
+                <li><Link href="/#features" className="hover:text-gold-400 transition-colors">Features</Link></li>
+                <li><Link href="/auth/login" className="hover:text-gold-400 transition-colors">Dashboard</Link></li>
+                <li><Link href="/auth/register" className="hover:text-gold-400 transition-colors">Get Started</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-heading text-body-sm text-gold-400 mb-4">Company</h4>
-              <ul className="space-y-2 text-body-sm text-neutral-400">
-                <li><a href="#">About</a></li>
-                <li><a href="#">Blog</a></li>
-                <li><a href="#">Careers</a></li>
+              <h4 className="text-sm font-bold text-gold-400 mb-4 tracking-wide uppercase">Company</h4>
+              <ul className="space-y-2.5 text-sm pub-muted">
+                <li><Link href="/about" className="hover:text-gold-400 transition-colors">About Us</Link></li>
+                <li><Link href="/support" className="hover:text-gold-400 transition-colors">Support</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-heading text-body-sm text-gold-400 mb-4">Legal</h4>
-              <ul className="space-y-2 text-body-sm text-neutral-400">
-                <li><a href="#">Privacy</a></li>
-                <li><a href="#">Terms</a></li>
-                <li><a href="#">Security</a></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-heading text-body-sm text-gold-400 mb-4">Connect</h4>
-              <ul className="space-y-2 text-body-sm text-neutral-400">
-                <li><a href="#">Twitter</a></li>
-                <li><a href="#">LinkedIn</a></li>
-                <li><a href="#">Email</a></li>
+              <h4 className="text-sm font-bold text-gold-400 mb-4 tracking-wide uppercase">Legal</h4>
+              <ul className="space-y-2.5 text-sm pub-muted">
+                <li><span className="cursor-default">Privacy Policy</span></li>
+                <li><span className="cursor-default">Terms of Service</span></li>
+                <li><span className="cursor-default">Security</span></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-neutral-700 pt-8 text-center text-body-sm text-neutral-500">
-            <p>&copy; 2026 LawBridge. All rights reserved.</p>
+          <div className="border-t border-[var(--border-default)] pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-sm pub-muted">&copy; 2026 LawBridge. All rights reserved.</p>
+            <p className="text-sm pub-muted">Built with care for Cameroonian legal professionals.</p>
           </div>
         </div>
       </footer>
-    </main>
+    </div>
   )
 }

@@ -442,3 +442,128 @@ html.light-mode ::-webkit-scrollbar-thumb:hover {
 .btn-primary { background: var(--color-primary-700); color: var(--text-inverse); }
 .btn-gold { background: var(--color-gold-500); color: #000 }
 
+/* ================================================================
+   PUBLIC PAGE UTILITIES (landing, about, support)
+   These use CSS variables so they auto-adapt to light/dark mode.
+   ================================================================ */
+
+/* Page shell */
+.pub-page {
+  background: var(--bg-base);
+  color: var(--text-primary);
+}
+
+/* Semantic text helpers */
+.pub-heading  { color: var(--text-primary); }
+.pub-subtext  { color: var(--text-secondary); }
+.pub-muted    { color: var(--text-tertiary); }
+
+/* Card surface — adapts in light/dark */
+.pub-card {
+  background: var(--bg-surface);
+  transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+}
+
+/* Prominent card (hero/mission block) */
+.pub-card-prominent {
+  background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-elevated) 100%);
+}
+
+/* Alternate section background */
+.pub-section-alt {
+  background: var(--bg-surface);
+}
+
+/* Footer */
+.pub-footer {
+  background: var(--bg-surface);
+}
+
+/* Form inputs */
+.pub-input {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+/* ================================================================
+   LIGHT MODE — APP PAGE OVERRIDES
+   Scope to `main` so the always-dark sidebar is unaffected.
+   ================================================================ */
+
+/* --- Text colour fixes --- */
+/* Flip near-white text classes to dark when on a light bg */
+html.light-mode main .text-neutral-50  { color: #111118; }
+html.light-mode main .text-neutral-100 { color: #1E1E2A; }
+html.light-mode main .text-neutral-200 { color: #2D2D3F; }
+html.light-mode main .text-neutral-300 { color: #4A4A6A; }
+html.light-mode main .text-neutral-400 { color: #6B6B8A; }
+html.light-mode main .text-neutral-500 { color: #9696AA; }
+
+/* Heading elements inside main */
+html.light-mode main h1,
+html.light-mode main h2,
+html.light-mode main h3,
+html.light-mode main h4,
+html.light-mode main h5 {
+  color: #111118;
+}
+
+/* --- Background fixes --- */
+/* Dark navy cards become light surfaces */
+html.light-mode main .bg-primary-800\/40,
+html.light-mode main .bg-primary-800\/50,
+html.light-mode main .bg-primary-800\/30,
+html.light-mode main .bg-primary-800\/20 {
+  background-color: rgba(255, 255, 255, 0.85) !important;
+}
+
+html.light-mode main .bg-primary-900\/50,
+html.light-mode main .bg-primary-900\/30,
+html.light-mode main .bg-primary-900\/20 {
+  background-color: rgba(244, 247, 253, 0.8) !important;
+}
+
+/* Elevated surfaces */
+html.light-mode main .bg-primary-800 {
+  background-color: #f0f4fb !important;
+}
+
+/* --- Border fixes --- */
+html.light-mode main .border-neutral-700\/30 { border-color: rgba(0, 0, 0, 0.08) !important; }
+html.light-mode main .border-neutral-700\/40 { border-color: rgba(0, 0, 0, 0.10) !important; }
+html.light-mode main .border-neutral-700     { border-color: rgba(0, 0, 0, 0.12) !important; }
+html.light-mode main .border-neutral-600\/40 { border-color: rgba(0, 0, 0, 0.14) !important; }
+html.light-mode main .border-white\/5        { border-color: rgba(0, 0, 0, 0.06) !important; }
+
+/* --- Input fields --- */
+html.light-mode main input,
+html.light-mode main textarea,
+html.light-mode main select {
+  background-color: #ffffff;
+  color: #111118;
+  border-color: rgba(0, 0, 0, 0.15);
+}
+html.light-mode main input::placeholder,
+html.light-mode main textarea::placeholder {
+  color: #9696AA;
+}
+
+/* --- Placeholder/muted text inside white/light cards --- */
+html.light-mode main .text-neutral-400.placeholder\:text-neutral-600::placeholder { color: #9696AA; }
+
+/* --- Status badge backgrounds --- */
+html.light-mode main .bg-emerald-500\/10 { background-color: rgba(16,185,129,0.12) !important; }
+html.light-mode main .bg-crimson-500\/10 { background-color: rgba(239,68,68,0.12)  !important; }
+html.light-mode main .bg-gold-500\/10    { background-color: rgba(201,146,58,0.12) !important; }
+html.light-mode main .bg-amber-500\/10   { background-color: rgba(245,158,11,0.12) !important; }
+
+/* --- Card component override --- */
+html.light-mode main [class*="bg-primary-800"] {
+  background-color: #ffffff !important;
+}
+
+/* --- Global light mode body text --- */
+html.light-mode body {
+  color: #111118;
+}
+
