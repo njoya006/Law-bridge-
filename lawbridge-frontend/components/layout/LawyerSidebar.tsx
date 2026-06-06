@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { DashboardIcon, CaseIcon, BriefcaseIcon, DocumentIcon, CalendarIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, UserIcon, LawIcon } from '../icons/Icons'
+import { usePathname, useRouter } from 'next/navigation'
+import { DashboardIcon, CaseIcon, BriefcaseIcon, DocumentIcon, CalendarIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon } from '../icons/Icons'
 import { getFirmMembers, getMyFirmMemberships, type FirmMembership } from '../../lib/firmsApi'
+import { clearSession } from '../../lib/authSession'
 
 const nav = [
   { label: 'My Office', href: '/lawyer/office/me', icon: CaseIcon },
@@ -25,6 +26,12 @@ export default function LawyerSidebar() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [isMobile, setIsMobile] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = () => {
+    clearSession()
+    router.push('/auth/lawyer-login')
+  }
   const collapsed = isMobile ? !mobileOpen : desktopCollapsed
   const [associates, setAssociates] = useState<FirmMembership[]>([])
   const [isFirmAdmin, setIsFirmAdmin] = useState(false)
@@ -261,6 +268,16 @@ export default function LawyerSidebar() {
             <UserIcon width={18} height={18} />
             <span className="absolute inset-0 rounded-xl bg-gold-400/0 transition-colors duration-200 group-hover:bg-gold-400/10" />
           </Link>
+
+          <button
+            onClick={handleLogout}
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 bg-primary-900/40 text-neutral-400 transition-all duration-200 hover:scale-105 hover:border-crimson-500/30 hover:text-crimson-400 active:scale-95"
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <LogoutIcon width={18} height={18} />
+            <span className="absolute inset-0 rounded-xl bg-crimson-500/0 transition-colors duration-200 group-hover:bg-crimson-500/10" />
+          </button>
         </div>
       </div>
     </aside>

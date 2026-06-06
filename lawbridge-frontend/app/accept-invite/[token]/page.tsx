@@ -1,7 +1,11 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
+import Card from '../../../components/ui/Card'
+import Button from '../../../components/ui/Button'
+import { CheckIcon, LawIcon } from '../../../components/icons/Icons'
 import { acceptInvite } from '../../../lib/firmsApi'
 
 export default function AcceptInvitePage() {
@@ -38,27 +42,93 @@ export default function AcceptInvitePage() {
     }
 
     void run()
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [token])
 
-  if (status === 'loading') return <div>Accepting invite...</div>
-  if (status === 'no-token') return <div>Please sign in to accept this invite.</div>
-  if (status === 'error') return (
-    <div>
-      <h1>Failed to accept invite</h1>
-      <p className="text-sm text-red-400">{message ?? 'Unknown error'}</p>
-      <button onClick={() => router.push('/')} className="mt-4 rounded border px-3 py-1">Go home</button>
-    </div>
-  )
-
   return (
-    <div>
-      <h1 className="font-display text-2xl">Invite accepted</h1>
-      <p className="text-sm text-primary-300">You've been added to the firm. You can now access firm resources.</p>
-      <div className="mt-4">
-        <button onClick={() => router.push('/lawyer/profile')} className="rounded bg-gold-500 px-3 py-2 font-semibold text-black">Go to profile</button>
+    <div className="relative min-h-screen overflow-hidden bg-[#07111a] text-neutral-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(201,146,58,0.12),transparent_50%)]" />
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/60 to-transparent" />
+
+      <div className="relative w-full max-w-md">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-500 text-primary-900 shadow-lg shadow-gold-500/30">
+            <LawIcon width={22} height={22} />
+          </div>
+        </div>
+
+        {status === 'loading' && (
+          <Card className="p-8 text-center space-y-4">
+            <div className="flex justify-center">
+              <span className="animate-spin h-8 w-8 border-2 border-gold-400 border-t-transparent rounded-full" />
+            </div>
+            <p className="text-neutral-300">Accepting your invitation…</p>
+          </Card>
+        )}
+
+        {status === 'no-token' && (
+          <Card className="p-8 text-center space-y-4">
+            <p className="font-display text-xl text-neutral-50">Sign in required</p>
+            <p className="text-sm text-neutral-400">
+              You need to be signed in to accept a firm invitation.
+            </p>
+            <div className="flex flex-col gap-3 pt-2">
+              <Button variant="gold" className="w-full" onClick={() => router.push('/auth/lawyer-login')}>
+                Sign in to firm workspace
+              </Button>
+              <Button variant="outline" className="w-full" onClick={() => router.push('/')}>
+                Go home
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {status === 'error' && (
+          <Card className="p-8 text-center space-y-4 border border-crimson-500/30">
+            <div className="flex justify-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-crimson-500/10 border border-crimson-500/30">
+                <span className="text-crimson-400 text-2xl">✕</span>
+              </div>
+            </div>
+            <div>
+              <p className="font-display text-xl text-neutral-50">Failed to accept invite</p>
+              {message && <p className="mt-2 text-sm text-crimson-300">{message}</p>}
+            </div>
+            <div className="flex flex-col gap-3 pt-2">
+              <Button variant="outline" className="w-full" onClick={() => router.push('/lawyer/dashboard')}>
+                Go to dashboard
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {status === 'accepted' && (
+          <Card className="p-8 text-center space-y-4 border border-emerald-500/20">
+            <div className="flex justify-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30">
+                <CheckIcon className="h-7 w-7 text-emerald-400" />
+              </div>
+            </div>
+            <div>
+              <p className="font-display text-2xl text-neutral-50">Invite accepted!</p>
+              <p className="mt-2 text-sm text-neutral-300">
+                You've been added to the firm. You can now access firm resources and manage matters.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 pt-2">
+              <Button variant="gold" className="w-full" onClick={() => router.push('/lawyer/dashboard')}>
+                Go to firm dashboard
+              </Button>
+              <Link
+                href="/lawyer/office/me"
+                className="text-sm text-gold-300 hover:text-gold-200 transition-colors"
+              >
+                Set up my office →
+              </Link>
+            </div>
+          </Card>
+        )}
       </div>
     </div>
   )

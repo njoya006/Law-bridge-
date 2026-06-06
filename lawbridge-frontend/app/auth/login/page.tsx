@@ -22,7 +22,7 @@ export default function LoginPage() {
     try {
       const result = await loginWithEmail(email, password)
       applyRoleToSession(result.me, 'client')
-      router.push(result.me.role.toLowerCase() === 'client' ? '/dashboard' : '/lawyer/dashboard')
+      router.push('/dashboard')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to sign in')
     } finally {

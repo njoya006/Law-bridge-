@@ -12,7 +12,6 @@ export default function LawyerLoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [staffRole, setStaffRole] = useState('Secretary / Firm Admin')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -24,7 +23,6 @@ export default function LawyerLoginPage() {
     try {
       const result = await loginWithEmail(email, password)
       applyRoleToSession(result.me, 'lawyer')
-      localStorage.setItem('userRole', staffRole)
       router.push('/lawyer/dashboard')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to sign in')
@@ -90,35 +88,26 @@ export default function LawyerLoginPage() {
             </div>
 
             <form onSubmit={submit} className="space-y-5">
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Input
-                  label="Email address"
-                  type="email"
-                  value={email}
-                  onChange={event => setEmail(event.target.value)}
-                  placeholder="admin@lawfirm.com"
-                />
-                <Input
-                  label="Password"
-                  type="password"
-                  value={password}
-                  onChange={event => setPassword(event.target.value)}
-                  placeholder="Enter your password"
-                />
-              </div>
+              <Input
+                label="Email address"
+                type="email"
+                value={email}
+                onChange={event => setEmail(event.target.value)}
+                placeholder="admin@lawfirm.com"
+              />
+              <Input
+                label="Password"
+                type="password"
+                value={password}
+                onChange={event => setPassword(event.target.value)}
+                placeholder="Enter your password"
+              />
 
               {error && (
                 <div className="rounded-2xl border border-crimson-500/30 bg-crimson-500/10 px-4 py-3 text-sm text-crimson-100">
                   {error}
                 </div>
               )}
-
-              <Input
-                label="Role in the firm"
-                value={staffRole}
-                onChange={event => setStaffRole(event.target.value)}
-                placeholder="Secretary / Firm Admin"
-              />
 
               <Button type="submit" variant="gold" size="xl" className="w-full" disabled={loading}>
                 {loading ? 'Signing in...' : 'Sign in to firm workspace'}
