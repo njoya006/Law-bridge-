@@ -99,7 +99,7 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
     'x-document-password',
 ]
-CASE_SERVICE_URL = config('CASE_SERVICE_URL', default='http://case-service:8004/api/v1/cases')
+CASE_SERVICE_URL = config('CASE_SERVICE_URL', default='http://case-service/api/v1/cases')
 
 from datetime import timedelta
 SIMPLE_JWT = {
