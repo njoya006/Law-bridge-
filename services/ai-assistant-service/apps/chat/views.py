@@ -175,3 +175,4 @@ class TestGenerateView(APIView):
             return Response({'response': result.get('response', '')})
         except Exception as exc:
             return Response({'error': str(exc)}, status=500)
+
