@@ -1,0 +1,41 @@
+# Production overlay — applied by jenkins/scripts/deploy-production.sh after manual approval.
+# Jenkins updates image tags to $GIT_COMMIT_SHORT before applying:
+#   kustomize edit set image ghcr.io/njoya006/lawbridge-auth-service=ghcr.io/njoya006/lawbridge-auth-service:$GIT_COMMIT_SHORT
+# That command updates the newTag fields below in-place.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: lawbridge
+
+resources:
+  - ../../
+
+# Production keeps 2 replicas (the base default) — no patch needed.
+# Add a PodDisruptionBudget patch here if you need zero-downtime rolling updates.
+
+# Image tags are pinned to a specific git commit SHA.
+# Jenkins calls `kustomize edit set image ... :$GIT_COMMIT_SHORT` before kubectl apply.
+# The :latest values below are only the fallback — never deploy production without CI setting these.
+images:
+  - name: ghcr.io/njoya006/lawbridge-auth-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-client-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-lawyer-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-case-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-document-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-notification-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-payment-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-calendar-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-monitoring-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-search-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-ai-assistant-service
+    newTag: latest

@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: lawyer-service
-        image: lawbridge/lawyer-service:latest
+        image: ghcr.io/njoya006/lawbridge-lawyer-service:latest
         ports:
         - containerPort: 8003
         env:

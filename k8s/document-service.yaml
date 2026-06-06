@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: document-service
-        image: lawbridge/document-service:latest
+        image: ghcr.io/njoya006/lawbridge-document-service:latest
         ports:
         - containerPort: 8005
         env:

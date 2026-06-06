@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: case-service
-        image: lawbridge/case-service:latest
+        image: ghcr.io/njoya006/lawbridge-case-service:latest
         ports:
         - containerPort: 8004
         env:

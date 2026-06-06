@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: ai-assistant-service
-        image: lawbridge/ai-assistant-service:latest
+        image: ghcr.io/njoya006/lawbridge-ai-assistant-service:latest
         ports:
         - containerPort: 8011
         env:
@@ -78,7 +78,7 @@ spec:
     spec:
       containers:
       - name: celery-worker
-        image: lawbridge/ai-assistant-service:latest
+        image: ghcr.io/njoya006/lawbridge-ai-assistant-service:latest
         command: ["celery", "-A", "core", "worker", "--loglevel=info", "--concurrency=1"]
         env:
         - name: DB_HOST

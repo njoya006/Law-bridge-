@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: calendar-service
-        image: lawbridge/calendar-service:latest
+        image: ghcr.io/njoya006/lawbridge-calendar-service:latest
         ports:
         - containerPort: 8008
         # Run migrations then launch gunicorn (mirrors docker-compose command)

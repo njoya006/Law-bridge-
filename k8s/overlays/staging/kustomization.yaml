@@ -1,0 +1,47 @@
+# Staging overlay — applied by jenkins/scripts/deploy-staging.sh on every develop merge.
+# Inherits the full base (../../) and patches down to 1 replica per service to save cost.
+# Images use :latest, which Jenkins always pushes on a successful build.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: lawbridge
+
+resources:
+  - ../../
+
+# Scale every service Deployment to 1 replica in staging
+patches:
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      labelSelector: "app in (auth-service,client-service,client-celery-worker,lawyer-service,case-service,document-service,notification-service,payment-service,calendar-service,monitoring-service,search-service,ai-assistant-service,ai-assistant-celery)"
+
+# Staging uses :latest — Jenkins pushes this tag on every develop merge.
+# The images block below is a no-op when tags already say :latest;
+# it's here so `kustomize edit set image` has a target to update per-build.
+images:
+  - name: ghcr.io/njoya006/lawbridge-auth-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-client-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-lawyer-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-case-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-document-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-notification-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-payment-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-calendar-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-monitoring-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-search-service
+    newTag: latest
+  - name: ghcr.io/njoya006/lawbridge-ai-assistant-service
+    newTag: latest
