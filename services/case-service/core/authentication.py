@@ -45,3 +45,4 @@ class CustomJWTAuthentication(BaseAuthentication):
         except Exception as e:
             raise AuthenticationFailed(f'Authentication failed: {str(e)}')
 
+
