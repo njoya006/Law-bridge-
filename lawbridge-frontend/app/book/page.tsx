@@ -131,11 +131,13 @@ export default function BookPage() {
       }, access)
       try {
         await createCalendarEvent({
-          title: `Consultation: ${targetName}`, description,
-          start_time: `${preferredDate}T${preferredTime}:00`,
-          end_time: `${preferredDate}T${preferredTime}:00`,
+          case_id: caseData.id,
           event_type: 'consultation',
+          date: preferredDate,
+          time: preferredTime,
           location: consultationType === 'in_person' ? location : 'Virtual',
+          virtual_link: consultationType === 'virtual' ? virtualLink : null,
+          initiator_id: clientEmail,
         }, access)
       } catch { /* non-fatal */ }
       setCaseId(caseData.id)
