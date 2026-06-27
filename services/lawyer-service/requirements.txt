@@ -9,3 +9,5 @@ pytest-django
 redis
 django-cors-headers
 httpx
+minio
+Pillow

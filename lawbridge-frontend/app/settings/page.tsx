@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import { api } from '../../lib/api'
+import { getLang, setLang, t, type Lang } from '../../lib/i18n'
 
 type Prefs = {
   language: 'en' | 'fr'
@@ -28,12 +29,12 @@ const DEFAULT_PREFS: Prefs = {
 
 type Tab = 'notifications' | 'language' | 'communication' | 'privacy' | 'security'
 
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'notifications', label: 'Notifications' },
-  { id: 'language', label: 'Language & Locale' },
-  { id: 'communication', label: 'Communication' },
-  { id: 'privacy', label: 'Privacy' },
-  { id: 'security', label: 'Security' },
+const TABS: { id: Tab; labelKey: string }[] = [
+  { id: 'notifications', labelKey: 'settings.tabs.notifications' },
+  { id: 'language', labelKey: 'settings.tabs.language' },
+  { id: 'communication', labelKey: 'settings.tabs.communication' },
+  { id: 'privacy', labelKey: 'settings.tabs.privacy' },
+  { id: 'security', labelKey: 'settings.tabs.security' },
 ]
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -71,6 +72,7 @@ function SettingRow({
 
 export default function ClientSettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('notifications')
+  const [lang, setLangState] = useState<Lang>('en')
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -81,8 +83,22 @@ export default function ClientSettingsPage() {
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
   const [pwError, setPwError] = useState('')
   const [pwSuccess, setPwSuccess] = useState(false)
+  const [pwSaving, setPwSaving] = useState(false)
 
   useEffect(() => {
+    // Read ?tab= param on client side only
+    const params = new URLSearchParams(window.location.search)
+    const tabParam = params.get('tab')
+    const validTabs = TABS.map(x => x.id)
+    if (tabParam && validTabs.includes(tabParam as Tab)) setActiveTab(tabParam as Tab)
+
+    // Initialise language from localStorage
+    setLangState(getLang())
+    const onLangChanged = (e: Event) => {
+      setLangState((e as CustomEvent<{ lang: Lang }>).detail.lang)
+    }
+    window.addEventListener('lawbridge:lang-changed', onLangChanged)
+
     const run = async () => {
       const access = localStorage.getItem('access')
       if (!access) { setLoading(false); return }
@@ -96,6 +112,7 @@ export default function ClientSettingsPage() {
       }
     }
     void run()
+    return () => window.removeEventListener('lawbridge:lang-changed', onLangChanged)
   }, [])
 
   const update = useCallback((patch: Partial<Prefs>) => {
@@ -110,6 +127,8 @@ export default function ClientSettingsPage() {
     setSaveSuccess(false)
     try {
       await api.patch('auth', '/auth/preferences/', prefs, access)
+      // Apply language change immediately
+      setLang(prefs.language)
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (cause) {
@@ -122,8 +141,8 @@ export default function ClientSettingsPage() {
   return (
     <main className="max-w-4xl w-full space-y-6">
       <div>
-        <h1 className="font-display text-display-md text-neutral-50">Settings</h1>
-        <p className="text-neutral-400">Configure your preferences and account security</p>
+        <h1 className="font-display text-display-md text-neutral-50">{t('settings.title', lang)}</h1>
+        <p className="text-neutral-400">{t('settings.subtitle', lang)}</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-6">
@@ -140,7 +159,7 @@ export default function ClientSettingsPage() {
                       : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-700/30'
                     }`}
                 >
-                  {tab.label}
+                  {t(tab.labelKey as Parameters<typeof t>[0], lang)}
                 </button>
               </li>
             ))}
@@ -161,23 +180,21 @@ export default function ClientSettingsPage() {
               {/* ── NOTIFICATIONS ── */}
               {activeTab === 'notifications' && (
                 <Card className="p-6">
-                  <h2 className="font-heading text-body-lg text-neutral-50 mb-1">Notification Preferences</h2>
-                  <p className="text-neutral-400 text-body-sm mb-6">
-                    Choose which events send you a notification. These apply to in-app and email alerts.
-                  </p>
-                  <SettingRow label="Case Updates" description="When your case status changes or a lawyer posts an update">
+                  <h2 className="font-heading text-body-lg text-neutral-50 mb-1">{t('settings.notifications.title', lang)}</h2>
+                  <p className="text-neutral-400 text-body-sm mb-6">{t('settings.notifications.subtitle', lang)}</p>
+                  <SettingRow label={t('settings.notifications.case_updates', lang)} description={t('settings.notifications.case_updates.desc', lang)}>
                     <Toggle checked={prefs.notify_case_updates} onChange={v => update({ notify_case_updates: v })} />
                   </SettingRow>
-                  <SettingRow label="Document Activity" description="When a document is uploaded, signed, or shared with you">
+                  <SettingRow label={t('settings.notifications.documents', lang)} description={t('settings.notifications.documents.desc', lang)}>
                     <Toggle checked={prefs.notify_documents} onChange={v => update({ notify_documents: v })} />
                   </SettingRow>
-                  <SettingRow label="Messages" description="When you receive a new message from your lawyer">
+                  <SettingRow label={t('settings.notifications.messages', lang)} description={t('settings.notifications.messages.desc', lang)}>
                     <Toggle checked={prefs.notify_messages} onChange={v => update({ notify_messages: v })} />
                   </SettingRow>
-                  <SettingRow label="Billing & Payments" description="Invoice issued, payment received, or payment due reminders">
+                  <SettingRow label={t('settings.notifications.billing', lang)} description={t('settings.notifications.billing.desc', lang)}>
                     <Toggle checked={prefs.notify_billing} onChange={v => update({ notify_billing: v })} />
                   </SettingRow>
-                  <SettingRow label="Reminders" description="Court dates, deadlines, and scheduled appointments">
+                  <SettingRow label={t('settings.notifications.reminders', lang)} description={t('settings.notifications.reminders.desc', lang)}>
                     <Toggle checked={prefs.notify_reminders} onChange={v => update({ notify_reminders: v })} />
                   </SettingRow>
                 </Card>
@@ -186,14 +203,16 @@ export default function ClientSettingsPage() {
               {/* ── LANGUAGE ── */}
               {activeTab === 'language' && (
                 <Card className="p-6">
-                  <h2 className="font-heading text-body-lg text-neutral-50 mb-1">Language & Locale</h2>
-                  <p className="text-neutral-400 text-body-sm mb-6">
-                    Set your preferred language for the platform interface and documents.
-                  </p>
-                  <SettingRow label="Platform Language" description="The language used throughout the Lawbridge interface">
+                  <h2 className="font-heading text-body-lg text-neutral-50 mb-1">{t('settings.language.title', lang)}</h2>
+                  <p className="text-neutral-400 text-body-sm mb-6">{t('settings.language.subtitle', lang)}</p>
+                  <SettingRow label={t('settings.language.platform', lang)} description={t('settings.language.platform.desc', lang)}>
                     <select
                       value={prefs.language}
-                      onChange={e => update({ language: e.target.value as 'en' | 'fr' })}
+                      onChange={e => {
+                        const newLang = e.target.value as 'en' | 'fr'
+                        update({ language: newLang })
+                        setLang(newLang)
+                      }}
                       className="rounded-lg px-4 py-2 bg-primary-800/40 text-neutral-50
                        border border-neutral-700/50 focus:outline-none focus:ring-2 focus:ring-gold-500/50
                        focus:border-gold-400 font-body text-body-sm"
@@ -204,8 +223,10 @@ export default function ClientSettingsPage() {
                   </SettingRow>
                   <div className="mt-6 p-4 rounded-lg bg-primary-800/20 border border-neutral-700/30">
                     <p className="text-neutral-400 text-body-sm">
-                      <strong className="text-neutral-200">Note:</strong> Cameroon is a bilingual country. Legal documents
-                      may be prepared in English, French, or both depending on your case and jurisdiction.
+                      <strong className="text-neutral-200">
+                        {lang === 'fr' ? 'Remarque :' : 'Note:'}
+                      </strong>{' '}
+                      {t('settings.language.note', lang)}
                     </p>
                   </div>
                 </Card>
@@ -313,17 +334,32 @@ export default function ClientSettingsPage() {
                       <Button
                         variant="gold"
                         size="sm"
-                        onClick={() => {
+                        disabled={pwSaving}
+                        onClick={async () => {
                           setPwError('')
+                          setPwSuccess(false)
                           if (!pwForm.current) { setPwError('Enter your current password.'); return }
                           if (pwForm.next.length < 8) { setPwError('New password must be at least 8 characters.'); return }
                           if (pwForm.next !== pwForm.confirm) { setPwError('Passwords do not match.'); return }
-                          // TODO: wire to /auth/password/change/ endpoint when added
-                          setPwSuccess(true)
-                          setPwForm({ current: '', next: '', confirm: '' })
+                          const access = localStorage.getItem('access')
+                          if (!access) return
+                          setPwSaving(true)
+                          try {
+                            await api.post('auth', '/auth/me/password/', {
+                              current_password: pwForm.current,
+                              new_password: pwForm.next,
+                              confirm_password: pwForm.confirm,
+                            }, access)
+                            setPwSuccess(true)
+                            setPwForm({ current: '', next: '', confirm: '' })
+                          } catch (e) {
+                            setPwError(e instanceof Error ? e.message.replace(/^4\d\d.*?: /, '') : 'Failed to change password')
+                          } finally {
+                            setPwSaving(false)
+                          }
                         }}
                       >
-                        Change Password
+                        {pwSaving ? 'Saving…' : 'Change Password'}
                       </Button>
                     </div>
                   </Card>
@@ -350,9 +386,9 @@ export default function ClientSettingsPage() {
               {activeTab !== 'security' && (
                 <div className="mt-6 flex items-center gap-4">
                   <Button variant="gold" onClick={handleSave} disabled={saving}>
-                    {saving ? 'Saving…' : 'Save Changes'}
+                    {saving ? t('settings.saving', lang) : t('settings.save', lang)}
                   </Button>
-                  {saveSuccess && <span className="text-emerald-400 text-sm">Saved.</span>}
+                  {saveSuccess && <span className="text-emerald-400 text-sm">{t('settings.saved', lang)}</span>}
                   {saveError && <span className="text-crimson-300 text-sm">{saveError}</span>}
                 </div>
               )}

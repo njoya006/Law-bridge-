@@ -181,6 +181,120 @@ class CaseAssignView(APIView):
         return Response(CaseSerializer(case).data)
 
 
+class BookingAcceptView(APIView):
+    """POST /api/v1/cases/{case_id}/accept/ — Lawyer or firm admin accepts a booking."""
+
+    def post(self, request, case_id):
+        try:
+            case = Case.objects.get(id=case_id)
+        except Case.DoesNotExist:
+            return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        payload = extract_token_payload(request)
+        role = payload.get('role', 'client')
+        if role not in STAFF_ROLES:
+            return Response({'error': 'Only lawyers and firm admins can accept bookings'}, status=status.HTTP_403_FORBIDDEN)
+
+        case.booking_status = 'accepted'
+        # Assign accepting lawyer so case appears in their list
+        user_id = payload.get('user_id') or extract_user_id_from_token(request)
+        if not case.assigned_lawyer_id:
+            case.assigned_lawyer_id = user_id
+        case.add_timeline_entry('filed', 'Booking accepted by lawyer/firm')
+
+        try:
+            import json as _json, urllib.request as _urllib
+            notif_data = _json.dumps({
+                'user_id': str(case.client_id),
+                'event_type': 'booking_accepted',
+                'title_en': 'Booking Accepted',
+                'title_fr': 'Réservation acceptée',
+                'message_en': f'Your booking request for "{case.title}" has been accepted. You will be contacted to confirm consultation details.',
+                'message_fr': f'Votre demande de réservation "{case.title}" a été acceptée.',
+                'metadata': {'case_id': str(case.id)},
+                'send_email': bool(case.booking_metadata.get('client_email')),
+                'user_email': case.booking_metadata.get('client_email', ''),
+                'lang': case.language,
+            }).encode()
+            req = _urllib.Request('http://notification-service/api/v1/notifications/internal/create/',
+                data=notif_data, headers={'X-Internal-Key': 'dev-internal-key', 'Content-Type': 'application/json'}, method='POST')
+            _urllib.urlopen(req, timeout=5)
+        except Exception:
+            pass
+
+        return Response(CaseSerializer(case).data)
+
+
+class BookingDeclineView(APIView):
+    """POST /api/v1/cases/{case_id}/decline/ — Lawyer or firm admin declines a booking."""
+
+    def post(self, request, case_id):
+        try:
+            case = Case.objects.get(id=case_id)
+        except Case.DoesNotExist:
+            return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        payload = extract_token_payload(request)
+        role = payload.get('role', 'client')
+        if role not in STAFF_ROLES:
+            return Response({'error': 'Only lawyers and firm admins can decline bookings'}, status=status.HTTP_403_FORBIDDEN)
+
+        reason = (request.data.get('reason') or '').strip()
+        case.booking_status = 'declined'
+        case.booking_metadata['decline_reason'] = reason
+        case.save(update_fields=['booking_metadata'])
+        case.add_timeline_entry('dismissed', f'Booking declined: {reason or "No reason provided"}')
+
+        try:
+            import json as _json, urllib.request as _urllib
+            notif_data = _json.dumps({
+                'user_id': str(case.client_id),
+                'event_type': 'booking_declined',
+                'title_en': 'Booking Declined',
+                'title_fr': 'Réservation refusée',
+                'message_en': f'Your booking for "{case.title}" was declined.{(" Reason: " + reason) if reason else ""} If you paid a booking fee, a refund will be processed within 3–5 business days.',
+                'message_fr': f'Votre réservation "{case.title}" a été refusée.',
+                'metadata': {'case_id': str(case.id), 'reason': reason},
+                'send_email': bool(case.booking_metadata.get('client_email')),
+                'user_email': case.booking_metadata.get('client_email', ''),
+                'lang': case.language,
+            }).encode()
+            req = _urllib.Request('http://notification-service/api/v1/notifications/internal/create/',
+                data=notif_data, headers={'X-Internal-Key': 'dev-internal-key', 'Content-Type': 'application/json'}, method='POST')
+            _urllib.urlopen(req, timeout=5)
+        except Exception:
+            pass
+
+        return Response(CaseSerializer(case).data)
+
+
+class IncomingBookingsView(APIView):
+    """GET /api/v1/cases/incoming-bookings/ — Lawyer/firm sees booking requests directed at them."""
+
+    def get(self, request):
+        payload = extract_token_payload(request)
+        role = payload.get('role', 'client')
+        if role not in STAFF_ROLES:
+            return Response({'error': 'Only lawyers and firm admins can view incoming bookings'}, status=status.HTTP_403_FORBIDDEN)
+
+        user_id = payload.get('user_id') or extract_user_id_from_token(request)
+
+        # Match by target_id (lawyer profile UUID) or by assigned_lawyer_id with pending status
+        # Using __icontains on JSONField is supported in Django 3.1+ with PostgreSQL
+        from django.db.models import Q
+        cases = Case.objects.filter(
+            Q(booking_metadata__target_id=str(user_id)) |
+            Q(assigned_lawyer_id=user_id, booking_status='pending')
+        ).exclude(booking_status='').order_by('-created_at')
+
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            cases = cases.filter(booking_status=status_filter)
+
+        serializer = CaseSerializer(cases, many=True)
+        return Response({'count': cases.count(), 'results': serializer.data})
+
+
 class CaseNoteView(APIView):
     """Add notes to a case"""
     

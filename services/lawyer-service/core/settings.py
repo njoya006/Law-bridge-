@@ -87,6 +87,15 @@ STATIC_URL = '/static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+CORS_ALLOW_ALL_ORIGINS = True
+
+# MinIO / object storage
+MINIO_ENDPOINT = config('MINIO_ENDPOINT', default='minio:9000')
+MINIO_ACCESS_KEY = config('MINIO_ACCESS_KEY', default='minioadmin')
+MINIO_SECRET_KEY = config('MINIO_SECRET_KEY', default='minioadmin')
+MINIO_BUCKET_NAME = config('MINIO_BUCKET_NAME', default='documents')
+MINIO_USE_SSL = config('MINIO_USE_SSL', default=False, cast=bool)
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'apps.auth_proxy.AuthProxyAuthentication',

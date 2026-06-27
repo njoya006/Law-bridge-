@@ -9,6 +9,18 @@ from .serializers import (
 )
 
 
+class LawyerPublicDetailView(APIView):
+    """GET /api/v1/lawyers/{lawyer_id}/ — public full profile of a single lawyer."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, lawyer_id):
+        try:
+            profile = LawyerProfile.objects.get(id=lawyer_id)
+        except (LawyerProfile.DoesNotExist, ValueError):
+            return Response({'error': 'Lawyer not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(LawyerProfileSerializer(profile).data)
+
+
 def _lawyer_uuid(request):
     """Return the UUID of the authenticated lawyer from the JWT payload."""
     payload = getattr(request, 'auth_payload', {})

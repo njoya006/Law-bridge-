@@ -3,16 +3,23 @@ from apps.lawyers.models import LawyerProfile
 
 
 class LawyerDiscoverySerializer(serializers.ModelSerializer):
-    """Simplified lawyer profile for public discovery"""
+    """Public lawyer profile for discovery — exposes all browsable fields."""
     name = serializers.CharField(source='full_name')
+    is_verified = serializers.SerializerMethodField()
 
     class Meta:
         model = LawyerProfile
         fields = (
-            'id', 'name', 'specialization', 'qualifications', 'bio',
-            'years_of_experience', 'bijural_flag', 'consultation_fee',
-            'availability_status', 'active_cases', 'average_rating',
+            'id', 'user_id', 'name', 'specialization', 'qualifications', 'bio',
+            'bar_number', 'years_of_experience', 'bijural_flag', 'consultation_fee',
+            'availability_status', 'practice_circuit', 'accepted_case_types',
+            'accepts_urgent_cases', 'consultation_mode',
+            'active_cases', 'total_cases', 'average_rating', 'rating_count',
+            'is_verified',
         )
+
+    def get_is_verified(self, obj):
+        return obj.verified_at is not None
 
 
 class LawyerMatchingRequestSerializer(serializers.Serializer):

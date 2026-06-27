@@ -117,5 +117,6 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 
 SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
+SENDGRID_FROM_EMAIL = config('SENDGRID_FROM_EMAIL', default='noreply@lawbridge.cm')
 AFRICAS_TALKING_API_KEY = config('AFRICAS_TALKING_API_KEY', default='')
 INTERNAL_API_KEY = config('INTERNAL_API_KEY', default='dev-internal-key')

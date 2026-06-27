@@ -3,11 +3,34 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from .models import Firm, FirmMembership, Invite
-from .serializers import FirmSerializer, FirmMembershipSerializer, InviteSerializer
+from django.http import HttpResponse
+from django.conf import settings
+from io import BytesIO
+from .models import Firm, FirmMembership, Invite, FirmActionLog
+from .serializers import (
+    FirmSerializer, FirmMembershipSerializer,
+    InviteSerializer, FirmActionLogSerializer,
+)
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
+
+
+def _minio_client():
+    from minio import Minio
+    return Minio(
+        settings.MINIO_ENDPOINT,
+        access_key=settings.MINIO_ACCESS_KEY,
+        secret_key=settings.MINIO_SECRET_KEY,
+        secure=settings.MINIO_USE_SSL,
+    )
+
+
+def _ensure_bucket(client):
+    bucket = settings.MINIO_BUCKET_NAME
+    if not client.bucket_exists(bucket):
+        client.make_bucket(bucket)
+    return bucket
 
 
 def user_has_firm_admin(user, firm):
@@ -23,14 +46,50 @@ def is_internal_request(request):
     return request.headers.get('X-Internal-Api-Key') == getattr(settings, 'INTERNAL_API_KEY', 'dev-internal-key')
 
 
+def _actor_info(request):
+    """Return (uuid_str, email) for the authenticated user from JWT payload."""
+    payload = getattr(request, 'auth_payload', {})
+    uid = str(payload.get('user_id') or payload.get('sub') or '')
+    email = payload.get('email') or getattr(request.user, 'email', '')
+    return uid, email
+
+
+def _log_action(firm, request, action, target_email='', old_role='', new_role='', reason=''):
+    uid, email = _actor_info(request)
+    FirmActionLog.objects.create(
+        firm=firm,
+        performed_by_id=uid,
+        performed_by_email=email,
+        action=action,
+        target_email=target_email,
+        old_role=old_role,
+        new_role=new_role,
+        reason=reason,
+    )
+
+
 class FirmMembersView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, firm_id):
         firm = get_object_or_404(Firm, id=firm_id)
-        members = FirmMembership.objects.filter(firm=firm, is_active=True)
+        members = FirmMembership.objects.filter(firm=firm, is_active=True).select_related('user')
         serializer = FirmMembershipSerializer(members, many=True)
         return Response(serializer.data)
+
+
+class FirmLawyersView(APIView):
+    """GET /api/v1/firms/{firm_id}/lawyers/ — full lawyer profiles for all active firm members."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, firm_id):
+        from apps.lawyers.models import LawyerProfile
+        from apps.discovery.serializers import LawyerDiscoverySerializer
+        firm = get_object_or_404(Firm, id=firm_id)
+        members = FirmMembership.objects.filter(firm=firm, is_active=True)
+        user_uuids = [m.user_uuid for m in members if m.user_uuid]
+        profiles = LawyerProfile.objects.filter(user_id__in=user_uuids)
+        return Response(LawyerDiscoverySerializer(profiles, many=True).data)
 
 
 class FirmBrowseView(APIView):
@@ -41,7 +100,6 @@ class FirmBrowseView(APIView):
         name = request.query_params.get('q', '').strip()
         if name:
             query = query.filter(name__icontains=name)
-
         results = []
         for firm in query:
             results.append({
@@ -59,7 +117,6 @@ class FirmSearchView(APIView):
         name = request.query_params.get('q', '').strip()
         if name:
             query = query.filter(name__icontains=name)
-
         results = []
         for firm in query:
             results.append({
@@ -83,11 +140,10 @@ class FirmCreateView(APIView):
         name = (request.data.get('name') or '').strip()
         if not name:
             return Response({'detail': 'name is required'}, status=status.HTTP_400_BAD_REQUEST)
-
         if Firm.objects.filter(name__iexact=name).exists():
             return Response({'detail': 'Firm already exists'}, status=status.HTTP_400_BAD_REQUEST)
-
         firm = Firm.objects.create(name=name)
+        uid, _ = _actor_info(request)
         FirmMembership.objects.create(
             user=request.user,
             firm=firm,
@@ -96,12 +152,12 @@ class FirmCreateView(APIView):
             invited_email=request.user.email,
             accepted_at=timezone.now(),
             is_active=True,
+            user_uuid=uid or None,
         )
         return Response(FirmSerializer(firm).data, status=status.HTTP_201_CREATED)
 
 
 class UserFirmMembershipsView(APIView):
-    # skip default authentication to allow internal API key checks
     authentication_classes = []
     permission_classes = [permissions.AllowAny]
 
@@ -118,41 +174,140 @@ class InviteCreateView(APIView):
         firm = get_object_or_404(Firm, id=firm_id)
         if not user_has_firm_admin(request.user, firm):
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        # server-side validation: ensure invitee is registered as a lawyer
-        email = request.data.get('email')
+
+        email = (request.data.get('email') or '').strip().lower()
+        role = request.data.get('role', 'associate')
+        note = (request.data.get('note') or '').strip()
+
+        if not email:
+            return Response({'detail': 'email is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Prevent re-inviting an active member
+        try:
+            invited_user = User.objects.get(email=email)
+            if FirmMembership.objects.filter(user=invited_user, firm=firm, is_active=True).exists():
+                return Response(
+                    {'detail': 'This person is already an active member of the firm.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except User.DoesNotExist:
+            invited_user = None
+
+        # Validate invitee is a registered lawyer (not a client)
         if email:
             try:
                 import httpx
-                auth_url = f"http://auth-service:8001/api/v1/auth/users/"
-                r = httpx.get(auth_url, params={'email': email}, timeout=5.0)
+                r = httpx.get('http://auth-service/api/v1/auth/users/', params={'email': email}, timeout=5.0)
                 if r.status_code == 404:
-                    return Response({'detail': 'Invitee not registered'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': 'No lawyer account found with that email address.'}, status=status.HTTP_400_BAD_REQUEST)
                 r.raise_for_status()
                 user_data = r.json()
                 if user_data.get('role') == 'client':
-                    return Response({'detail': 'Invitee must be registered as a staff account to be invited'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': 'Invitee must be registered as a lawyer or staff account, not a client.'}, status=status.HTTP_400_BAD_REQUEST)
             except httpx.HTTPError:
-                return Response({'detail': 'Failed to validate invitee'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                return Response({'detail': 'Could not verify the invitee — auth service unavailable. Try again shortly.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-        serializer = InviteSerializer(data=request.data)
+        serializer = InviteSerializer(data={'email': email, 'role': role})
         if serializer.is_valid():
             invite = serializer.save(firm=firm)
-            # Optionally create a placeholder membership tied to invited_email
-            if invite.email:
-                try:
-                    invited_user = User.objects.get(email=invite.email)
-                except User.DoesNotExist:
-                    invited_user = None
-
-                if invited_user:
-                    FirmMembership.objects.get_or_create(
-                        user=invited_user,
-                        firm=firm,
-                        defaults={'role': invite.role, 'invited_by': request.user, 'invited_email': invite.email}
-                    )
-
+            if invited_user:
+                FirmMembership.objects.get_or_create(
+                    user=invited_user,
+                    firm=firm,
+                    defaults={
+                        'role': role,
+                        'invited_by': request.user,
+                        'invited_email': email,
+                    },
+                )
+            _log_action(firm, request, 'invite_sent', target_email=email, new_role=role, reason=note)
             return Response(InviteSerializer(invite).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class FirmPendingInvitesView(APIView):
+    """List pending (not yet accepted) invites for a firm — admin only."""
+
+    def get(self, request, firm_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        if not user_has_firm_admin(request.user, firm):
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        pending = Invite.objects.filter(firm=firm, accepted_at__isnull=True).order_by('-created_at')
+        return Response(InviteSerializer(pending, many=True).data)
+
+
+class FirmActionLogView(APIView):
+    """Activity/audit log for a firm — admin only."""
+
+    def get(self, request, firm_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        if not user_has_firm_admin(request.user, firm):
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        logs = FirmActionLog.objects.filter(firm=firm).order_by('-created_at')[:100]
+        return Response(FirmActionLogSerializer(logs, many=True).data)
+
+
+class FirmLogoUploadView(APIView):
+    """POST /api/v1/firms/<firm_id>/logo/ — upload or replace firm logo (admin only)."""
+
+    def post(self, request, firm_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        if not user_has_firm_admin(request.user, firm):
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+
+        file = request.FILES.get('logo')
+        if not file:
+            return Response({'detail': 'logo file is required (multipart field: logo)'}, status=status.HTTP_400_BAD_REQUEST)
+
+        allowed_types = {'image/jpeg', 'image/png', 'image/webp'}
+        if file.content_type not in allowed_types:
+            return Response({'detail': 'Only JPEG, PNG, or WebP images are accepted.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if file.size > 5 * 1024 * 1024:
+            return Response({'detail': 'Image must be under 5 MB.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from PIL import Image
+            img = Image.open(file).convert('RGB')
+            img.thumbnail((512, 512), Image.LANCZOS)
+            buf = BytesIO()
+            img.save(buf, format='JPEG', quality=85, optimize=True)
+            data = buf.getvalue()
+        except Exception:
+            return Response({'detail': 'Could not process the image.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            object_name = f'firm-logos/{firm.id}.jpg'
+            client = _minio_client()
+            bucket = _ensure_bucket(client)
+            client.put_object(bucket, object_name, BytesIO(data), len(data), content_type='image/jpeg')
+        except Exception as exc:
+            return Response({'detail': f'Storage error: {exc}'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        firm.logo = object_name
+        firm.save(update_fields=['logo'])
+        return Response({'logo_url': f'/api/v1/firms/logo/{firm.id}/'}, status=status.HTTP_200_OK)
+
+
+class FirmLogoServeView(APIView):
+    """GET /api/v1/firms/logo/<firm_id>/ — serve firm logo (public, no auth)."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, firm_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        if not firm.logo:
+            return Response({'detail': 'No logo set for this firm.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            client = _minio_client()
+            obj = client.get_object(settings.MINIO_BUCKET_NAME, firm.logo)
+            data = obj.read()
+            content_type = obj.headers.get('content-type', 'image/jpeg')
+            response = HttpResponse(data, content_type=content_type)
+            response['Cache-Control'] = 'public, max-age=86400'
+            return response
+        except Exception:
+            return Response({'detail': 'Logo not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 class FirmDetailView(APIView):
@@ -170,14 +325,18 @@ class InviteAcceptView(APIView):
     def post(self, request, token):
         invite = get_object_or_404(Invite, token=token)
         if invite.accepted_at:
-            return Response({'detail': 'Invite already accepted'}, status=status.HTTP_400_BAD_REQUEST)
-        # Only allow non-client staff accounts to accept firm invites
+            return Response({'detail': 'This invite has already been accepted.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check expiry
+        if invite.expires_at and invite.expires_at < timezone.now():
+            return Response({'detail': 'This invite has expired. Please ask a firm admin to send a new one.'}, status=status.HTTP_400_BAD_REQUEST)
+
         payload = getattr(request, 'auth_payload', None)
         if not payload or payload.get('role') == 'client':
-            return Response({'detail': 'Only staff accounts may accept firm invites'}, status=status.HTTP_403_FORBIDDEN)
+            return Response({'detail': 'Only lawyer/staff accounts may accept firm invites.'}, status=status.HTTP_403_FORBIDDEN)
 
-        # create or activate membership for current user
         firm = invite.firm
+        uid, _ = _actor_info(request)
         membership, created = FirmMembership.objects.get_or_create(
             user=request.user,
             firm=firm,
@@ -186,17 +345,25 @@ class InviteAcceptView(APIView):
                 'invited_by': getattr(invite, 'invited_by', None),
                 'invited_email': invite.email,
                 'accepted_at': timezone.now(),
-            }
+                'user_uuid': uid or None,
+            },
         )
         if not created:
             membership.role = invite.role
             membership.accepted_at = timezone.now()
             membership.is_active = True
+            if uid:
+                membership.user_uuid = uid
             membership.save()
 
         invite.accepted_at = timezone.now()
         invite.save()
-        return Response(FirmMembershipSerializer(membership).data)
+
+        _log_action(firm, request, 'invite_accepted', target_email=invite.email, new_role=invite.role)
+        return Response({
+            **FirmMembershipSerializer(membership).data,
+            'firm_name': firm.name,
+        })
 
 
 class MemberRoleUpdateView(APIView):
@@ -206,12 +373,35 @@ class MemberRoleUpdateView(APIView):
         if not user_has_firm_admin(request.user, firm):
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
-        role = request.data.get('role')
-        if role not in dict(FirmMembership.ROLE_CHOICES):
-            return Response({'detail': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
+        # Cannot change the role of the firm owner (only the owner can demote themselves)
+        if membership.role == 'owner':
+            try:
+                actor_mem = FirmMembership.objects.get(user=request.user, firm=firm)
+                if actor_mem.role != 'owner':
+                    return Response(
+                        {'detail': 'Only the firm owner can change their own role.'},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+            except FirmMembership.DoesNotExist:
+                return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
-        membership.role = role
+        new_role = request.data.get('role')
+        if new_role not in dict(FirmMembership.ROLE_CHOICES):
+            return Response({'detail': 'Invalid role.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        reason = (request.data.get('reason') or '').strip()
+        if not reason:
+            return Response({'detail': 'A reason is required when changing a member\'s role.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        old_role = membership.role
+        target_email = membership.user.email if membership.user else (membership.invited_email or '')
+
+        membership.role = new_role
         membership.save()
+
+        _log_action(firm, request, 'role_changed', target_email=target_email,
+                    old_role=old_role, new_role=new_role, reason=reason)
+
         return Response(FirmMembershipSerializer(membership).data)
 
 
@@ -237,8 +427,37 @@ class MemberDeleteView(APIView):
     def delete(self, request, member_id):
         membership = get_object_or_404(FirmMembership, id=member_id)
         firm = membership.firm
+
         if not user_has_firm_admin(request.user, firm):
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
+        # Cannot remove the owner
+        if membership.role == 'owner':
+            return Response(
+                {'detail': 'The firm owner cannot be removed. Transfer ownership first.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Cannot remove yourself — use account settings to leave
+        if membership.user == request.user:
+            return Response(
+                {'detail': 'You cannot remove yourself. Use account settings to leave the firm.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reason = (request.data.get('reason') or '').strip()
+        if not reason or len(reason) < 10:
+            return Response(
+                {'detail': 'A reason of at least 10 characters is required to remove a member.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_email = membership.user.email if membership.user else (membership.invited_email or '')
+        old_role = membership.role
+
         membership.delete()
+
+        _log_action(firm, request, 'member_removed', target_email=target_email,
+                    old_role=old_role, reason=reason)
+
         return Response(status=status.HTTP_204_NO_CONTENT)

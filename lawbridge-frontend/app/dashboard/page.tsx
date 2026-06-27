@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card } from '../../components/ui/Card'
-import { getMyCases } from '../../lib/casesApi'
+import { getMyCases, type CaseItem } from '../../lib/casesApi'
 import { unreadNotificationCount, listNotifications, type NotificationItem } from '../../lib/notificationsApi'
 import { listDocuments } from '../../lib/documentsApi'
 import { getCaseProgress } from '../../lib/monitoringApi'
@@ -37,6 +37,7 @@ export default function DashboardPage() {
     monitoringOpen: null,
   })
   const [activity, setActivity] = useState<NotificationItem[]>([])
+  const [pendingBookings, setPendingBookings] = useState<CaseItem[]>([])
   const [serviceErrors, setServiceErrors] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -59,10 +60,12 @@ export default function DashboardPage() {
       ])
 
       let caseCount: number | null = null
-      let caseItems: { id: string }[] = []
+      let caseItems: CaseItem[] = []
       if (casesResult.status === 'fulfilled') {
         caseCount = casesResult.value.count
         caseItems = casesResult.value.results
+        // Show booking requests separately
+        setPendingBookings(caseItems.filter(c => c.booking_status === 'pending'))
       } else {
         errors.push('Matters service unavailable')
       }
@@ -149,6 +152,32 @@ export default function DashboardPage() {
               )}
             </Card>
           </section>
+
+          {/* Pending Bookings */}
+          {pendingBookings.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-heading text-body-md text-neutral-50">Pending Booking Requests</h3>
+                <span className="text-xs text-amber-400 border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 rounded-full">{pendingBookings.length} awaiting response</span>
+              </div>
+              <div className="space-y-3">
+                {pendingBookings.map(b => (
+                  <div key={b.id} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-neutral-200 text-sm truncate">{b.title}</p>
+                      <p className="text-neutral-500 text-xs mt-0.5">
+                        {b.booking_metadata?.target_name && <>With <span className="text-gold-400">{b.booking_metadata.target_name}</span> · </>}
+                        {b.booking_metadata?.preferred_date} {b.booking_metadata?.preferred_time}
+                      </p>
+                    </div>
+                    <Link href={`/bookings/${b.id}`} className="flex-shrink-0 px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-400 text-xs font-medium hover:bg-amber-500/10 transition-colors">
+                      View →
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
