@@ -269,15 +269,17 @@ export default function BookPage() {
           <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6">
             <h2 className="font-heading text-body-lg text-neutral-50 mb-4">Booking Summary</h2>
             <div className="space-y-3 text-sm">
-              {[
-                ['Booking with', targetName],
-                ['Case type', caseType],
-                ['Date & Time', `${preferredDate} at ${preferredTime}`],
-                ['Consultation', consultationType.replace('_', ' ')],
-                location ? ['Location', location] : null,
-                urgency === 'urgent' ? ['Priority', '⚡ Urgent'] : null,
-              ].filter(Boolean).map(([k, v]) => (
-                <div key={k as string} className="flex justify-between">
+              {(
+                [
+                  ['Booking with', targetName],
+                  ['Case type', caseType],
+                  ['Date & Time', `${preferredDate} at ${preferredTime}`],
+                  ['Consultation', consultationType.replace('_', ' ')],
+                  ...(location ? [['Location', location]] : []),
+                  ...(urgency === 'urgent' ? [['Priority', '⚡ Urgent']] : []),
+                ] as [string, string][]
+              ).map(([k, v]) => (
+                <div key={k} className="flex justify-between">
                   <span className="text-neutral-400">{k}</span>
                   <span className="text-neutral-200 capitalize">{v}</span>
                 </div>
