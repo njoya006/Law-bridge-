@@ -75,7 +75,7 @@ export default function BookingsPage() {
       try {
         const data = await getMyCases(access)
         // Only show cases that originated as booking requests
-        const bookingCases = data.results.filter(c => c.booking_status && c.booking_status !== '')
+        const bookingCases = data.results.filter(c => c.booking_status === 'pending' || c.booking_status === 'accepted' || c.booking_status === 'declined')
         setBookings(bookingCases)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load bookings')
