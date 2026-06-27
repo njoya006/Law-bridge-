@@ -8,7 +8,7 @@ import { clearSession } from '../../lib/authSession'
 const nav = [
   { label: 'Portal', href: '/dashboard', icon: DashboardIcon },
   { label: 'Discover', href: '/discover', icon: LawIcon },
-  { label: 'Bookings', href: '/lawyer/bookings', icon: CaseIcon },
+  { label: 'Bookings', href: '/bookings', icon: CaseIcon },
   { label: 'Upload', href: '/upload', icon: UploadIcon },
   { label: 'Updates', href: '/analyses', icon: AnalysisIcon },
   { label: 'Messages', href: '/chat', icon: ChatIcon },

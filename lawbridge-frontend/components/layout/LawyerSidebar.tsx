@@ -10,6 +10,7 @@ import { clearSession } from '../../lib/authSession'
 const nav = [
   { label: 'My Office', href: '/lawyer/office/me', icon: CaseIcon },
   { label: 'Dashboard', href: '/lawyer/dashboard', icon: DashboardIcon },
+  { label: 'Bookings', href: '/lawyer/bookings', icon: BriefcaseIcon },
   { label: 'Discover', href: '/lawyer/discover', icon: LawIcon },
   { label: 'Matters', href: '/lawyer/matters', icon: CaseIcon },
   { label: 'Clients', href: '/lawyer/clients', icon: BriefcaseIcon },
@@ -35,6 +36,8 @@ export default function LawyerSidebar() {
   const collapsed = isMobile ? !mobileOpen : desktopCollapsed
   const [associates, setAssociates] = useState<FirmMembership[]>([])
   const [isFirmAdmin, setIsFirmAdmin] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarInitials, setAvatarInitials] = useState('L')
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 1023px)')
@@ -52,11 +55,36 @@ export default function LawyerSidebar() {
     const accessToken = localStorage.getItem('access')
     const currentUserId = localStorage.getItem('authUserId')
 
+    // Load avatar from localStorage cache, then refresh from API
+    const cached = localStorage.getItem('avatarUrl')
+    if (cached) setAvatarUrl(cached)
+
     if (!accessToken) {
       setAssociates([])
       setIsFirmAdmin(false)
       return () => mediaQuery.removeEventListener('change', syncViewport)
     }
+
+    // Listen for avatar updates from the profile page
+    const onAvatarUpdated = (e: Event) => {
+      const url = (e as CustomEvent<{ url: string }>).detail?.url
+      if (url) { setAvatarUrl(url); localStorage.setItem('avatarUrl', url) }
+    }
+    window.addEventListener('lawbridge:avatar-updated', onAvatarUpdated)
+
+    // Fetch fresh avatar/name from /me/
+    fetch('/api/v1/auth/me/', { headers: { Authorization: `Bearer ${accessToken}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then((me: { full_name?: string; email?: string; avatar_url?: string | null } | null) => {
+        if (!me) return
+        if (me.avatar_url) {
+          setAvatarUrl(me.avatar_url)
+          localStorage.setItem('avatarUrl', me.avatar_url)
+        }
+        const name = me.full_name || me.email || 'L'
+        setAvatarInitials(name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'L')
+      })
+      .catch(() => {})
 
     let cancelled = false
 
@@ -94,6 +122,7 @@ export default function LawyerSidebar() {
     return () => {
       cancelled = true
       mediaQuery.removeEventListener('change', syncViewport)
+      window.removeEventListener('lawbridge:avatar-updated', onAvatarUpdated)
     }
   }, [])
 
@@ -261,11 +290,18 @@ export default function LawyerSidebar() {
 
           <Link
             href="/lawyer/profile"
-            className="group relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 bg-gradient-to-br from-gold-500/25 to-gold-600/25 text-gold-300 transition-all duration-200 hover:scale-105 hover:border-gold-300/40 hover:text-gold-200 active:scale-95"
+            className="group relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 overflow-hidden transition-all duration-200 hover:scale-105 hover:border-gold-300/40 active:scale-95"
             aria-label="Open profile"
             title="Profile"
           >
-            <UserIcon width={18} height={18} />
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover rounded-xl" />
+            ) : (
+              <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-gradient-to-br from-gold-500/25 to-gold-600/25 text-gold-300 text-xs font-bold">
+                {avatarInitials}
+              </span>
+            )}
             <span className="absolute inset-0 rounded-xl bg-gold-400/0 transition-colors duration-200 group-hover:bg-gold-400/10" />
           </Link>
 

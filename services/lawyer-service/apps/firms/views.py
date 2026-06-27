@@ -78,6 +78,35 @@ class FirmMembersView(APIView):
         return Response(serializer.data)
 
 
+def _resolve_member_uuid(member):
+    """Return the auth-service UUID for a firm member.
+    Uses cached user_uuid if present; otherwise queries auth-service by email and backfills."""
+    import uuid as _uuid
+    if member.user_uuid:
+        return str(member.user_uuid)
+    email = member.user.email
+    if not email:
+        return None
+    try:
+        import urllib.request as _req, json as _json
+        from django.conf import settings as _s
+        auth_url = getattr(_s, 'AUTH_SERVICE_URL', 'http://auth-service:8001/api/v1/auth')
+        url = f"{auth_url.rstrip('/')}/users/?email={email}"
+        with _req.urlopen(_req.Request(url), timeout=3) as resp:
+            data = _json.loads(resp.read())
+            uid_str = str(data.get('id', ''))
+            if uid_str:
+                try:
+                    member.user_uuid = _uuid.UUID(uid_str)
+                    member.save(update_fields=['user_uuid'])
+                except Exception:
+                    pass
+                return uid_str
+    except Exception:
+        pass
+    return None
+
+
 class FirmLawyersView(APIView):
     """GET /api/v1/firms/{firm_id}/lawyers/ — full lawyer profiles for all active firm members."""
     permission_classes = [permissions.AllowAny]
@@ -86,8 +115,8 @@ class FirmLawyersView(APIView):
         from apps.lawyers.models import LawyerProfile
         from apps.discovery.serializers import LawyerDiscoverySerializer
         firm = get_object_or_404(Firm, id=firm_id)
-        members = FirmMembership.objects.filter(firm=firm, is_active=True)
-        user_uuids = [m.user_uuid for m in members if m.user_uuid]
+        members = list(FirmMembership.objects.filter(firm=firm, is_active=True).select_related('user'))
+        user_uuids = [uid for m in members for uid in [_resolve_member_uuid(m)] if uid]
         profiles = LawyerProfile.objects.filter(user_id__in=user_uuids)
         return Response(LawyerDiscoverySerializer(profiles, many=True).data)
 
