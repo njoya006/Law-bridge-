@@ -90,7 +90,7 @@ def _resolve_member_uuid(member):
     try:
         import urllib.request as _req, json as _json
         from django.conf import settings as _s
-        auth_url = getattr(_s, 'AUTH_SERVICE_URL', 'http://auth-service:8001/api/v1/auth')
+        auth_url = getattr(_s, 'AUTH_SERVICE_URL', 'http://auth-service/api/v1/auth')
         url = f"{auth_url.rstrip('/')}/users/?email={email}"
         with _req.urlopen(_req.Request(url), timeout=3) as resp:
             data = _json.loads(resp.read())

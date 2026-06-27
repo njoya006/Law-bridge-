@@ -28,6 +28,9 @@ class LawyerProfileSerializer(serializers.ModelSerializer):
 
 
 class LawyerProfileUpdateSerializer(serializers.ModelSerializer):
+    # Explicit allow_blank so empty string passes validation for optional choice fields
+    practice_circuit = serializers.CharField(required=False, allow_blank=True, max_length=32)
+
     class Meta:
         model = LawyerProfile
         fields = (

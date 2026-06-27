@@ -437,6 +437,7 @@ export default function LawyerSettingsPage() {
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
   const [pwError, setPwError] = useState('')
   const [pwSuccess, setPwSuccess] = useState(false)
+  const [pwSaving, setPwSaving] = useState(false)
 
   useEffect(() => {
     const run = async () => {
@@ -492,6 +493,10 @@ export default function LawyerSettingsPage() {
   }
 
   const handleSaveAvailability = async () => {
+    if (noLawyerProfile) {
+      setAvailError('Create your professional profile in Office Settings before configuring availability.')
+      return
+    }
     const access = localStorage.getItem('access')
     if (!access) return
     setAvailSaving(true)
@@ -506,13 +511,18 @@ export default function LawyerSettingsPage() {
       setAvailSuccess(true)
       setTimeout(() => setAvailSuccess(false), 3000)
     } catch (cause) {
-      setAvailError(cause instanceof Error ? cause.message : 'Failed to save schedule')
+      const msg = cause instanceof Error ? cause.message : 'Failed to save schedule'
+      setAvailError(msg.includes('404') ? 'Professional profile not found. Create it in Office Settings first.' : msg)
     } finally {
       setAvailSaving(false)
     }
   }
 
   const handleSaveCasePrefs = async () => {
+    if (noLawyerProfile) {
+      setCaseError('Create your professional profile in Office Settings before setting case preferences.')
+      return
+    }
     const access = localStorage.getItem('access')
     if (!access) return
     setCaseSaving(true)
@@ -523,7 +533,8 @@ export default function LawyerSettingsPage() {
       setCaseSuccess(true)
       setTimeout(() => setCaseSuccess(false), 3000)
     } catch (cause) {
-      setCaseError(cause instanceof Error ? cause.message : 'Failed to save')
+      const msg = cause instanceof Error ? cause.message : 'Failed to save'
+      setCaseError(msg.includes('404') ? 'Professional profile not found. Create it in Office Settings first.' : msg)
     } finally {
       setCaseSaving(false)
     }
@@ -711,16 +722,32 @@ export default function LawyerSettingsPage() {
                       <Button
                         variant="gold"
                         size="sm"
-                        onClick={() => {
+                        disabled={pwSaving}
+                        onClick={async () => {
                           setPwError('')
+                          setPwSuccess(false)
                           if (!pwForm.current) { setPwError('Enter your current password.'); return }
                           if (pwForm.next.length < 8) { setPwError('New password must be at least 8 characters.'); return }
                           if (pwForm.next !== pwForm.confirm) { setPwError('Passwords do not match.'); return }
-                          setPwSuccess(true)
-                          setPwForm({ current: '', next: '', confirm: '' })
+                          const access = localStorage.getItem('access')
+                          if (!access) return
+                          setPwSaving(true)
+                          try {
+                            await api.post('auth', '/auth/me/password/', {
+                              current_password: pwForm.current,
+                              new_password: pwForm.next,
+                              confirm_password: pwForm.confirm,
+                            }, access)
+                            setPwSuccess(true)
+                            setPwForm({ current: '', next: '', confirm: '' })
+                          } catch (e) {
+                            setPwError(e instanceof Error ? e.message.replace(/^4\d\d.*?: /, '') : 'Failed to change password')
+                          } finally {
+                            setPwSaving(false)
+                          }
                         }}
                       >
-                        Change Password
+                        {pwSaving ? 'Saving…' : 'Change Password'}
                       </Button>
                     </div>
                   </Card>
