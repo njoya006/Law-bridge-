@@ -6,7 +6,7 @@ class CaseNoteSerializer(serializers.ModelSerializer):
     class Meta:
         model = CaseNote
         fields = ('id', 'lawyer_id', 'content', 'is_private', 'created_at', 'updated_at')
-        read_only_fields = ('id', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'lawyer_id', 'created_at', 'updated_at')
 
 
 class CaseSerializer(serializers.ModelSerializer):

@@ -9,6 +9,7 @@ class ClientProfileSerializer(serializers.ModelSerializer):
         model = ClientProfile
         fields = (
             'id', 'user_id', 'full_name_en', 'full_name_fr',
+            'phone', 'organization', 'location',
             'monthly_income', 'dependants', 'employment_status',
             'eligibility_score', 'case_count', 'qualifies_for_aid',
             'created_at', 'updated_at'
@@ -22,4 +23,8 @@ class ClientProfileSerializer(serializers.ModelSerializer):
 class ClientProfileUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientProfile
-        fields = ('full_name_en', 'full_name_fr', 'monthly_income', 'dependants', 'employment_status')
+        fields = (
+            'full_name_en', 'full_name_fr',
+            'phone', 'organization', 'location',
+            'monthly_income', 'dependants', 'employment_status',
+        )

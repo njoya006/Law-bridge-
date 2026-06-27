@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Card from '../../components/ui/Card'
-import { LogoutIcon, UserIcon } from '../../components/icons/Icons'
+import { LogoutIcon } from '../../components/icons/Icons'
 import { api } from '../../lib/api'
 import { clearSession } from '../../lib/authSession'
 import { getMyCases } from '../../lib/casesApi'
@@ -19,6 +19,30 @@ type AuthMe = {
   role: string
 }
 
+type ClientProfile = {
+  id: string
+  user_id: string
+  full_name_en: string
+  full_name_fr: string
+  phone: string
+  organization: string
+  location: string
+  monthly_income: string | null
+  dependants: number
+  employment_status: string
+  eligibility_score: number | null
+  case_count: number
+  qualifies_for_aid: boolean
+}
+
+const EMPLOYMENT_OPTIONS = [
+  { value: 'employed', label: 'Employed' },
+  { value: 'unemployed', label: 'Unemployed' },
+  { value: 'self_employed', label: 'Self-Employed' },
+  { value: 'student', label: 'Student' },
+  { value: 'other', label: 'Other' },
+]
+
 export default function ProfilePage() {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
@@ -30,16 +54,24 @@ export default function ProfilePage() {
   const [openMatters, setOpenMatters] = useState<number | null>(null)
   const [sharedFiles, setSharedFiles] = useState<number | null>(null)
   const [unreadUpdates, setUnreadUpdates] = useState<number | null>(null)
-  const [profile, setProfile] = useState({
+  const [clientProfileExists, setClientProfileExists] = useState(false)
+
+  const [authData, setAuthData] = useState({ id: '', email: '', full_name: '', role: '' })
+  const [form, setForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
     organization: '',
-    accountType: 'Client',
-    bio: 'Client account for tracking matters, receiving updates, and managing documents securely.',
     location: '',
+    monthly_income: '',
+    dependants: 0,
+    employment_status: 'other',
   })
+  const [eligibility, setEligibility] = useState<{
+    score: number | null
+    qualifies: boolean
+  }>({ score: null, qualifies: false })
 
   useEffect(() => {
     const run = async () => {
@@ -53,44 +85,66 @@ export default function ProfilePage() {
       try {
         const me = await api.get<AuthMe>('auth', '/auth/me/', access)
         const parts = (me.full_name || '').trim().split(/\s+/)
-        setProfile(prev => ({
+        setAuthData({ id: me.id, email: me.email, full_name: me.full_name, role: me.role })
+        setForm(prev => ({
           ...prev,
-          firstName: parts[0] || me.full_name || 'Client',
+          firstName: parts[0] || '',
           lastName: parts.slice(1).join(' '),
           email: me.email,
-          accountType: me.role?.toLowerCase() === 'client' ? 'Client' : me.role,
         }))
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Unable to load profile')
-      } finally {
         setLoading(false)
+        return
       }
 
-      // Load stats independently — don't block profile render on these
+      // Load client profile from client-service
+      try {
+        const cp = await api.get<ClientProfile>('client', '/clients/me/', access)
+        setClientProfileExists(true)
+        setForm(prev => ({
+          ...prev,
+          phone: cp.phone || '',
+          organization: cp.organization || '',
+          location: cp.location || '',
+          monthly_income: cp.monthly_income ?? '',
+          dependants: cp.dependants ?? 0,
+          employment_status: cp.employment_status || 'other',
+        }))
+        setEligibility({ score: cp.eligibility_score, qualifies: cp.qualifies_for_aid })
+      } catch {
+        // 404 means no client profile yet — that's fine, we'll create on first save
+        setClientProfileExists(false)
+      }
+
+      setLoading(false)
+
+      // Load activity stats independently
       void getMyCases(access).then(data => {
         const open = data.results.filter(c => c.status !== 'closed').length
         setOpenMatters(open)
-        // Count total documents across all cases
         void Promise.all(data.results.map(c => listDocuments(c.id, access).catch(() => ({ count: 0 }))))
           .then(docs => setSharedFiles(docs.reduce((sum, d) => sum + (d.count ?? 0), 0)))
-      }).catch(() => { /* service unavailable — leave null */ })
+      }).catch(() => {})
 
       void unreadNotificationCount(access)
         .then(data => setUnreadUpdates(data.unread_count ?? 0))
-        .catch(() => { /* service unavailable — leave null */ })
+        .catch(() => {})
     }
 
     void run()
   }, [])
 
   const initials = useMemo(() => {
-    const first = profile.firstName?.[0] || profile.email?.[0] || 'U'
-    const last = profile.lastName?.[0] || ''
+    const first = form.firstName?.[0] || form.email?.[0] || 'U'
+    const last = form.lastName?.[0] || ''
     return `${first}${last}`.toUpperCase()
-  }, [profile.firstName, profile.lastName, profile.email])
+  }, [form.firstName, form.lastName, form.email])
 
-  const handleChange = (field: string, value: string) => {
-    setProfile(prev => ({ ...prev, [field]: value }))
+  const displayName = `${form.firstName} ${form.lastName}`.trim() || form.email
+
+  const handleChange = (field: string, value: string | number) => {
+    setForm(prev => ({ ...prev, [field]: value }))
   }
 
   const handleSave = async () => {
@@ -101,10 +155,30 @@ export default function ProfilePage() {
     setSaveSuccess(false)
 
     try {
+      // Update name/email in auth-service
       await api.patch('auth', '/auth/me/', {
-        full_name: `${profile.firstName} ${profile.lastName}`.trim(),
-        email: profile.email,
+        full_name: `${form.firstName} ${form.lastName}`.trim(),
+        email: form.email,
       }, access)
+
+      // Upsert contact/eligibility data in client-service
+      const clientPayload = {
+        full_name_en: `${form.firstName} ${form.lastName}`.trim(),
+        phone: form.phone,
+        organization: form.organization,
+        location: form.location,
+        monthly_income: form.monthly_income === '' ? null : form.monthly_income,
+        dependants: form.dependants,
+        employment_status: form.employment_status,
+      }
+
+      if (clientProfileExists) {
+        await api.put('client', '/clients/me/', clientPayload, access)
+      } else {
+        await api.post('client', '/clients/me/', clientPayload, access)
+        setClientProfileExists(true)
+      }
+
       setSaveSuccess(true)
       setEditing(false)
     } catch (cause) {
@@ -119,11 +193,16 @@ export default function ProfilePage() {
     router.push('/auth/login')
   }
 
+  const employmentLabel = EMPLOYMENT_OPTIONS.find(o => o.value === form.employment_status)?.label ?? form.employment_status
+
   return (
     <main className="space-y-8 max-w-4xl w-full">
       {loading && (
         <Card className="p-6">
-          <p className="text-neutral-300">Loading your profile...</p>
+          <div className="flex items-center gap-2 text-neutral-400">
+            <span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />
+            Loading your profile...
+          </div>
         </Card>
       )}
 
@@ -138,7 +217,7 @@ export default function ProfilePage() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="font-display text-display-md text-neutral-50">Client Account</h1>
-            <p className="text-neutral-400">Manage your matters, documents, and communication preferences</p>
+            <p className="text-neutral-400">Manage your matters, documents, and contact details</p>
           </div>
           {!editing && (
             <Button variant="primary" onClick={() => setEditing(true)}>
@@ -159,27 +238,37 @@ export default function ProfilePage() {
             </div>
 
             <div className="flex-1">
-              <h2 className="font-display text-display-sm text-neutral-50 mb-1">
-                {profile.firstName} {profile.lastName}
-              </h2>
-              <p className="text-gold-400 text-body-lg mb-4">{profile.accountType} Account</p>
+              <h2 className="font-display text-display-sm text-neutral-50 mb-1">{displayName}</h2>
+              <p className="text-gold-400 text-body-lg mb-4 capitalize">{authData.role || 'Client'} Account</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-body-sm">
                 <div>
                   <p className="text-neutral-400">Email</p>
-                  <p className="text-neutral-200">{profile.email}</p>
+                  <p className="text-neutral-200">{form.email}</p>
                 </div>
                 <div>
                   <p className="text-neutral-400">Phone</p>
-                  <p className="text-neutral-200">{profile.phone || '—'}</p>
+                  <p className="text-neutral-200">{form.phone || '—'}</p>
                 </div>
                 <div>
                   <p className="text-neutral-400">Organization</p>
-                  <p className="text-neutral-200">{profile.organization || '—'}</p>
+                  <p className="text-neutral-200">{form.organization || '—'}</p>
                 </div>
                 <div>
                   <p className="text-neutral-400">Location</p>
-                  <p className="text-neutral-200">{profile.location || '—'}</p>
+                  <p className="text-neutral-200">{form.location || '—'}</p>
                 </div>
+                <div>
+                  <p className="text-neutral-400">Employment</p>
+                  <p className="text-neutral-200">{employmentLabel}</p>
+                </div>
+                {form.monthly_income !== '' && (
+                  <div>
+                    <p className="text-neutral-400">Monthly Income</p>
+                    <p className="text-neutral-200">
+                      {form.monthly_income ? `${Number(form.monthly_income).toLocaleString()} XAF` : '—'}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -189,18 +278,18 @@ export default function ProfilePage() {
       {/* Edit Form */}
       {!loading && !error && editing && (
         <Card className="p-8 border-gold-400/50">
-          <h3 className="font-heading text-body-lg text-neutral-50 mb-6">Edit Client Account</h3>
+          <h3 className="font-heading text-body-lg text-neutral-50 mb-6">Edit Account Details</h3>
 
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="First Name"
-                value={profile.firstName}
+                value={form.firstName}
                 onChange={(e) => handleChange('firstName', e.target.value)}
               />
               <Input
                 label="Last Name"
-                value={profile.lastName}
+                value={form.lastName}
                 onChange={(e) => handleChange('lastName', e.target.value)}
               />
             </div>
@@ -209,13 +298,13 @@ export default function ProfilePage() {
               <Input
                 label="Email"
                 type="email"
-                value={profile.email}
+                value={form.email}
                 onChange={(e) => handleChange('email', e.target.value)}
               />
               <Input
                 label="Phone"
                 type="tel"
-                value={profile.phone}
+                value={form.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
               />
             </div>
@@ -223,29 +312,50 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Organization"
-                value={profile.organization}
+                value={form.organization}
                 onChange={(e) => handleChange('organization', e.target.value)}
               />
               <Input
                 label="Location"
-                value={profile.location}
+                value={form.location}
                 onChange={(e) => handleChange('location', e.target.value)}
               />
             </div>
 
-            <div>
-              <label className="mb-2.5 text-label-md text-neutral-200 font-semibold tracking-wide block">
-                Account Notes
-              </label>
-              <textarea
-                value={profile.bio}
-                onChange={(e) => handleChange('bio', e.target.value)}
-                rows={4}
-                className="w-full rounded-lg px-4 py-3 bg-primary-800/40 text-neutral-50 placeholder:text-neutral-500
-                 border border-neutral-700/50 transition-all duration-200
-                 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-400
-                 hover:border-neutral-600/50 hover:bg-primary-800/50 font-body text-body-md"
-                placeholder="Add notes about your preferred communication style..."
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="mb-2.5 text-label-md text-neutral-200 font-semibold tracking-wide block">
+                  Employment Status
+                </label>
+                <select
+                  value={form.employment_status}
+                  onChange={(e) => handleChange('employment_status', e.target.value)}
+                  className="w-full rounded-lg px-4 py-3 bg-primary-800/40 text-neutral-50
+                   border border-neutral-700/50 transition-all duration-200
+                   focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-400
+                   hover:border-neutral-600/50 font-body text-body-md"
+                >
+                  {EMPLOYMENT_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value} className="bg-primary-900">{o.label}</option>
+                  ))}
+                </select>
+              </div>
+              <Input
+                label="Monthly Income (XAF)"
+                type="number"
+                value={form.monthly_income?.toString() ?? ''}
+                onChange={(e) => handleChange('monthly_income', e.target.value)}
+                placeholder="e.g. 150000"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Dependants"
+                type="number"
+                value={form.dependants.toString()}
+                onChange={(e) => handleChange('dependants', parseInt(e.target.value, 10) || 0)}
+                placeholder="0"
               />
             </div>
 
@@ -303,26 +413,54 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Legal Aid Eligibility */}
+      {!loading && !error && clientProfileExists && (
+        <Card className="p-8">
+          <h3 className="font-heading text-body-lg text-neutral-50 mb-4">Legal Aid Eligibility</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4 text-body-sm">
+              <div>
+                <p className="text-neutral-400">Eligibility Score</p>
+                <p className="text-neutral-200 font-display text-xl">
+                  {eligibility.score !== null ? `${eligibility.score} / 100` : '—'}
+                </p>
+              </div>
+              <div>
+                <p className="text-neutral-400">Status</p>
+                {eligibility.score === null ? (
+                  <p className="text-neutral-400 text-sm">Not yet computed</p>
+                ) : eligibility.qualifies ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-medium text-emerald-300">
+                    Qualifies for Legal Aid
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-700/50 px-3 py-1 text-sm font-medium text-neutral-300">
+                    Does Not Qualify
+                  </span>
+                )}
+              </div>
+            </div>
+            {eligibility.score === null && (
+              <p className="text-neutral-500 text-sm">
+                Fill in your income and employment details to compute your eligibility score.
+              </p>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* Account Settings */}
       {!loading && !error && (
         <Card className="p-8">
-          <h3 className="font-heading text-body-lg text-neutral-50 mb-6">Client Preferences</h3>
+          <h3 className="font-heading text-body-lg text-neutral-50 mb-6">Account Security</h3>
 
           <div className="space-y-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 border border-neutral-700/30 rounded-lg hover:border-neutral-600/50 transition-colors">
               <div>
                 <p className="font-heading text-body-md text-neutral-50">Password</p>
-                <p className="text-neutral-400 text-body-sm">Update your login password for account security</p>
+                <p className="text-neutral-400 text-body-sm">Update your login password</p>
               </div>
               <Button variant="outline" size="sm">Change</Button>
-            </div>
-
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 border border-neutral-700/30 rounded-lg hover:border-neutral-600/50 transition-colors">
-              <div>
-                <p className="font-heading text-body-md text-neutral-50">Two-Factor Authentication</p>
-                <p className="text-neutral-400 text-body-sm">Protect your account with an extra verification step</p>
-              </div>
-              <Button variant="outline" size="sm">Enable</Button>
             </div>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 border border-neutral-700/30 rounded-lg hover:border-neutral-600/50 transition-colors">
@@ -353,7 +491,7 @@ export default function ProfilePage() {
         </Card>
       )}
 
-      {/* Logout Button */}
+      {/* Logout */}
       {!loading && !error && (
         <div className="flex justify-center">
           <Button variant="destructive" size="lg" onClick={handleLogout}>

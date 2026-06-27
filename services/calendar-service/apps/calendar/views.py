@@ -106,30 +106,44 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
         return Response(CalendarEventSerializer(event).data, 
                        status=status.HTTP_201_CREATED)
     
+    def _approver_uuid(self, request):
+        payload = getattr(request, 'auth_payload', {})
+        uid = payload.get('user_id') or payload.get('sub')
+        if uid:
+            return uuid.UUID(str(uid))
+        raise ValueError('Cannot determine approver UUID from token')
+
     @action(detail=True, methods=['patch'])
     def approve(self, request, pk=None):
         event = self.get_object()
-        approver_id = uuid.UUID(str(request.user.id))
-        
+        try:
+            approver_id = self._approver_uuid(request)
+        except (ValueError, AttributeError):
+            return Response({'error': 'Invalid token'}, status=status.HTTP_401_UNAUTHORIZED)
+
         try:
             approval = EventApproval.objects.get(event=event, approver_id=approver_id)
         except EventApproval.DoesNotExist:
-            return Response({'error': 'No approval required from this user'}, 
+            return Response({'error': 'No approval required from this user'},
                           status=status.HTTP_400_BAD_REQUEST)
-        
+
         approval.status = 'approved'
         approval.save()
-        
+
         if event.approvals.filter(status='approved').count() == event.approvals.count():
             event.status = 'confirmed'
             event.save()
-        
+
         return Response(CalendarEventSerializer(event).data)
-    
+
     @action(detail=True, methods=['patch'])
     def reject(self, request, pk=None):
         event = self.get_object()
-        approver_id = uuid.UUID(str(request.user.id))
+        try:
+            approver_id = self._approver_uuid(request)
+        except (ValueError, AttributeError):
+            return Response({'error': 'Invalid token'}, status=status.HTTP_401_UNAUTHORIZED)
+        approver_id = approver_id  # keep variable name consistent below
         
         try:
             approval = EventApproval.objects.get(event=event, approver_id=approver_id)

@@ -1,17 +1,33 @@
+import uuid
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from .models import LawyerProfile
-from .serializers import LawyerProfileSerializer, LawyerProfileUpdateSerializer
+from .models import LawyerProfile, LawyerAvailability
+from .serializers import (
+    LawyerProfileSerializer, LawyerProfileUpdateSerializer,
+    LawyerAvailabilitySerializer, LawyerAvailabilityWriteSerializer,
+)
+
+
+def _lawyer_uuid(request):
+    """Return the UUID of the authenticated lawyer from the JWT payload."""
+    payload = getattr(request, 'auth_payload', {})
+    uid = payload.get('user_id') or payload.get('sub')
+    if uid:
+        return uuid.UUID(str(uid))
+    raise ValueError('Cannot determine user UUID from token')
 
 
 class LawyerProfileView(APIView):
     """Get or create/update current lawyer profile"""
-    
+
     def get(self, request):
-        """GET /api/v1/lawyers/me/ - Get current lawyer profile"""
         try:
-            profile = LawyerProfile.objects.get(user_id=request.user.id)
+            user_uuid = _lawyer_uuid(request)
+        except (ValueError, AttributeError):
+            return Response({'error': 'Invalid token'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            profile = LawyerProfile.objects.get(user_id=user_uuid)
             serializer = LawyerProfileSerializer(profile)
             return Response(serializer.data)
         except LawyerProfile.DoesNotExist:
@@ -21,37 +37,75 @@ class LawyerProfileView(APIView):
             )
 
     def post(self, request):
-        """POST /api/v1/lawyers/me/ - Create lawyer profile"""
-        if LawyerProfile.objects.filter(user_id=request.user.id).exists():
+        try:
+            user_uuid = _lawyer_uuid(request)
+        except (ValueError, AttributeError):
+            return Response({'error': 'Invalid token'}, status=status.HTTP_401_UNAUTHORIZED)
+        if LawyerProfile.objects.filter(user_id=user_uuid).exists():
             return Response(
                 {'error': 'Profile already exists. Use PUT to update.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
         serializer = LawyerProfileUpdateSerializer(data=request.data)
         if serializer.is_valid():
             profile = LawyerProfile.objects.create(
-                user_id=request.user.id,
+                user_id=user_uuid,
                 **serializer.validated_data
             )
-            return Response(
-                LawyerProfileSerializer(profile).data,
-                status=status.HTTP_201_CREATED
-            )
+            return Response(LawyerProfileSerializer(profile).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request):
-        """PUT /api/v1/lawyers/me/ - Update lawyer profile"""
         try:
-            profile = LawyerProfile.objects.get(user_id=request.user.id)
+            user_uuid = _lawyer_uuid(request)
+        except (ValueError, AttributeError):
+            return Response({'error': 'Invalid token'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            profile = LawyerProfile.objects.get(user_id=user_uuid)
         except LawyerProfile.DoesNotExist:
-            return Response(
-                {'error': 'Lawyer profile not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
+            return Response({'error': 'Lawyer profile not found'}, status=status.HTTP_404_NOT_FOUND)
         serializer = LawyerProfileUpdateSerializer(profile, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(LawyerProfileSerializer(profile).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LawyerAvailabilityView(APIView):
+    """Manage weekly availability slots — bulk replace with PUT, list with GET."""
+
+    def _get_profile(self, request):
+        try:
+            user_uuid = _lawyer_uuid(request)
+        except (ValueError, AttributeError):
+            return None
+        try:
+            return LawyerProfile.objects.get(user_id=user_uuid)
+        except LawyerProfile.DoesNotExist:
+            return None
+
+    def get(self, request):
+        profile = self._get_profile(request)
+        if not profile:
+            return Response({'error': 'Lawyer profile not found'}, status=status.HTTP_404_NOT_FOUND)
+        slots = LawyerAvailability.objects.filter(lawyer=profile)
+        return Response(LawyerAvailabilitySerializer(slots, many=True).data)
+
+    def put(self, request):
+        """Replace all availability slots for the lawyer in one operation."""
+        profile = self._get_profile(request)
+        if not profile:
+            return Response({'error': 'Lawyer profile not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        slots_data = request.data if isinstance(request.data, list) else request.data.get('slots', [])
+        serializer = LawyerAvailabilityWriteSerializer(data=slots_data, many=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        LawyerAvailability.objects.filter(lawyer=profile).delete()
+        LawyerAvailability.objects.bulk_create([
+            LawyerAvailability(lawyer=profile, **item) for item in serializer.validated_data
+        ])
+
+        updated = LawyerAvailability.objects.filter(lawyer=profile)
+        return Response(LawyerAvailabilitySerializer(updated, many=True).data)

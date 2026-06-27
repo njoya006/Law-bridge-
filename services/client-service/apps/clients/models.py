@@ -13,7 +13,12 @@ class ClientProfile(models.Model):
     # Bilingual fields
     full_name_en = models.CharField(max_length=255, blank=True)
     full_name_fr = models.CharField(max_length=255, blank=True)
-    
+
+    # Contact & identity
+    phone = models.CharField(max_length=50, blank=True)
+    organization = models.CharField(max_length=255, blank=True)
+    location = models.CharField(max_length=255, blank=True)
+
     # Legal aid eligibility inputs
     monthly_income = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     dependants = models.PositiveIntegerField(default=0)

@@ -37,3 +37,35 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+class UserPreferences(models.Model):
+    LANGUAGE_CHOICES = [('en', 'English'), ('fr', 'Français')]
+    CONTACT_CHOICES = [
+        ('email', 'Email'),
+        ('phone', 'Phone'),
+        ('in_app', 'In-App Messaging'),
+    ]
+
+    user_id = models.UUIDField(unique=True)
+
+    # Locale
+    language = models.CharField(max_length=8, choices=LANGUAGE_CHOICES, default='en')
+
+    # Notification toggles
+    notify_case_updates = models.BooleanField(default=True)
+    notify_documents = models.BooleanField(default=True)
+    notify_messages = models.BooleanField(default=True)
+    notify_billing = models.BooleanField(default=True)
+    notify_reminders = models.BooleanField(default=True)
+
+    # Communication preference
+    preferred_contact = models.CharField(max_length=16, choices=CONTACT_CHOICES, default='email')
+
+    # Privacy
+    profile_visible = models.BooleanField(default=True)
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Prefs({self.user_id})"

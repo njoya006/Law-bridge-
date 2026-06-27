@@ -1,10 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from .serializers import RegisterSerializer, UserSerializer
+from .serializers import RegisterSerializer, UserSerializer, UserPreferencesSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import User
-from rest_framework import permissions
+from .models import User, UserPreferences
 from django.shortcuts import get_object_or_404
 
 
@@ -43,6 +42,26 @@ class MeView(APIView):
 
     def patch(self, request):
         serializer = UserSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PreferencesView(APIView):
+    """GET or PATCH user preferences — auto-creates with defaults on first access."""
+
+    def _get_or_create(self, user_id):
+        prefs, _ = UserPreferences.objects.get_or_create(user_id=user_id)
+        return prefs
+
+    def get(self, request):
+        prefs = self._get_or_create(request.user.id)
+        return Response(UserPreferencesSerializer(prefs).data)
+
+    def patch(self, request):
+        prefs = self._get_or_create(request.user.id)
+        serializer = UserPreferencesSerializer(prefs, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)

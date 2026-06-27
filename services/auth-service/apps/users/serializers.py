@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import User
+from .models import User, UserPreferences
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -21,6 +21,20 @@ class RegisterSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         user = User.objects.create_user(password=password, **validated_data)
         return user
+
+
+class UserPreferencesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserPreferences
+        fields = (
+            'language',
+            'notify_case_updates', 'notify_documents', 'notify_messages',
+            'notify_billing', 'notify_reminders',
+            'preferred_contact',
+            'profile_visible',
+            'updated_at',
+        )
+        read_only_fields = ('updated_at',)
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

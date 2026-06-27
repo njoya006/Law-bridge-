@@ -17,6 +17,26 @@ class LawyerProfile(models.Model):
         ('on_leave', 'On Leave'),
         ('inactive', 'Inactive'),
     ]
+
+    CONSULTATION_MODE_CHOICES = [
+        ('in_person', 'In Person'),
+        ('virtual', 'Virtual'),
+        ('both', 'Both'),
+    ]
+
+    CIRCUIT_CHOICES = [
+        ('Adamawa', 'Adamawa'),
+        ('Centre', 'Centre'),
+        ('East', 'East'),
+        ('Far North', 'Far North'),
+        ('Littoral', 'Littoral'),
+        ('North', 'North'),
+        ('Northwest', 'Northwest'),
+        ('South', 'South'),
+        ('Southwest', 'Southwest'),
+        ('West', 'West'),
+        ('National', 'National (All Circuits)'),
+    ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.UUIDField(unique=True)  # Cross-ref to auth_db
@@ -42,6 +62,13 @@ class LawyerProfile(models.Model):
         default='available'
     )
     
+    # Case preferences
+    max_active_cases = models.PositiveIntegerField(default=20)
+    practice_circuit = models.CharField(max_length=32, choices=CIRCUIT_CHOICES, blank=True)
+    accepted_case_types = models.TextField(blank=True, help_text='Comma-separated list of accepted case types')
+    accepts_urgent_cases = models.BooleanField(default=True)
+    consultation_mode = models.CharField(max_length=16, choices=CONSULTATION_MODE_CHOICES, default='both')
+
     # Case tracking
     active_cases = models.PositiveIntegerField(default=0)
     total_cases = models.PositiveIntegerField(default=0)

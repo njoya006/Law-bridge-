@@ -17,7 +17,7 @@ const nav = [
   { label: 'Documents', href: '/lawyer/documents', icon: DocumentIcon },
   { label: 'Calendar', href: '/lawyer/calendar', icon: CalendarIcon },
   { label: 'Billing', href: '/lawyer/billing', icon: PaymentIcon },
-  { label: 'Settings', href: '/lawyer/profile', icon: SettingsIcon },
+  { label: 'Settings', href: '/lawyer/settings', icon: SettingsIcon },
 ]
 
 export default function LawyerSidebar() {

@@ -10,4 +10,6 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY . /app
 
 EXPOSE 8009
-CMD python manage.py migrate --noinput && daphne -b 0.0.0.0 -p 8009 core.asgi:application
+CMD python manage.py migrate --noinput && \
+    python manage.py consume_case_events & \
+    daphne -b 0.0.0.0 -p 8009 core.asgi:application

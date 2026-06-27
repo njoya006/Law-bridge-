@@ -14,6 +14,7 @@ const nav = [
   { label: 'Files', href: '/documents', icon: DocumentIcon },
   { label: 'Matters', href: '/cases', icon: CaseIcon },
   { label: 'Billing', href: '/payments', icon: PaymentIcon },
+  { label: 'Settings', href: '/settings', icon: SettingsIcon },
 ]
 
 export default function Sidebar(){
