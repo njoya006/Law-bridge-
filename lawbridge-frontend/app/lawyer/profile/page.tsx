@@ -6,8 +6,9 @@ import { api } from '../../../lib/api'
 import { getMyFirmMemberships, type FirmMembership } from '../../../lib/firmsApi'
 import { Card } from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
+import AvatarUploader from '../../../components/ui/AvatarUploader'
 
-type AuthMe = { id: string; email: string; full_name: string; role: string }
+type AuthMe = { id: string; email: string; full_name: string; role: string; avatar_url?: string | null }
 
 type LawyerProfile = {
   id: string
@@ -42,6 +43,8 @@ const AVAILABILITY_COLORS: Record<string, string> = {
 
 export default function LawyerProfilePage() {
   const [me, setMe] = useState<AuthMe | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(null)
   const [lawyerProfile, setLawyerProfile] = useState<LawyerProfile | null>(null)
   const [firm, setFirm] = useState<FirmMembership | null>(null)
   const [loading, setLoading] = useState(true)
@@ -51,10 +54,12 @@ export default function LawyerProfilePage() {
     const run = async () => {
       const access = localStorage.getItem('access')
       if (!access) { setLoading(false); return }
+      setToken(access)
 
       try {
         const meData = await api.get<AuthMe>('auth', '/auth/me/', access)
         setMe(meData)
+        setAvatarUrl(meData.avatar_url ?? null)
       } catch {
         setLoading(false)
         return
@@ -116,9 +121,18 @@ export default function LawyerProfilePage() {
           <Card className="p-8">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-6">
               <div className="flex-shrink-0 self-center sm:self-auto">
-                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-neutral-900 text-2xl sm:text-3xl font-display">
-                  {initials}
-                </div>
+                <AvatarUploader
+                  currentUrl={avatarUrl}
+                  initials={initials}
+                  size="md"
+                  token={token}
+                  onUploaded={(url) => {
+                    setAvatarUrl(url)
+                    // Persist so sidebar picks it up immediately
+                    localStorage.setItem('avatarUrl', url)
+                  }}
+                />
+                <p className="text-center text-xs text-neutral-500 mt-2">Click to change photo</p>
               </div>
 
               <div className="flex-1">

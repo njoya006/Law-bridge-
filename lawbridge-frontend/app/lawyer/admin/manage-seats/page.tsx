@@ -78,7 +78,9 @@ export default function ManageSeatsPage() {
 
   const changeRole = async (memberId: number, role: string) => {
     if (!token || !firmId) return
-    await updateFirmMemberRole(memberId, role, token)
+    const reason = window.prompt('Reason for role change (required):')
+    if (!reason?.trim()) return
+    await updateFirmMemberRole(memberId, role, reason.trim(), token)
     await refreshMembers(firmId, token)
   }
 
@@ -90,8 +92,9 @@ export default function ManageSeatsPage() {
 
   const remove = async (memberId: number) => {
     if (!token || !firmId) return
-    if (!confirm('Remove this user from the workspace? This will unassign their matters.')) return
-    await removeFirmMember(memberId, token)
+    const reason = window.prompt('Reason for removal (required, min 10 chars):')
+    if (!reason || reason.trim().length < 10) { alert('Removal cancelled — reason too short.'); return }
+    await removeFirmMember(memberId, reason.trim(), token)
     await refreshMembers(firmId, token)
   }
 

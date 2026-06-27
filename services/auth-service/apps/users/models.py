@@ -28,6 +28,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     role = models.CharField(max_length=32, default='client')
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    avatar = models.CharField(max_length=255, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     objects = UserManager()

@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Card from '../../components/ui/Card'
 import { LogoutIcon } from '../../components/icons/Icons'
+import AvatarUploader from '../../components/ui/AvatarUploader'
 import { api } from '../../lib/api'
 import { clearSession } from '../../lib/authSession'
 import { getMyCases } from '../../lib/casesApi'
@@ -17,6 +18,7 @@ type AuthMe = {
   email: string
   full_name: string
   role: string
+  avatar_url?: string | null
 }
 
 type ClientProfile = {
@@ -51,6 +53,8 @@ export default function ProfilePage() {
   const [error, setError] = useState('')
   const [saveError, setSaveError] = useState('')
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [openMatters, setOpenMatters] = useState<number | null>(null)
   const [sharedFiles, setSharedFiles] = useState<number | null>(null)
   const [unreadUpdates, setUnreadUpdates] = useState<number | null>(null)
@@ -82,10 +86,12 @@ export default function ProfilePage() {
         return
       }
 
+      setAccessToken(access)
       try {
         const me = await api.get<AuthMe>('auth', '/auth/me/', access)
         const parts = (me.full_name || '').trim().split(/\s+/)
         setAuthData({ id: me.id, email: me.email, full_name: me.full_name, role: me.role })
+        setAvatarUrl(me.avatar_url ?? null)
         setForm(prev => ({
           ...prev,
           firstName: parts[0] || '',
@@ -232,14 +238,22 @@ export default function ProfilePage() {
         <Card className="p-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-6">
             <div className="flex-shrink-0 self-center sm:self-auto">
-              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-neutral-900 text-2xl sm:text-3xl font-display">
-                {initials}
-              </div>
+              <AvatarUploader
+                currentUrl={avatarUrl}
+                initials={initials}
+                size="md"
+                token={accessToken}
+                onUploaded={(url) => {
+                  setAvatarUrl(url)
+                  localStorage.setItem('avatarUrl', url)
+                }}
+              />
+              <p className="text-center text-xs text-neutral-500 mt-2">Click to change photo</p>
             </div>
 
             <div className="flex-1">
               <h2 className="font-display text-display-sm text-neutral-50 mb-1">{displayName}</h2>
-              <p className="text-gold-400 text-body-lg mb-4 capitalize">{authData.role || 'Client'} Account</p>
+              <p className="text-gold-400 text-body-lg mb-4">Client Account</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-body-sm">
                 <div>
                   <p className="text-neutral-400">Email</p>
@@ -452,7 +466,7 @@ export default function ProfilePage() {
       {/* Account Settings */}
       {!loading && !error && (
         <Card className="p-8">
-          <h3 className="font-heading text-body-lg text-neutral-50 mb-6">Account Security</h3>
+          <h3 className="font-heading text-body-lg text-neutral-50 mb-6">Account Security & Settings</h3>
 
           <div className="space-y-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 border border-neutral-700/30 rounded-lg hover:border-neutral-600/50 transition-colors">
@@ -460,7 +474,7 @@ export default function ProfilePage() {
                 <p className="font-heading text-body-md text-neutral-50">Password</p>
                 <p className="text-neutral-400 text-body-sm">Update your login password</p>
               </div>
-              <Button variant="outline" size="sm">Change</Button>
+              <Button variant="outline" size="sm" onClick={() => router.push('/settings?tab=security')}>Change</Button>
             </div>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 border border-neutral-700/30 rounded-lg hover:border-neutral-600/50 transition-colors">
@@ -468,7 +482,15 @@ export default function ProfilePage() {
                 <p className="font-heading text-body-md text-neutral-50">Email Notifications</p>
                 <p className="text-neutral-400 text-body-sm">Receive matter updates and important reminders</p>
               </div>
-              <Button variant="outline" size="sm">Configure</Button>
+              <Button variant="outline" size="sm" onClick={() => router.push('/settings')}>Configure</Button>
+            </div>
+
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 border border-neutral-700/30 rounded-lg hover:border-neutral-600/50 transition-colors">
+              <div>
+                <p className="font-heading text-body-md text-neutral-50">Language & Privacy</p>
+                <p className="text-neutral-400 text-body-sm">Set your preferred language and privacy preferences</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => router.push('/settings?tab=language')}>Manage</Button>
             </div>
           </div>
         </Card>

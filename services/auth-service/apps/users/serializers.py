@@ -4,10 +4,17 @@ from .models import User, UserPreferences
 
 
 class UserSerializer(serializers.ModelSerializer):
+    avatar_url = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ('id', 'email', 'full_name', 'role')
-        read_only_fields = ('id', 'email', 'role')
+        fields = ('id', 'email', 'full_name', 'role', 'avatar_url')
+        read_only_fields = ('id', 'email', 'role', 'avatar_url')
+
+    def get_avatar_url(self, obj):
+        if obj.avatar:
+            return f'/api/v1/auth/avatars/{obj.id}/'
+        return None
 
 
 class RegisterSerializer(serializers.ModelSerializer):
