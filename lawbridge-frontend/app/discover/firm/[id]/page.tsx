@@ -35,7 +35,7 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 function LawyerMiniCard({ lawyer, firmId, isStaff }: { lawyer: LawyerDiscovery; firmId: string; isStaff: boolean }) {
-  const initials = lawyer.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const initials = (lawyer.name || '?').split(' ').map((w: string) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
   const fee = lawyer.consultation_fee ? `${parseFloat(lawyer.consultation_fee).toLocaleString()} XAF` : 'On request'
   const isStub = Boolean(lawyer.is_stub)
 
@@ -430,7 +430,7 @@ export default function FirmDetailPage() {
     </div>
   )
 
-  const initials = firm.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
+  const initials = (firm.name || '?').split(' ').map((w: string) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
   const availableLawyers = lawyers.filter(l => l.availability_status === 'available')
   const specializations = firm.specializations?.length
     ? firm.specializations
