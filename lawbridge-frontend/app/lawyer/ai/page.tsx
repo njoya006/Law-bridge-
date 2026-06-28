@@ -9,11 +9,13 @@ import {
   getChatSession,
   DRAFT_TYPE_LABELS,
   listLegalDrafts,
-  createLegalDraft,
   getLegalDraft,
   deleteLegalDraft,
+  clarifyDraft,
+  streamDraft,
   type LegalDraft,
   type LegalDraftSummary,
+  type ClarifyQuestion,
 } from '../../../lib/aiApi'
 
 type Tab = 'chat' | 'drafts' | 'analysis'
@@ -207,41 +209,135 @@ function ChatPanel({ token }: { token: string }) {
   )
 }
 
+// ── Document Renderer — formats raw AI draft text like a real legal document ──
+
+function DocumentRenderer({ content }: { content: string }) {
+  const lines = content.split('\n')
+  let dateFound = false
+
+  const elements = lines.map((line, i) => {
+    const trimmed = line.trim()
+
+    if (!trimmed) return <div key={i} className="h-3" />
+
+    // RE: / SUBJECT: / OBJET: lines
+    if (/^(RE|SUBJECT|OBJET|OBJECT)\s*:/i.test(trimmed)) {
+      return (
+        <p key={i} className="font-semibold text-neutral-800 border-l-2 border-amber-600 pl-3 my-2">
+          {trimmed}
+        </p>
+      )
+    }
+
+    // Date line (first occurrence, right-aligned)
+    const isDate = /^\d{1,2}\s+\w+\s+\d{4}|\w+\s+\d{1,2},\s+\d{4}|^\d{1,2}\/\d{1,2}\/\d{4}/.test(trimmed)
+    if (isDate && !dateFound) {
+      dateFound = true
+      return <p key={i} className="text-right text-neutral-600 text-sm mb-4">{trimmed}</p>
+    }
+
+    // ALL-CAPS heading (title or section header)
+    if (trimmed.length > 4 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed)) {
+      return (
+        <h3 key={i} className="font-bold text-neutral-900 text-center tracking-wide uppercase mt-5 mb-2 text-sm">
+          {trimmed}
+        </h3>
+      )
+    }
+
+    // Dear / Cher salutation
+    if (/^(Dear|Cher|Chère|Madam|Monsieur|Madame)\b/i.test(trimmed)) {
+      return <p key={i} className="font-semibold text-neutral-800 mt-4 mb-2">{trimmed}</p>
+    }
+
+    // Closing
+    if (/^(Yours|Respectfully|Sincerely|Cordialement|Veuillez agréer|Faithfully)/i.test(trimmed)) {
+      return <p key={i} className="mt-6 text-neutral-700">{trimmed}</p>
+    }
+
+    // Numbered paragraph
+    if (/^\d+\.\s/.test(trimmed)) {
+      return <p key={i} className="text-neutral-700 leading-relaxed pl-4 mb-1">{trimmed}</p>
+    }
+
+    // Regular paragraph
+    return <p key={i} className="text-neutral-700 leading-relaxed mb-1">{trimmed}</p>
+  })
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-8 mx-auto max-w-2xl font-serif text-[15px]">
+      {elements}
+    </div>
+  )
+}
+
 // ── Legal Drafts Panel ────────────────────────────────────────────────────────
+
+type DraftStep = 'form' | 'clarifying' | 'questions' | 'generating' | 'done'
 
 function DraftsPanel({ token }: { token: string }) {
   const [drafts, setDrafts] = useState<LegalDraftSummary[]>([])
   const [selected, setSelected] = useState<LegalDraft | null>(null)
-  const [creating, setCreating] = useState(false)
+
+  // Wizard state
+  const [step, setStep] = useState<DraftStep>('form')
   const [form, setForm] = useState({ draft_type: 'letter_to_client', instructions: '', title: '' })
-  const [generating, setGenerating] = useState(false)
+  const [questions, setQuestions] = useState<ClarifyQuestion[]>([])
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [streamContent, setStreamContent] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
     listLegalDrafts(token).then(setDrafts).catch(() => {})
   }, [token])
 
-  async function generate() {
+  function resetWizard() {
+    setStep('form')
+    setForm({ draft_type: 'letter_to_client', instructions: '', title: '' })
+    setQuestions([])
+    setAnswers({})
+    setStreamContent('')
+    setError('')
+  }
+
+  async function askClarifyQuestions() {
     if (!form.instructions.trim()) return
-    setGenerating(true)
+    setStep('clarifying')
     setError('')
     try {
-      const draft = await createLegalDraft(form, token)
-      setDrafts(prev => [draft, ...prev])
-      setSelected(draft)
-      setCreating(false)
-      setForm({ draft_type: 'letter_to_client', instructions: '', title: '' })
+      const qs = await clarifyDraft({ draft_type: form.draft_type, instructions: form.instructions }, token)
+      setQuestions(qs)
+      setAnswers(Object.fromEntries(qs.map(q => [q.id, ''])))
+      setStep('questions')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Generation failed')
+      setError(e instanceof Error ? e.message : 'Could not load questions')
+      setStep('form')
     }
-    setGenerating(false)
+  }
+
+  async function generate() {
+    setStep('generating')
+    setStreamContent('')
+    setError('')
+    await streamDraft(
+      { draft_type: form.draft_type, instructions: form.instructions, answers, title: form.title || undefined },
+      token,
+      {
+        onToken: t => setStreamContent(prev => prev + t),
+        onDone: draft => {
+          setDrafts(prev => [{ id: draft.id, draft_type: form.draft_type, title: draft.title, case_id: null, created_at: draft.created_at }, ...prev])
+          setStep('done')
+        },
+        onError: msg => { setError(msg); setStep('questions') },
+      },
+    )
   }
 
   async function openDraft(id: string) {
     try {
       const d = await getLegalDraft(id, token)
       setSelected(d)
-      setCreating(false)
+      resetWizard()
     } catch { /* ignore */ }
   }
 
@@ -251,12 +347,15 @@ function DraftsPanel({ token }: { token: string }) {
     if (selected?.id === id) setSelected(null)
   }
 
+  const activeContent = step === 'done' || step === 'generating' ? streamContent : selected?.content ?? ''
+  const showDocument = (step === 'done' || step === 'generating') || (selected && step === 'form')
+
   return (
-    <div className="flex gap-4 h-[70vh] min-h-[500px]">
-      {/* Draft list */}
+    <div className="flex gap-4 h-[78vh] min-h-[560px]">
+      {/* Sidebar — draft list */}
       <aside className="w-56 flex-shrink-0 flex flex-col gap-2">
         <button
-          onClick={() => { setCreating(true); setSelected(null) }}
+          onClick={() => { setSelected(null); resetWizard(); setStep('form') }}
           className="w-full px-3 py-2 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 text-sm font-medium hover:bg-gold-500/20 transition-colors"
         >
           + New Draft
@@ -276,17 +375,22 @@ function DraftsPanel({ token }: { token: string }) {
               <div className="text-neutral-600 text-[10px]">{DRAFT_TYPE_LABELS[d.draft_type] ?? d.draft_type}</div>
             </button>
           ))}
-          {drafts.length === 0 && !creating && (
-            <p className="text-neutral-600 text-xs px-2 pt-4">No drafts yet. Click "+ New Draft" to generate one with AI.</p>
+          {drafts.length === 0 && step === 'form' && (
+            <p className="text-neutral-600 text-xs px-2 pt-4">No drafts yet. Click &quot;+ New Draft&quot; to generate one with AI.</p>
           )}
         </div>
       </aside>
 
       {/* Main area */}
       <div className="flex-1 flex flex-col rounded-xl border border-neutral-700/40 bg-primary-800/30 overflow-hidden">
-        {creating ? (
+
+        {/* ── Step: form ── */}
+        {step === 'form' && !selected && (
           <div className="flex-1 overflow-y-auto p-6 space-y-5">
-            <h3 className="font-heading text-body-lg text-neutral-50">Generate Legal Draft</h3>
+            <div>
+              <h3 className="font-heading text-body-lg text-neutral-50">Generate Legal Draft</h3>
+              <p className="text-neutral-500 text-xs mt-1">Describe what you need — AI will ask clarifying questions before drafting.</p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-neutral-400 text-xs mb-1">Document Type</label>
@@ -311,49 +415,138 @@ function DraftsPanel({ token }: { token: string }) {
               </div>
             </div>
             <div>
-              <label className="block text-neutral-400 text-xs mb-1">Instructions <span className="text-crimson-400">*</span></label>
+              <label className="block text-neutral-400 text-xs mb-1">Brief description <span className="text-crimson-400">*</span></label>
               <textarea
                 value={form.instructions}
                 onChange={e => setForm(f => ({ ...f, instructions: e.target.value }))}
-                placeholder="Describe what the document should contain — parties involved, key facts, the legal point to make, tone required…"
-                rows={6}
+                placeholder="What is this document for? Who are the parties? What is the key issue or relief sought? Don't worry about details — AI will ask follow-up questions."
+                rows={5}
                 className="w-full rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50 resize-none"
               />
             </div>
             {error && <p className="text-crimson-400 text-xs">{error}</p>}
-            <div className="flex gap-3">
+            <button
+              onClick={() => void askClarifyQuestions()}
+              disabled={!form.instructions.trim()}
+              className="px-5 py-2.5 rounded-lg bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 disabled:opacity-50 transition-colors flex items-center gap-2"
+            >
+              Continue — let AI ask me questions →
+            </button>
+          </div>
+        )}
+
+        {/* ── Step: clarifying (loading questions) ── */}
+        {step === 'clarifying' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+            <svg className="w-8 h-8 animate-spin text-gold-400" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            <p className="text-neutral-400 text-sm">AI is reviewing your description and preparing questions…</p>
+          </div>
+        )}
+
+        {/* ── Step: questions ── */}
+        {step === 'questions' && (
+          <div className="flex-1 overflow-y-auto p-6 space-y-5">
+            <div>
+              <h3 className="font-heading text-body-lg text-neutral-50">A few quick questions</h3>
+              <p className="text-neutral-500 text-xs mt-1">
+                Answer as many as you can — AI will use these to produce a complete document with no missing placeholders.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {questions.map(q => (
+                <div key={q.id}>
+                  <label className="block text-neutral-300 text-sm mb-1">
+                    {q.label}
+                    {q.required && <span className="text-crimson-400 ml-1">*</span>}
+                  </label>
+                  <input
+                    value={answers[q.id] ?? ''}
+                    onChange={e => setAnswers(prev => ({ ...prev, [q.id]: e.target.value }))}
+                    placeholder={q.placeholder}
+                    className="w-full rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {error && <p className="text-crimson-400 text-xs">{error}</p>}
+
+            <div className="flex gap-3 pt-1">
               <button
                 onClick={() => void generate()}
-                disabled={generating || !form.instructions.trim()}
-                className="px-5 py-2 rounded-lg bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 disabled:opacity-50 transition-colors flex items-center gap-2"
+                className="px-5 py-2.5 rounded-lg bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 transition-colors flex items-center gap-2"
               >
-                {generating ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    Generating…
-                  </>
-                ) : 'Generate Draft'}
+                Generate Draft
               </button>
               <button
-                onClick={() => setCreating(false)}
+                onClick={() => setStep('form')}
                 className="px-4 py-2 rounded-lg border border-neutral-700/40 text-neutral-400 text-sm hover:text-neutral-200 transition-colors"
               >
-                Cancel
+                ← Back
               </button>
             </div>
           </div>
-        ) : selected ? (
-          <div className="flex-1 overflow-y-auto p-6">
-            <div className="flex items-start justify-between mb-4 gap-4">
-              <div>
-                <h3 className="font-heading text-body-lg text-neutral-50">{selected.title}</h3>
-                <p className="text-neutral-500 text-xs">{DRAFT_TYPE_LABELS[selected.draft_type] ?? selected.draft_type} · {new Date(selected.created_at).toLocaleDateString()}</p>
+        )}
+
+        {/* ── Step: generating / done (streaming document view) ── */}
+        {(step === 'generating' || step === 'done') && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-700/40 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                {step === 'generating' && (
+                  <svg className="w-4 h-4 animate-spin text-gold-400" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                  </svg>
+                )}
+                <span className="text-neutral-300 text-sm font-medium">
+                  {step === 'generating' ? 'Drafting document…' : (form.title || DRAFT_TYPE_LABELS[form.draft_type] || 'Draft')}
+                </span>
               </div>
-              <div className="flex gap-2 flex-shrink-0">
+              {step === 'done' && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => navigator.clipboard.writeText(streamContent).catch(() => {})}
+                    className="px-3 py-1.5 rounded-lg border border-neutral-700/40 text-neutral-400 text-xs hover:text-gold-400 transition-colors"
+                  >
+                    Copy
+                  </button>
+                  <button
+                    onClick={() => { resetWizard(); setSelected(null) }}
+                    className="px-3 py-1.5 rounded-lg border border-neutral-700/40 text-neutral-400 text-xs hover:text-neutral-200 transition-colors"
+                  >
+                    New Draft
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 bg-neutral-100/5">
+              {streamContent ? (
+                <DocumentRenderer content={streamContent} />
+              ) : (
+                <div className="h-32 flex items-center justify-center text-neutral-500 text-sm">Starting…</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Viewing saved draft ── */}
+        {selected && step === 'form' && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-700/40 flex-shrink-0">
+              <div>
+                <span className="text-neutral-200 text-sm font-medium">{selected.title}</span>
+                <span className="ml-3 text-neutral-500 text-xs">
+                  {DRAFT_TYPE_LABELS[selected.draft_type] ?? selected.draft_type} · {new Date(selected.created_at).toLocaleDateString()}
+                </span>
+              </div>
+              <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(selected.content).catch(() => {})
-                  }}
+                  onClick={() => navigator.clipboard.writeText(selected.content).catch(() => {})}
                   className="px-3 py-1.5 rounded-lg border border-neutral-700/40 text-neutral-400 text-xs hover:text-gold-400 transition-colors"
                 >
                   Copy
@@ -366,16 +559,19 @@ function DraftsPanel({ token }: { token: string }) {
                 </button>
               </div>
             </div>
-            <pre className="whitespace-pre-wrap text-neutral-200 text-sm font-body leading-relaxed bg-primary-900/40 border border-neutral-700/20 rounded-lg p-4">
-              {selected.content}
-            </pre>
+            <div className="flex-1 overflow-y-auto p-6 bg-neutral-100/5">
+              <DocumentRenderer content={selected.content} />
+            </div>
           </div>
-        ) : (
+        )}
+
+        {/* ── Empty state ── */}
+        {step === 'form' && !selected && false && (
           <div className="flex-1 flex items-center justify-center text-center text-neutral-500 text-sm p-8">
             <div>
               <div className="text-3xl mb-3">📄</div>
               <p className="font-medium text-neutral-300 mb-1">Legal Document Drafts</p>
-              <p>Generate professionally formatted legal documents — letters, motions, affidavits, and more — using AI trained on Cameroonian law.</p>
+              <p>Generate professionally formatted legal documents using AI trained on Cameroonian law.</p>
             </div>
           </div>
         )}

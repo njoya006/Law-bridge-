@@ -202,3 +202,81 @@ export async function deleteLegalDraft(id: string, token: string): Promise<void>
   })
   if (!res.ok && res.status !== 404) throw new Error(`Delete failed (${res.status})`)
 }
+
+export type ClarifyQuestion = {
+  id: string
+  label: string
+  placeholder: string
+  required: boolean
+}
+
+export async function clarifyDraft(
+  payload: { draft_type: string; instructions: string },
+  token: string,
+): Promise<ClarifyQuestion[]> {
+  const res = await fetch(`${aiBase()}/ai/drafts/clarify/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw new Error(`Clarify failed (${res.status})`)
+  const data = await res.json() as { questions: ClarifyQuestion[] }
+  return data.questions
+}
+
+export type DraftStreamCallbacks = {
+  onToken: (t: string) => void
+  onDone: (draft: { id: string; title: string; created_at: string }) => void
+  onError: (msg: string) => void
+}
+
+export async function streamDraft(
+  payload: { draft_type: string; instructions: string; answers?: Record<string, string>; title?: string; case_id?: string | null },
+  token: string,
+  callbacks: DraftStreamCallbacks,
+): Promise<void> {
+  const res = await fetch(`${aiBase()}/ai/drafts/stream/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    callbacks.onError(`Draft generation failed (${res.status}): ${text.slice(0, 200)}`)
+    return
+  }
+  const reader = res.body?.getReader()
+  if (!reader) { callbacks.onError('No response body'); return }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const raw = line.slice(6).trim()
+        if (!raw) continue
+        try {
+          const parsed = JSON.parse(raw) as { token?: string; done?: boolean; draft_id?: string; title?: string; created_at?: string; error?: string }
+          if (parsed.error) { callbacks.onError(parsed.error); return }
+          if (parsed.token) callbacks.onToken(parsed.token)
+          if (parsed.done && parsed.draft_id) {
+            callbacks.onDone({ id: parsed.draft_id, title: parsed.title ?? 'Draft', created_at: parsed.created_at ?? new Date().toISOString() })
+            return
+          }
+        } catch { /* skip malformed line */ }
+      }
+    }
+  } finally {
+    reader.cancel().catch(() => undefined)
+  }
+}
