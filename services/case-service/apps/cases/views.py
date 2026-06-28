@@ -8,8 +8,8 @@ from decouple import config
 import json
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
-from .models import Case, CaseNote, CaseApplication
-from .serializers import CaseSerializer, CaseCreateSerializer, CaseNoteSerializer
+from .models import Case, CaseNote, CaseApplication, ReassignmentRequest
+from .serializers import CaseSerializer, CaseCreateSerializer, CaseNoteSerializer, ReassignmentRequestSerializer
 
 
 def extract_user_id_from_token(request):
@@ -410,3 +410,230 @@ class CaseApplicationView(APIView):
             'status': application.status,
             'created_at': application.created_at.isoformat(),
         }, status=201)
+
+
+# ── Reassignment ──────────────────────────────────────────────────────────────
+
+import datetime
+
+
+REASSIGNMENT_WORK_PROGRESS = {
+    'draft': 0, 'filed': 10, 'assigned': 20, 'under_review': 35,
+    'evidence_collection': 50, 'awaiting_court_date': 60, 'in_progress': 65,
+    'hearing_scheduled': 75, 'hearing_adjourned': 80, 'mediation': 70,
+    'verdict': 90, 'settled': 100, 'closed': 100, 'dismissed': 0, 'archived': 0,
+    'appeal_filed': 85, 'appeal_in_progress': 90,
+}
+
+ACTIVE_REASSIGNMENT_STATUSES = {'pending_review', 'mediation_window', 'approved', 'searching', 'transferring'}
+
+
+def _run_conflict_checks(case) -> dict:
+    """Analyse the case for reassignment conflicts and return a structured report."""
+    flags: dict = {}
+
+    # Payment check
+    bm = case.booking_metadata or {}
+    payment_status = bm.get('payment_status', '')
+    flags['payment_made'] = payment_status in ('paid', 'captured', 'completed')
+    flags['payment_amount'] = str(bm.get('booking_fee') or '0')
+    flags['payment_currency'] = 'XAF'
+
+    # Court date imminence
+    high_risk_statuses = {'hearing_scheduled', 'awaiting_court_date', 'hearing_adjourned'}
+    flags['court_date_imminent'] = case.status in high_risk_statuses
+
+    # Active appeal — cannot reassign
+    appeal_statuses = {'appeal_filed', 'appeal_in_progress'}
+    flags['active_appeal'] = case.status in appeal_statuses
+
+    # Terminal — no reassignment
+    terminal = {'closed', 'dismissed', 'archived', 'settled', 'verdict'}
+    flags['is_terminal'] = case.status in terminal
+
+    # Work progress %
+    flags['work_progress_pct'] = REASSIGNMENT_WORK_PROGRESS.get(case.status, 0)
+
+    # Recent activity (last 7 days)
+    week_ago = (timezone.now() - datetime.timedelta(days=7)).isoformat()
+    recent = [t for t in (case.timeline or []) if t.get('timestamp', '') >= week_ago]
+    flags['recent_activity_count'] = len(recent)
+
+    # Whether a lawyer is assigned
+    flags['has_lawyer'] = bool(case.assigned_lawyer_id)
+
+    # Overall recommendation
+    if flags['is_terminal']:
+        flags['recommendation'] = 'blocked'
+        flags['block_reason'] = 'Case is in a terminal state and cannot be reassigned'
+    elif flags['active_appeal']:
+        flags['recommendation'] = 'blocked'
+        flags['block_reason'] = 'Case has an active appeal — reassignment is not permitted during appeal proceedings'
+    elif not flags['has_lawyer']:
+        flags['recommendation'] = 'blocked'
+        flags['block_reason'] = 'No lawyer is currently assigned to this case'
+    elif flags['court_date_imminent']:
+        flags['recommendation'] = 'caution'
+    elif flags['work_progress_pct'] >= 70:
+        flags['recommendation'] = 'caution'
+    else:
+        flags['recommendation'] = 'proceed'
+
+    return flags
+
+
+class ReassignmentView(APIView):
+    """
+    GET  /cases/{id}/reassignment/ — return active reassignment request if any
+    POST /cases/{id}/reassignment/ — initiate a new reassignment request
+    """
+
+    def _get_case_for_client(self, request, case_id):
+        client_id = extract_user_id_from_token(request)
+        try:
+            return Case.objects.get(id=case_id, client_id=client_id), client_id
+        except Case.DoesNotExist:
+            return None, client_id
+
+    def get(self, request, case_id):
+        case, client_id = self._get_case_for_client(request, case_id)
+        if not case:
+            return Response({'error': 'Case not found'}, status=404)
+        req = ReassignmentRequest.objects.filter(
+            case=case, client_id=str(client_id),
+        ).order_by('-created_at').first()
+        if not req:
+            return Response({'active': False}, status=200)
+        return Response({'active': True, **ReassignmentRequestSerializer(req).data})
+
+    def post(self, request, case_id):
+        case, client_id = self._get_case_for_client(request, case_id)
+        if not case:
+            return Response({'error': 'Case not found or not owned by you'}, status=404)
+
+        # Block if there is already an active request
+        if ReassignmentRequest.objects.filter(
+            case=case, client_id=str(client_id), status__in=ACTIVE_REASSIGNMENT_STATUSES
+        ).exists():
+            return Response({'error': 'An active reassignment request already exists for this case'}, status=400)
+
+        reason_code = (request.data.get('reason_code') or '').strip()
+        reason_detail = (request.data.get('reason_detail') or '').strip()
+        performance_rating = request.data.get('performance_rating', 3)
+
+        if not reason_code:
+            return Response({'error': 'reason_code is required'}, status=400)
+        if not reason_detail:
+            return Response({'error': 'Please describe the issue in detail'}, status=400)
+        try:
+            performance_rating = max(1, min(5, int(performance_rating)))
+        except (TypeError, ValueError):
+            performance_rating = 3
+
+        conflict_flags = _run_conflict_checks(case)
+
+        req_status = 'blocked' if conflict_flags.get('recommendation') == 'blocked' else 'pending_review'
+        mediation_deadline = None
+        if req_status == 'pending_review':
+            mediation_deadline = timezone.now() + datetime.timedelta(hours=48)
+
+        req = ReassignmentRequest.objects.create(
+            case=case,
+            client_id=str(client_id),
+            reason_code=reason_code,
+            reason_detail=reason_detail,
+            performance_rating=performance_rating,
+            conflict_flags=conflict_flags,
+            status=req_status,
+            mediation_deadline=mediation_deadline,
+        )
+
+        return Response(ReassignmentRequestSerializer(req).data, status=201)
+
+
+class ReassignmentConfirmView(APIView):
+    """POST /cases/{id}/reassignment/confirm/ — client confirms after reviewing conflict report."""
+
+    def post(self, request, case_id):
+        client_id = extract_user_id_from_token(request)
+        try:
+            case = Case.objects.get(id=case_id, client_id=client_id)
+        except Case.DoesNotExist:
+            return Response({'error': 'Case not found'}, status=404)
+
+        req = ReassignmentRequest.objects.filter(
+            case=case, client_id=str(client_id), status='pending_review'
+        ).order_by('-created_at').first()
+        if not req:
+            return Response({'error': 'No pending reassignment request found'}, status=404)
+
+        req.status = 'mediation_window'
+        req.save(update_fields=['status', 'updated_at'])
+        return Response(ReassignmentRequestSerializer(req).data)
+
+
+class ReassignmentCancelView(APIView):
+    """POST /cases/{id}/reassignment/cancel/ — client cancels the current request."""
+
+    def post(self, request, case_id):
+        client_id = extract_user_id_from_token(request)
+        try:
+            case = Case.objects.get(id=case_id, client_id=client_id)
+        except Case.DoesNotExist:
+            return Response({'error': 'Case not found'}, status=404)
+
+        req = ReassignmentRequest.objects.filter(
+            case=case, client_id=str(client_id), status__in=ACTIVE_REASSIGNMENT_STATUSES
+        ).order_by('-created_at').first()
+        if not req:
+            return Response({'error': 'No active reassignment request to cancel'}, status=404)
+
+        req.status = 'cancelled'
+        req.completed_at = timezone.now()
+        req.save(update_fields=['status', 'completed_at', 'updated_at'])
+        return Response({'status': 'cancelled'})
+
+
+class ReassignmentSelectLawyerView(APIView):
+    """POST /cases/{id}/reassignment/select-lawyer/ — client picks the replacement lawyer."""
+
+    def post(self, request, case_id):
+        client_id = extract_user_id_from_token(request)
+        try:
+            case = Case.objects.get(id=case_id, client_id=client_id)
+        except Case.DoesNotExist:
+            return Response({'error': 'Case not found'}, status=404)
+
+        new_lawyer_id = (request.data.get('lawyer_id') or '').strip()
+        if not new_lawyer_id:
+            return Response({'error': 'lawyer_id is required'}, status=400)
+
+        req = ReassignmentRequest.objects.filter(
+            case=case, client_id=str(client_id), status__in={'mediation_window', 'approved', 'searching'}
+        ).order_by('-created_at').first()
+        if not req:
+            return Response({'error': 'No eligible reassignment request found'}, status=404)
+
+        req.selected_lawyer_id = new_lawyer_id
+        req.status = 'transferring'
+        req.save(update_fields=['selected_lawyer_id', 'status', 'updated_at'])
+
+        # Execute the case transfer
+        old_lawyer_id = str(case.assigned_lawyer_id) if case.assigned_lawyer_id else None
+        case.assigned_lawyer_id = new_lawyer_id
+        case.add_timeline_entry(
+            status=case.status,
+            notes=f'Lawyer reassigned. Previous lawyer: {old_lawyer_id or "none"}. Reason: {req.get_reason_code_display()}.',
+            updated_by=str(client_id),
+        )
+
+        req.status = 'completed'
+        req.completed_at = timezone.now()
+        req.handoff_summary = (
+            f'Case transferred from lawyer {old_lawyer_id or "unassigned"} to {new_lawyer_id}. '
+            f'Client rating of previous representation: {req.performance_rating}/5. '
+            f'Reason: {req.get_reason_code_display()}.'
+        )
+        req.save(update_fields=['status', 'completed_at', 'handoff_summary', 'updated_at'])
+
+        return Response(ReassignmentRequestSerializer(req).data)

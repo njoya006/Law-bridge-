@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Case, CaseNote
+from .models import Case, CaseNote, ReassignmentRequest
 
 
 class CaseNoteSerializer(serializers.ModelSerializer):
@@ -22,6 +22,23 @@ class CaseSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at', 'filed_at', 'closed_at'
         )
         read_only_fields = ('id', 'timeline', 'created_at', 'updated_at', 'filed_at', 'closed_at')
+
+
+class ReassignmentRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReassignmentRequest
+        fields = (
+            'id', 'case', 'client_id', 'reason_code', 'reason_detail',
+            'performance_rating', 'conflict_flags', 'status',
+            'mediation_deadline', 'lawyer_response', 'lawyer_responded_at',
+            'selected_lawyer_id', 'handoff_summary',
+            'created_at', 'updated_at', 'completed_at',
+        )
+        read_only_fields = (
+            'id', 'case', 'client_id', 'conflict_flags', 'status',
+            'mediation_deadline', 'lawyer_response', 'lawyer_responded_at',
+            'handoff_summary', 'created_at', 'updated_at', 'completed_at',
+        )
 
 
 class CaseCreateSerializer(serializers.ModelSerializer):

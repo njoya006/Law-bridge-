@@ -109,3 +109,77 @@ export function applyForCase(caseId: string, message: string, token: string) {
     token,
   )
 }
+
+// ── Reassignment ──────────────────────────────────────────────────────────────
+
+export type ConflictFlags = {
+  payment_made: boolean
+  payment_amount: string
+  payment_currency: string
+  court_date_imminent: boolean
+  active_appeal: boolean
+  is_terminal: boolean
+  work_progress_pct: number
+  recent_activity_count: number
+  has_lawyer: boolean
+  recommendation: 'proceed' | 'caution' | 'blocked'
+  block_reason?: string
+}
+
+export type ReassignmentRequest = {
+  id: string
+  case: string
+  client_id: string
+  reason_code: string
+  reason_detail: string
+  performance_rating: number
+  conflict_flags: ConflictFlags
+  status: string
+  mediation_deadline: string | null
+  lawyer_response: string
+  lawyer_responded_at: string | null
+  selected_lawyer_id: string | null
+  handoff_summary: string
+  created_at: string
+  updated_at: string
+  completed_at: string | null
+}
+
+export type ReassignmentResponse = { active: false } | ({ active: true } & ReassignmentRequest)
+
+export const REASSIGNMENT_REASONS: { value: string; label: string }[] = [
+  { value: 'unresponsive',     label: 'Lawyer is unresponsive' },
+  { value: 'slow_progress',    label: 'Case progress is too slow' },
+  { value: 'unprofessional',   label: 'Unprofessional conduct' },
+  { value: 'lack_expertise',   label: 'Lack of required expertise' },
+  { value: 'breach_agreement', label: 'Breach of engagement agreement' },
+  { value: 'communication',    label: 'Poor communication' },
+  { value: 'personal_reasons', label: 'Personal / conflict of interest' },
+  { value: 'other',            label: 'Other' },
+]
+
+export function getReassignmentRequest(caseId: string, token: string) {
+  return api.get<ReassignmentResponse>('case', `/cases/${caseId}/reassignment/`, token)
+}
+
+export function initiateReassignment(
+  caseId: string,
+  payload: { reason_code: string; reason_detail: string; performance_rating: number },
+  token: string,
+) {
+  return api.post<ReassignmentRequest>('case', `/cases/${caseId}/reassignment/`, payload, token)
+}
+
+export function confirmReassignment(caseId: string, token: string) {
+  return api.post<ReassignmentRequest>('case', `/cases/${caseId}/reassignment/confirm/`, {}, token)
+}
+
+export function cancelReassignment(caseId: string, token: string) {
+  return api.post<{ status: string }>('case', `/cases/${caseId}/reassignment/cancel/`, {}, token)
+}
+
+export function selectReplacementLawyer(caseId: string, lawyerId: string, token: string) {
+  return api.post<ReassignmentRequest>(
+    'case', `/cases/${caseId}/reassignment/select-lawyer/`, { lawyer_id: lawyerId }, token,
+  )
+}

@@ -131,6 +131,74 @@ class CaseNote(models.Model):
         return f"Note on {self.case.id}"
 
 
+class ReassignmentRequest(models.Model):
+    """
+    A client's request to change the assigned lawyer on a case.
+    Implements a conflict-aware, multi-step process with a mediation window
+    before any transfer is approved.
+    """
+
+    REASON_CHOICES = [
+        ('unresponsive',     'Lawyer is unresponsive'),
+        ('slow_progress',    'Case progress is too slow'),
+        ('unprofessional',   'Unprofessional conduct'),
+        ('lack_expertise',   'Lack of required expertise'),
+        ('breach_agreement', 'Breach of engagement agreement'),
+        ('communication',    'Poor communication'),
+        ('personal_reasons', 'Personal / conflict of interest'),
+        ('other',            'Other'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending_review',    'Pending Conflict Review'),   # just submitted — auto-evaluated
+        ('mediation_window',  'Mediation Window Open'),     # lawyer notified; 48 h to respond
+        ('approved',          'Reassignment Approved'),     # conflict cleared; searching
+        ('searching',         'Searching for New Lawyer'),  # client selecting replacement
+        ('transferring',      'Transfer in Progress'),      # handoff underway
+        ('completed',         'Transfer Complete'),         # done
+        ('cancelled',         'Cancelled by Client'),
+        ('resolved',          'Resolved — No Transfer'),    # lawyer addressed concerns
+        ('blocked',           'Blocked — Cannot Reassign'), # active appeal / terminal
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='reassignment_requests')
+    client_id = models.CharField(max_length=64)
+
+    # Client's evaluation of the lawyer
+    reason_code = models.CharField(max_length=32, choices=REASON_CHOICES)
+    reason_detail = models.TextField()
+    performance_rating = models.PositiveSmallIntegerField(default=3, help_text='1–5 star rating')
+
+    # Conflict-check snapshot stored at submission time
+    conflict_flags = models.JSONField(default=dict)
+    # Keys: payment_made, payment_amount, court_date_imminent, active_appeal,
+    #       is_terminal, work_progress_pct, recent_activity_count,
+    #       recommendation ('proceed'|'caution'|'blocked'), block_reason
+
+    # Workflow state
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default='pending_review')
+
+    # Mediation window — 48 h from creation
+    mediation_deadline = models.DateTimeField(null=True, blank=True)
+    lawyer_response = models.TextField(blank=True)
+    lawyer_responded_at = models.DateTimeField(null=True, blank=True)
+
+    # Replacement
+    selected_lawyer_id = models.UUIDField(null=True, blank=True)
+    handoff_summary = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"ReassignmentRequest({self.case_id}) [{self.status}]"
+
+
 class CaseApplication(models.Model):
     """A lawyer or firm applying to take on a declined/open case."""
     STATUS_CHOICES = [
