@@ -47,15 +47,19 @@ class ChatView(APIView):
         except Exception:
             pass
 
+        # Determine portal from JWT role ('client' role -> client portal, everything else -> lawyer)
+        portal = 'client' if (getattr(request.user, 'role', '') or '') == 'client' else 'lawyer'
+
         # Get or create session
         if session_id:
             try:
-                session = ChatSession.objects.get(id=session_id, user_id=str(request.user.id))
+                session = ChatSession.objects.get(id=session_id, user_id=str(request.user.id), portal=portal)
             except ChatSession.DoesNotExist:
                 return Response({'error': 'Session not found'}, status=404)
         else:
             session = ChatSession.objects.create(
                 user_id=str(request.user.id),
+                portal=portal,
                 case_id=case_id,
                 language=language,
                 title=user_message[:60],
@@ -139,7 +143,8 @@ class ChatSessionListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        sessions = ChatSession.objects.filter(user_id=str(request.user.id)).values(
+        portal = 'client' if (getattr(request.user, 'role', '') or '') == 'client' else 'lawyer'
+        sessions = ChatSession.objects.filter(user_id=str(request.user.id), portal=portal).values(
             'id', 'title', 'language', 'case_id', 'updated_at'
         )
         return Response(list(sessions))

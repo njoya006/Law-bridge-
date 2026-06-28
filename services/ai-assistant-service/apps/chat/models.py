@@ -11,6 +11,7 @@ class ChatSession(models.Model):
         choices=[('en', 'English'), ('fr', 'French')],
         default='en'
     )
+    portal = models.CharField(max_length=16, default='lawyer', db_index=True)
     title = models.CharField(max_length=255, blank=True)
     messages = models.JSONField(default=list)
     created_at = models.DateTimeField(auto_now_add=True)
