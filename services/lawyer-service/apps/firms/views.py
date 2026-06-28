@@ -6,10 +6,11 @@ from django.utils import timezone
 from django.http import HttpResponse
 from django.conf import settings
 from io import BytesIO
-from .models import Firm, FirmMembership, Invite, FirmActionLog
+from .models import Firm, FirmMembership, Invite, FirmActionLog, FirmPartnershipPolicy, PartnershipRequest
 from .serializers import (
     FirmSerializer, FirmMembershipSerializer,
     InviteSerializer, FirmActionLogSerializer,
+    FirmPartnershipPolicySerializer, PartnershipRequestSerializer,
 )
 from django.contrib.auth import get_user_model
 
@@ -349,6 +350,16 @@ class FirmDetailView(APIView):
             'member_count': FirmMembership.objects.filter(firm=firm, is_active=True).count(),
         })
 
+    def patch(self, request, firm_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        if not request.user.is_authenticated or not user_has_firm_admin(request.user, firm):
+            return Response({'error': 'Firm admin access required'}, status=403)
+        serializer = FirmSerializer(firm, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
 
 class InviteAcceptView(APIView):
     def post(self, request, token):
@@ -490,3 +501,110 @@ class MemberDeleteView(APIView):
                     old_role=old_role, reason=reason)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Partnership policy ─────────────────────────────────────────────────────────
+
+class FirmPartnershipPolicyView(APIView):
+    """GET/PUT /api/v1/firms/{firm_id}/partnership-policy/"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_firm_and_check_admin(self, request, firm_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        if not user_has_firm_admin(request.user, firm):
+            return firm, False
+        return firm, True
+
+    def get(self, request, firm_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        policy, _ = FirmPartnershipPolicy.objects.get_or_create(firm=firm)
+        return Response(FirmPartnershipPolicySerializer(policy).data)
+
+    def put(self, request, firm_id):
+        firm, is_admin = self._get_firm_and_check_admin(request, firm_id)
+        if not is_admin:
+            return Response({'error': 'Only firm admins can update the partnership policy'}, status=403)
+        policy, _ = FirmPartnershipPolicy.objects.get_or_create(firm=firm)
+        serializer = FirmPartnershipPolicySerializer(policy, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+
+# ── Partnership requests ───────────────────────────────────────────────────────
+
+class PartnershipRequestCreateView(APIView):
+    """POST /api/v1/firms/{firm_id}/partnership-request/ — request to partner with a firm."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, firm_id):
+        target_firm = get_object_or_404(Firm, id=firm_id)
+        uid, _ = _actor_info(request)
+
+        # Requesting user must belong to a firm
+        my_memberships = FirmMembership.objects.filter(
+            user=request.user, is_active=True,
+            role__in=['owner', 'firm_admin', 'partner'],
+        ).select_related('firm').first()
+        if not my_memberships:
+            return Response({'error': 'You must belong to a firm with a partner or admin role to send a partnership request'}, status=403)
+
+        requesting_firm = my_memberships.firm
+        if requesting_firm.id == target_firm.id:
+            return Response({'error': 'You cannot partner with your own firm'}, status=400)
+
+        # Check if the target firm's policy allows partnerships
+        try:
+            policy = target_firm.partnership_policy
+            if not policy.is_open:
+                return Response({'error': f'{target_firm.name} is not currently accepting partnership requests'}, status=400)
+        except FirmPartnershipPolicy.DoesNotExist:
+            return Response({'error': f'{target_firm.name} has not set up a partnership policy yet'}, status=400)
+
+        message = (request.data.get('message') or '').strip()
+        req_obj, created = PartnershipRequest.objects.get_or_create(
+            requesting_firm=requesting_firm,
+            target_firm=target_firm,
+            defaults={'requested_by_id': uid, 'message': message},
+        )
+        if not created:
+            if req_obj.status in ('approved',):
+                return Response({'error': 'A partnership already exists between these firms'}, status=400)
+            # Re-open a rejected request
+            req_obj.status = 'pending'
+            req_obj.message = message
+            req_obj.requested_by_id = uid
+            req_obj.save()
+        return Response(PartnershipRequestSerializer(req_obj).data, status=201 if created else 200)
+
+
+class PartnershipRequestListView(APIView):
+    """GET /api/v1/firms/{firm_id}/partnership-requests/ — list incoming requests (firm admin only)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, firm_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        if not user_has_firm_admin(request.user, firm):
+            return Response({'error': 'Firm admin access required'}, status=403)
+        requests_qs = PartnershipRequest.objects.filter(target_firm=firm).select_related('requesting_firm')
+        return Response(PartnershipRequestSerializer(requests_qs, many=True).data)
+
+
+class PartnershipRequestRespondView(APIView):
+    """PATCH /api/v1/firms/partnership-requests/{pk}/ — approve or reject."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, pk):
+        req_obj = get_object_or_404(PartnershipRequest, id=pk)
+        if not user_has_firm_admin(request.user, req_obj.target_firm):
+            return Response({'error': 'Only an admin of the target firm can respond to this request'}, status=403)
+        new_status = (request.data.get('status') or '').strip()
+        if new_status not in ('under_review', 'approved', 'rejected'):
+            return Response({'error': 'status must be under_review, approved, or rejected'}, status=400)
+        uid, _ = _actor_info(request)
+        req_obj.status = new_status
+        req_obj.response_note = (request.data.get('response_note') or '').strip()
+        req_obj.responded_by_id = uid
+        req_obj.save()
+        return Response(PartnershipRequestSerializer(req_obj).data)

@@ -8,7 +8,7 @@ from decouple import config
 import json
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
-from .models import Case, CaseNote
+from .models import Case, CaseNote, CaseApplication
 from .serializers import CaseSerializer, CaseCreateSerializer, CaseNoteSerializer
 
 
@@ -295,16 +295,49 @@ class IncomingBookingsView(APIView):
         return Response({'count': cases.count(), 'results': serializer.data})
 
 
+class CaseStatusUpdateView(APIView):
+    """POST /api/v1/cases/{case_id}/status/ — Lawyer or firm member updates the case status."""
+
+    def post(self, request, case_id):
+        try:
+            case = Case.objects.get(id=case_id)
+        except Case.DoesNotExist:
+            return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        payload = extract_token_payload(request)
+        role = payload.get('role', 'client')
+        if role not in STAFF_ROLES:
+            return Response({'error': 'Only lawyers and firm members can update case status'}, status=status.HTTP_403_FORBIDDEN)
+
+        if not user_can_access_case(request, case):
+            return Response({'error': 'You do not have access to this case'}, status=status.HTTP_403_FORBIDDEN)
+
+        new_status = (request.data.get('status') or '').strip()
+        note = (request.data.get('note') or '').strip()
+
+        valid = [s for s, _ in Case.STATUS_CHOICES]
+        if new_status not in valid:
+            return Response(
+                {'error': f'Invalid status. Valid values: {", ".join(valid)}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_id = payload.get('user_id') or extract_user_id_from_token(request)
+        case.add_timeline_entry(new_status, notes=note, updated_by=user_id)
+
+        return Response(CaseSerializer(case).data)
+
+
 class CaseNoteView(APIView):
     """Add notes to a case"""
-    
+
     def post(self, request, case_id):
         """POST /api/v1/cases/{case_id}/notes/ - Add lawyer note"""
         try:
             case = Case.objects.get(id=case_id)
         except Case.DoesNotExist:
             return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
-        
+
         serializer = CaseNoteSerializer(data=request.data)
         user_id = extract_user_id_from_token(request)
         if serializer.is_valid():
@@ -319,3 +352,61 @@ class CaseNoteView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+
+class OpenCasesView(APIView):
+    """GET /api/v1/cases/open/ — cases with declined bookings that lawyers can apply for."""
+
+    def get(self, request):
+        payload = extract_token_payload(request)
+        role = payload.get('role', 'client')
+        if role not in STAFF_ROLES:
+            return Response({'error': 'Only lawyers and firm staff can view open cases'}, status=403)
+
+        qs = Case.objects.filter(
+            booking_status='declined',
+            assigned_lawyer_id__isnull=True,
+        ).order_by('-created_at')
+
+        data = CaseSerializer(qs, many=True).data
+        return Response({'count': len(data), 'results': data})
+
+
+class CaseApplicationView(APIView):
+    """POST /api/v1/cases/{case_id}/apply/ — lawyer applies to take on a declined case."""
+
+    def post(self, request, case_id):
+        payload = extract_token_payload(request)
+        role = payload.get('role', 'client')
+        if role not in STAFF_ROLES:
+            return Response({'error': 'Only lawyers and firm staff can apply for cases'}, status=403)
+
+        try:
+            case = Case.objects.get(id=case_id)
+        except Case.DoesNotExist:
+            return Response({'error': 'Case not found'}, status=404)
+
+        if case.booking_status != 'declined':
+            return Response({'error': 'This case is not open for applications'}, status=400)
+
+        lawyer_id = payload.get('user_id') or extract_user_id_from_token(request)
+        if not lawyer_id:
+            return Response({'error': 'Could not identify requesting lawyer'}, status=400)
+
+        message = (request.data.get('message') or '').strip()
+        application, created = CaseApplication.objects.get_or_create(
+            case=case,
+            lawyer_id=lawyer_id,
+            defaults={'message': message},
+        )
+        if not created:
+            return Response({'error': 'You have already applied for this case'}, status=400)
+
+        return Response({
+            'id': str(application.id),
+            'case_id': str(case.id),
+            'lawyer_id': str(application.lawyer_id),
+            'message': application.message,
+            'status': application.status,
+            'created_at': application.created_at.isoformat(),
+        }, status=201)

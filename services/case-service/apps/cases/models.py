@@ -9,15 +9,31 @@ class Case(models.Model):
     Tracks status, assignments, and timeline.
     """
     STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('filed', 'Filed'),
-        ('assigned', 'Assigned to Lawyer'),
-        ('in_progress', 'In Progress'),
-        ('hearing_scheduled', 'Hearing Scheduled'),
-        ('verdict', 'Verdict Rendered'),
-        ('closed', 'Closed'),
-        ('dismissed', 'Dismissed'),
+        # Initial
+        ('draft',               'Draft'),
+        ('filed',               'Filed'),
+        # Lawyer intake
+        ('assigned',            'Assigned to Lawyer'),
+        ('under_review',        'Under Review'),
+        ('evidence_collection', 'Evidence Collection'),
+        ('awaiting_court_date', 'Awaiting Court Date'),
+        # Active proceedings
+        ('in_progress',         'In Progress'),
+        ('hearing_scheduled',   'Hearing Scheduled'),
+        ('hearing_adjourned',   'Hearing Adjourned'),
+        ('mediation',           'Mediation'),
+        # Resolution
+        ('verdict',             'Verdict Rendered'),
+        ('settled',             'Settled Out of Court'),
+        ('appeal_filed',        'Appeal Filed'),
+        ('appeal_in_progress',  'Appeal in Progress'),
+        # Terminal
+        ('closed',              'Closed'),
+        ('dismissed',           'Dismissed'),
+        ('archived',            'Archived'),
     ]
+
+    TERMINAL_STATUSES = {'closed', 'dismissed', 'archived', 'settled'}
     
     LEGAL_TRADITION = [
         ('common_law', 'Common Law'),
@@ -79,15 +95,20 @@ class Case(models.Model):
     def __str__(self):
         return f"Case({self.case_type}) - {self.title[:50]}"
 
-    def add_timeline_entry(self, status, notes=''):
-        """Add an entry to case timeline when status changes"""
+    def add_timeline_entry(self, status, notes='', updated_by=None):
+        """Add a status-change entry to the timeline and save."""
         from django.utils import timezone
         self.timeline.append({
             'timestamp': timezone.now().isoformat(),
             'status': status,
-            'notes': notes
+            'notes': notes,
+            'updated_by': str(updated_by) if updated_by else None,
         })
         self.status = status
+        if status == 'filed' and not self.filed_at:
+            self.filed_at = timezone.now()
+        elif status in self.TERMINAL_STATUSES and not self.closed_at:
+            self.closed_at = timezone.now()
         self.save()
 
 
@@ -108,3 +129,28 @@ class CaseNote(models.Model):
 
     def __str__(self):
         return f"Note on {self.case.id}"
+
+
+class CaseApplication(models.Model):
+    """A lawyer or firm applying to take on a declined/open case."""
+    STATUS_CHOICES = [
+        ('pending',  'Pending Review'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='applications')
+    lawyer_id = models.UUIDField(help_text='UUID of the lawyer applying')
+    firm_id = models.UUIDField(null=True, blank=True, help_text='Optional: firm the lawyer belongs to')
+    message = models.TextField(blank=True, default='')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('case', 'lawyer_id')
+
+    def __str__(self):
+        return f"Application by {self.lawyer_id} for case {self.case_id}"

@@ -9,9 +9,9 @@ from rest_framework.renderers import JSONRenderer, BaseRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import ChatSession
+from .models import ChatSession, LegalDraft
 from .serializers import ChatSessionSerializer
-from apps.utils.ai_client import get_ai_client
+from apps.utils.ai_client import get_ai_client, LEGAL_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -161,4 +161,138 @@ class ChatSessionDetailView(APIView):
             session.delete()
             return Response(status=204)
         except ChatSession.DoesNotExist:
+            return Response({'error': 'Not found'}, status=404)
+
+
+DRAFT_TYPE_PROMPTS = {
+    'letter_to_client':    'Draft a formal letter from the lawyer to the client.',
+    'letter_to_court':     'Draft a formal letter addressed to the court.',
+    'motion':              'Draft a legal motion (requête) to be filed in court.',
+    'contract_clause':     'Draft a specific contract clause or set of clauses.',
+    'memorandum':          'Draft a legal memorandum (note de service / memo juridique).',
+    'demand_letter':       'Draft a demand letter (lettre de mise en demeure).',
+    'affidavit':           'Draft a sworn affidavit (déclaration sous serment).',
+    'settlement_proposal': 'Draft a settlement proposal between the parties.',
+    'appeal_brief':        'Draft an appeal brief (mémoire d\'appel) for court filing.',
+    'other':               'Draft the legal document as described.',
+}
+
+
+class LegalDraftCreateView(APIView):
+    """POST /api/v1/ai/drafts/ — generate a legal document draft using AI."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        draft_type = (request.data.get('draft_type') or 'other').strip()
+        instructions = (request.data.get('instructions') or '').strip()
+        case_id = request.data.get('case_id')
+        title = (request.data.get('title') or '').strip()
+
+        if not instructions:
+            return Response({'error': 'instructions are required'}, status=400)
+
+        valid_types = [t for t, _ in LegalDraft.DRAFT_TYPES]
+        if draft_type not in valid_types:
+            draft_type = 'other'
+
+        # Optional case context
+        case_context = ''
+        if case_id:
+            try:
+                import requests as req
+                r = req.get(
+                    f"{settings.CASE_SERVICE_URL}/api/v1/cases/{case_id}/summary/",
+                    headers={'X-Internal-Api-Key': getattr(settings, 'INTERNAL_API_KEY', '')},
+                    timeout=4,
+                )
+                if r.status_code == 200:
+                    d = r.json()
+                    case_context = (
+                        f"CASE CONTEXT:\nType: {d.get('case_type')} | "
+                        f"Circuit: {d.get('circuit')} ({d.get('legal_tradition')}) | "
+                        f"Status: {d.get('status')}\n"
+                        f"Parties: {str(d.get('description', ''))[:300]}"
+                    )
+            except Exception:
+                pass
+
+        type_prompt = DRAFT_TYPE_PROMPTS.get(draft_type, DRAFT_TYPE_PROMPTS['other'])
+        draft_prompt = (
+            f"{LEGAL_SYSTEM_PROMPT}\n\n"
+            "You are now in DOCUMENT DRAFTING MODE. Do not include explanations or commentary — "
+            "output only the complete, professionally formatted legal document text.\n\n"
+            f"Document type: {type_prompt}\n"
+        )
+        if case_context:
+            draft_prompt += f"\n{case_context}\n"
+        draft_prompt += f"\nLawyer's instructions:\n{instructions}\n\nDraft:"
+
+        try:
+            ai = get_ai_client(settings)
+            full_content = ''
+            for token in ai.stream(
+                user_message=draft_prompt,
+                history=[],
+                case_context='',
+            ):
+                full_content += token
+        except Exception as exc:
+            logger.exception("AI draft generation error")
+            return Response({'error': f'Draft generation failed: {exc}'}, status=502)
+
+        draft = LegalDraft.objects.create(
+            user_id=str(request.user.id),
+            case_id=case_id,
+            draft_type=draft_type,
+            title=title or f"{dict(LegalDraft.DRAFT_TYPES).get(draft_type, 'Draft')}",
+            instructions=instructions,
+            content=full_content,
+        )
+        return Response({
+            'id': str(draft.id),
+            'draft_type': draft.draft_type,
+            'title': draft.title,
+            'instructions': draft.instructions,
+            'content': draft.content,
+            'case_id': draft.case_id,
+            'created_at': draft.created_at.isoformat(),
+        }, status=201)
+
+
+class LegalDraftListView(APIView):
+    """GET /api/v1/ai/drafts/ — list user's saved drafts."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        drafts = LegalDraft.objects.filter(
+            user_id=str(request.user.id)
+        ).values('id', 'draft_type', 'title', 'case_id', 'created_at')
+        return Response(list(drafts))
+
+
+class LegalDraftDetailView(APIView):
+    """GET/DELETE /api/v1/ai/drafts/{id}/"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, draft_id):
+        try:
+            draft = LegalDraft.objects.get(id=draft_id, user_id=str(request.user.id))
+        except LegalDraft.DoesNotExist:
+            return Response({'error': 'Not found'}, status=404)
+        return Response({
+            'id': str(draft.id),
+            'draft_type': draft.draft_type,
+            'title': draft.title,
+            'instructions': draft.instructions,
+            'content': draft.content,
+            'case_id': draft.case_id,
+            'created_at': draft.created_at.isoformat(),
+        })
+
+    def delete(self, request, draft_id):
+        try:
+            draft = LegalDraft.objects.get(id=draft_id, user_id=str(request.user.id))
+            draft.delete()
+            return Response(status=204)
+        except LegalDraft.DoesNotExist:
             return Response({'error': 'Not found'}, status=404)

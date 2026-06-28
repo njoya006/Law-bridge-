@@ -17,6 +17,10 @@ from .views import (
     MemberAssignFirmView,
     MemberDeleteView,
     UserFirmMembershipsView,
+    FirmPartnershipPolicyView,
+    PartnershipRequestCreateView,
+    PartnershipRequestListView,
+    PartnershipRequestRespondView,
 )
 
 urlpatterns = [
@@ -37,4 +41,9 @@ urlpatterns = [
     path('members/<int:member_id>/role/', MemberRoleUpdateView.as_view(), name='member-role-update'),
     path('members/<int:member_id>/firm/', MemberAssignFirmView.as_view(), name='member-assign-firm'),
     path('members/<int:member_id>/', MemberDeleteView.as_view(), name='member-delete'),
+    # Partnership
+    path('<int:firm_id>/partnership-policy/', FirmPartnershipPolicyView.as_view(), name='firm-partnership-policy'),
+    path('<int:firm_id>/partnership-request/', PartnershipRequestCreateView.as_view(), name='firm-partnership-request-create'),
+    path('<int:firm_id>/partnership-requests/', PartnershipRequestListView.as_view(), name='firm-partnership-requests'),
+    path('partnership-requests/<int:pk>/', PartnershipRequestRespondView.as_view(), name='partnership-request-respond'),
 ]

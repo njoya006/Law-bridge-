@@ -16,10 +16,70 @@ ROLE_CHOICES = [
 class Firm(models.Model):
     name = models.CharField(max_length=255)
     logo = models.CharField(max_length=255, blank=True, default='')
+    description = models.TextField(blank=True, default='')
+    website = models.URLField(blank=True, default='')
+    office_address = models.CharField(max_length=500, blank=True, default='')
+    city = models.CharField(max_length=100, blank=True, default='')
+    country = models.CharField(max_length=100, blank=True, default='Cameroon')
+    phone = models.CharField(max_length=32, blank=True, default='')
+    contact_email = models.EmailField(blank=True, default='')
+    year_established = models.PositiveIntegerField(null=True, blank=True)
+    specializations = models.JSONField(default=list, blank=True,
+        help_text='List of practice areas this firm covers')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
+
+
+class FirmPartnershipPolicy(models.Model):
+    firm = models.OneToOneField(Firm, on_delete=models.CASCADE, related_name='partnership_policy')
+    is_open = models.BooleanField(default=False,
+        help_text='Whether this firm is currently accepting partnership requests')
+    min_years_experience = models.PositiveIntegerField(default=0,
+        help_text='Minimum years of experience required from partner firm lawyers')
+    requires_specialization_overlap = models.BooleanField(default=False,
+        help_text='Partner firm must practice in at least one of the same areas')
+    revenue_share_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=50,
+        help_text='This firm\'s share of revenue on jointly handled cases (0–100)')
+    process_description = models.TextField(blank=True, default='',
+        help_text='Step-by-step description of the partnership onboarding process')
+    additional_requirements = models.TextField(blank=True, default='',
+        help_text='Any other requirements or expectations for partners')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Partnership policy for {self.firm.name}"
+
+
+class PartnershipRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending',      'Pending Review'),
+        ('under_review', 'Under Review'),
+        ('approved',     'Approved'),
+        ('rejected',     'Rejected'),
+    ]
+
+    requesting_firm = models.ForeignKey(Firm, on_delete=models.CASCADE,
+        related_name='sent_partnership_requests')
+    target_firm = models.ForeignKey(Firm, on_delete=models.CASCADE,
+        related_name='received_partnership_requests')
+    requested_by_id = models.CharField(max_length=64, help_text='UUID of the user who submitted the request')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    message = models.TextField(blank=True, default='')
+    response_note = models.TextField(blank=True, default='')
+    responded_by_id = models.CharField(max_length=64, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('requesting_firm', 'target_firm')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.requesting_firm} → {self.target_firm} ({self.status})"
 
 
 class Invite(models.Model):

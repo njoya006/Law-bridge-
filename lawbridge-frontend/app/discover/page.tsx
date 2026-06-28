@@ -5,6 +5,18 @@ import Link from 'next/link'
 import { browseLawyers, browseFirms, type LawyerDiscovery } from '../../lib/discoveryApi'
 import { getMyFirmMemberships, type FirmDiscovery } from '../../lib/firmsApi'
 import { search } from '../../lib/searchApi'
+import { getOpenCases, applyForCase, type CaseItem } from '../../lib/casesApi'
+
+const STAFF_ROLES = new Set(['lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'secretary', 'managing_partner'])
+
+function getRole(): string {
+  try {
+    const token = localStorage.getItem('access')
+    if (!token) return 'client'
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return (payload.role as string) ?? 'client'
+  } catch { return 'client' }
+}
 
 function StarRating({ rating, count }: { rating: number; count?: number }) {
   const stars = Math.round(rating)
@@ -31,22 +43,12 @@ function AvailabilityBadge({ status }: { status: LawyerDiscovery['availability_s
   return <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cls}`}>{label}</span>
 }
 
-function ConsultationModeBadge({ mode }: { mode: LawyerDiscovery['consultation_mode'] }) {
-  const map = {
-    in_person: '🏢 In-Person',
-    virtual: '💻 Virtual',
-    both: '🏢 / 💻 Both',
-  }
-  return <span className="text-xs text-neutral-400">{map[mode] ?? mode}</span>
-}
-
-function LawyerCard({ lawyer }: { lawyer: LawyerDiscovery }) {
+function LawyerCard({ lawyer, isStaff }: { lawyer: LawyerDiscovery; isStaff: boolean }) {
   const initials = lawyer.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
   const fee = lawyer.consultation_fee ? `${parseFloat(lawyer.consultation_fee).toLocaleString()} XAF` : 'Fee on request'
 
   return (
     <div className="bg-primary-800/40 border border-neutral-700/40 rounded-xl p-5 hover:border-gold-500/40 hover:bg-primary-800/60 transition-all duration-200 flex flex-col gap-4">
-      {/* Header */}
       <div className="flex items-start gap-3">
         <div className="h-12 w-12 rounded-full bg-gradient-to-br from-gold-500/40 to-gold-600/40 border border-gold-500/30 flex items-center justify-center flex-shrink-0">
           <span className="text-gold-300 text-sm font-bold">{initials}</span>
@@ -65,7 +67,6 @@ function LawyerCard({ lawyer }: { lawyer: LawyerDiscovery }) {
         <AvailabilityBadge status={lawyer.availability_status} />
       </div>
 
-      {/* Stats row */}
       <div className="flex items-center gap-4 text-xs text-neutral-400 flex-wrap">
         <StarRating rating={lawyer.average_rating} count={lawyer.rating_count} />
         <span>{lawyer.years_of_experience}yr exp</span>
@@ -73,18 +74,10 @@ function LawyerCard({ lawyer }: { lawyer: LawyerDiscovery }) {
         {lawyer.accepts_urgent_cases && <span className="text-crimson-400">Urgent ✓</span>}
       </div>
 
-      {/* Bio */}
       {lawyer.bio && (
         <p className="text-neutral-400 text-body-sm line-clamp-2">{lawyer.bio}</p>
       )}
 
-      {/* Details */}
-      <div className="flex items-center justify-between gap-2 text-xs text-neutral-500 flex-wrap">
-        <ConsultationModeBadge mode={lawyer.consultation_mode} />
-        <span className="text-neutral-400">{lawyer.practice_circuit ? lawyer.practice_circuit.charAt(0).toUpperCase() + lawyer.practice_circuit.slice(1) : ''} Circuit</span>
-      </div>
-
-      {/* Fee + CTA */}
       <div className="flex items-center justify-between gap-3 pt-1 border-t border-neutral-700/30">
         <div>
           <p className="text-xs text-neutral-500">Consultation fee</p>
@@ -97,24 +90,25 @@ function LawyerCard({ lawyer }: { lawyer: LawyerDiscovery }) {
           >
             View Profile
           </Link>
-          <Link
-            href={`/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}`}
-            className="px-3 py-1.5 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 transition-colors"
-          >
-            Book
-          </Link>
+          {!isStaff && (
+            <Link
+              href={`/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}`}
+              className="px-3 py-1.5 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 transition-colors"
+            >
+              Book
+            </Link>
+          )}
         </div>
       </div>
     </div>
   )
 }
 
-function FirmCard({ firm }: { firm: FirmDiscovery }) {
+function FirmCard({ firm, isStaff }: { firm: FirmDiscovery; isStaff: boolean }) {
   const initials = firm.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
     <div className="bg-primary-800/40 border border-neutral-700/40 rounded-xl p-5 hover:border-gold-500/40 hover:bg-primary-800/60 transition-all duration-200 flex flex-col gap-4">
-      {/* Header */}
       <div className="flex items-start gap-3">
         {firm.logo_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -127,14 +121,24 @@ function FirmCard({ firm }: { firm: FirmDiscovery }) {
         <div className="flex-1 min-w-0">
           <h3 className="font-heading text-body-md text-neutral-50 truncate">{firm.name}</h3>
           <p className="text-neutral-400 text-body-sm">{firm.member_count ?? 0} active members</p>
+          {firm.city && <p className="text-neutral-500 text-xs">{firm.city}{firm.country ? `, ${firm.country}` : ''}</p>}
         </div>
       </div>
 
-      <div className="text-neutral-400 text-body-sm">
-        A registered law firm on Lawbridge. Click "View Firm" to see the team and book a consultation.
-      </div>
+      {firm.description ? (
+        <p className="text-neutral-400 text-body-sm line-clamp-2">{firm.description}</p>
+      ) : (
+        <p className="text-neutral-400 text-body-sm">A registered law firm on Lawbridge.</p>
+      )}
 
-      {/* CTA */}
+      {firm.specializations && firm.specializations.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {firm.specializations.slice(0, 3).map(s => (
+            <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-primary-700/50 border border-neutral-700/30 text-neutral-400">{s}</span>
+          ))}
+        </div>
+      )}
+
       <div className="flex gap-2 pt-1 border-t border-neutral-700/30">
         <Link
           href={`/discover/firm/${firm.id}`}
@@ -142,13 +146,99 @@ function FirmCard({ firm }: { firm: FirmDiscovery }) {
         >
           View Firm
         </Link>
-        <Link
-          href={`/book?kind=firm&id=${firm.id}&name=${encodeURIComponent(firm.name)}`}
-          className="flex-1 text-center px-3 py-1.5 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 transition-colors"
-        >
-          Book with Firm
-        </Link>
+        {isStaff ? (
+          <Link
+            href={`/discover/firm/${firm.id}#partnership`}
+            className="flex-1 text-center px-3 py-1.5 rounded-lg bg-primary-600/60 border border-neutral-600/50 text-neutral-200 text-xs font-semibold hover:bg-primary-600 hover:border-gold-500/50 transition-colors"
+          >
+            Partner
+          </Link>
+        ) : (
+          <Link
+            href={`/book?kind=firm&id=${firm.id}&name=${encodeURIComponent(firm.name)}`}
+            className="flex-1 text-center px-3 py-1.5 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 transition-colors"
+          >
+            Book with Firm
+          </Link>
+        )}
       </div>
+    </div>
+  )
+}
+
+function OpenCaseCard({ caseItem, token }: { caseItem: CaseItem; token: string }) {
+  const [applying, setApplying] = useState(false)
+  const [applied, setApplied] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [showForm, setShowForm] = useState(false)
+
+  async function handleApply() {
+    setApplying(true)
+    setError('')
+    try {
+      await applyForCase(caseItem.id, message, token)
+      setApplied(true)
+      setShowForm(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to apply')
+    }
+    setApplying(false)
+  }
+
+  return (
+    <div className="bg-primary-800/40 border border-neutral-700/40 rounded-xl p-5 flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-heading text-body-md text-neutral-50">{caseItem.title}</h3>
+          <p className="text-gold-400/80 text-body-sm">{caseItem.case_type}</p>
+        </div>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 whitespace-nowrap">Open</span>
+      </div>
+      {caseItem.description && (
+        <p className="text-neutral-400 text-body-sm line-clamp-2">{caseItem.description}</p>
+      )}
+      <div className="flex flex-wrap gap-2 text-xs text-neutral-500">
+        {caseItem.circuit && <span>{caseItem.circuit} Circuit</span>}
+        {caseItem.legal_tradition && <span>• {caseItem.legal_tradition}</span>}
+        {caseItem.language && <span>• {caseItem.language.toUpperCase()}</span>}
+      </div>
+      {applied ? (
+        <div className="text-emerald-400 text-sm font-medium">Application submitted</div>
+      ) : showForm ? (
+        <div className="flex flex-col gap-2">
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder="Briefly explain your relevant experience and why you can take this case…"
+            rows={3}
+            className="w-full rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50"
+          />
+          {error && <p className="text-crimson-400 text-xs">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={handleApply}
+              disabled={applying}
+              className="px-4 py-1.5 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 disabled:opacity-50 transition-colors"
+            >
+              {applying ? 'Submitting…' : 'Submit Application'}
+            </button>
+            <button
+              onClick={() => setShowForm(false)}
+              className="px-4 py-1.5 rounded-lg border border-neutral-600/50 text-neutral-300 text-xs hover:border-neutral-500 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setShowForm(true)}
+          className="self-start px-4 py-1.5 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 text-xs font-semibold hover:bg-gold-500/20 transition-colors"
+        >
+          Apply for Case
+        </button>
+      )}
     </div>
   )
 }
@@ -157,27 +247,43 @@ export default function DiscoverPage() {
   const [query, setQuery] = useState('')
   const [lawyers, setLawyers] = useState<LawyerDiscovery[]>([])
   const [firms, setFirms] = useState<FirmDiscovery[]>([])
+  const [openCases, setOpenCases] = useState<CaseItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [isStaff, setIsStaff] = useState(false)
+  const [token, setToken] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'lawyers' | 'firms' | 'open-cases'>('lawyers')
 
   const matchText = (value: string | undefined, q: string) => (value ?? '').toLowerCase().includes(q)
 
   const load = async (nextQuery = '') => {
     setError('')
     setLoading(true)
-    const token = typeof window !== 'undefined' ? localStorage.getItem('access') : null
+    const tk = typeof window !== 'undefined' ? localStorage.getItem('access') : null
+    setToken(tk)
+    const role = getRole()
+    const staffUser = STAFF_ROLES.has(role)
+    setIsStaff(staffUser)
+
     const ownFirmIds = new Set<string>()
-    if (token) {
+    if (tk) {
       try {
-        const myMemberships = await getMyFirmMemberships(token)
+        const myMemberships = await getMyFirmMemberships(tk)
         for (const m of myMemberships ?? []) ownFirmIds.add(String(m.firm))
+      } catch { /* ignore */ }
+    }
+
+    if (staffUser && tk) {
+      try {
+        const resp = await getOpenCases(tk)
+        setOpenCases(resp.results ?? [])
       } catch { /* ignore */ }
     }
 
     if (nextQuery) {
       const q = nextQuery.toLowerCase()
       try {
-        const resp = await search(nextQuery, token)
+        const resp = await search(nextQuery, tk)
         const nextLawyers: LawyerDiscovery[] = []
         const nextFirms: FirmDiscovery[] = []
         for (const item of resp.results ?? []) {
@@ -190,10 +296,10 @@ export default function DiscoverPage() {
           setLoading(false)
           return
         }
-      } catch { /* fall back to individual services */ }
+      } catch { /* fall back */ }
 
       try {
-        const [lr, fr] = await Promise.allSettled([browseLawyers(token), browseFirms(token)])
+        const [lr, fr] = await Promise.allSettled([browseLawyers(tk), browseFirms(tk)])
         const allLawyers = lr.status === 'fulfilled' ? (lr.value.results ?? []) : []
         const allFirms = fr.status === 'fulfilled' ? (fr.value.results ?? []) : []
         setLawyers(allLawyers.filter(l =>
@@ -208,7 +314,7 @@ export default function DiscoverPage() {
     }
 
     try {
-      const [lr, fr] = await Promise.allSettled([browseLawyers(token), browseFirms(token)])
+      const [lr, fr] = await Promise.allSettled([browseLawyers(tk), browseFirms(tk)])
       setLawyers(lr.status === 'fulfilled' ? (lr.value.results ?? []) : [])
       setFirms(fr.status === 'fulfilled' ? (fr.value.results ?? []).filter((f: FirmDiscovery) => !ownFirmIds.has(String(f.id))) : [])
       if (lr.status === 'rejected') setError(lr.reason instanceof Error ? lr.reason.message : 'Lawyers unavailable')
@@ -220,12 +326,28 @@ export default function DiscoverPage() {
 
   useEffect(() => { void load('') }, [])
 
+  const tabs = isStaff
+    ? [
+        { key: 'lawyers', label: `Lawyers (${lawyers.length})` },
+        { key: 'firms', label: `Law Firms (${firms.length})` },
+        { key: 'open-cases', label: `Open Cases (${openCases.length})` },
+      ]
+    : [
+        { key: 'lawyers', label: `Lawyers (${lawyers.length})` },
+        { key: 'firms', label: `Law Firms (${firms.length})` },
+      ]
+
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
-        <h1 className="font-display text-display-md text-neutral-50">Find Legal Expertise</h1>
-        <p className="mt-2 text-neutral-400">Browse verified lawyers and firms. View profiles, check fees, and book consultations.</p>
+        <h1 className="font-display text-display-md text-neutral-50">
+          {isStaff ? 'Discover & Connect' : 'Find Legal Expertise'}
+        </h1>
+        <p className="mt-2 text-neutral-400">
+          {isStaff
+            ? 'Browse colleagues, partner with firms, and find open cases to take on.'
+            : 'Browse verified lawyers and firms. View profiles, check fees, and book consultations.'}
+        </p>
       </div>
 
       {/* Search */}
@@ -249,51 +371,87 @@ export default function DiscoverPage() {
         <div className="rounded-xl border border-crimson-500/30 bg-crimson-900/10 p-4 text-crimson-300 text-sm">{error}</div>
       )}
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-neutral-700/40">
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key as typeof activeTab)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeTab === tab.key
+                ? 'border-gold-500 text-gold-400'
+                : 'border-transparent text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Lawyers */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-display-xs text-neutral-50">Lawyers</h2>
-          <span className="text-neutral-500 text-sm">{lawyers.length} found</span>
-        </div>
-        {loading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {[1,2,3].map(i => (
-              <div key={i} className="h-52 rounded-xl bg-primary-800/30 border border-neutral-700/20 animate-pulse" />
-            ))}
-          </div>
-        ) : lawyers.length === 0 ? (
-          <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-8 text-center text-neutral-400">
-            No lawyers found. Try a different search term or check back later.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {lawyers.map(lawyer => <LawyerCard key={lawyer.id} lawyer={lawyer} />)}
-          </div>
-        )}
-      </section>
+      {activeTab === 'lawyers' && (
+        <section className="space-y-4">
+          {loading ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {[1,2,3].map(i => (
+                <div key={i} className="h-52 rounded-xl bg-primary-800/30 border border-neutral-700/20 animate-pulse" />
+              ))}
+            </div>
+          ) : lawyers.length === 0 ? (
+            <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-8 text-center text-neutral-400">
+              No lawyers found. Try a different search term.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {lawyers.map(lawyer => <LawyerCard key={lawyer.id} lawyer={lawyer} isStaff={isStaff} />)}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Firms */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-display-xs text-neutral-50">Law Firms</h2>
-          <span className="text-neutral-500 text-sm">{firms.length} found</span>
-        </div>
-        {loading ? (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {[1,2].map(i => (
-              <div key={i} className="h-40 rounded-xl bg-primary-800/30 border border-neutral-700/20 animate-pulse" />
-            ))}
-          </div>
-        ) : firms.length === 0 ? (
-          <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-8 text-center text-neutral-400">
-            No firms found.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {firms.map(firm => <FirmCard key={firm.id} firm={firm} />)}
-          </div>
-        )}
-      </section>
+      {activeTab === 'firms' && (
+        <section className="space-y-4">
+          {loading ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {[1,2].map(i => (
+                <div key={i} className="h-40 rounded-xl bg-primary-800/30 border border-neutral-700/20 animate-pulse" />
+              ))}
+            </div>
+          ) : firms.length === 0 ? (
+            <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-8 text-center text-neutral-400">
+              No firms found.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {firms.map(firm => <FirmCard key={firm.id} firm={firm} isStaff={isStaff} />)}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Open Cases — lawyers/staff only */}
+      {activeTab === 'open-cases' && isStaff && (
+        <section className="space-y-4">
+          {loading ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {[1,2].map(i => (
+                <div key={i} className="h-40 rounded-xl bg-primary-800/30 border border-neutral-700/20 animate-pulse" />
+              ))}
+            </div>
+          ) : openCases.length === 0 ? (
+            <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-8 text-center text-neutral-400">
+              No open cases right now. Declined client cases will appear here.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {openCases.map(c => (
+                <OpenCaseCard key={c.id} caseItem={c} token={token ?? ''} />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }

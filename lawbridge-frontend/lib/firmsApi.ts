@@ -5,7 +5,16 @@ export type Firm = {
   name: string
   description?: string
   logo_url?: string | null
+  website?: string
+  office_address?: string
+  city?: string
+  country?: string
+  phone?: string
+  contact_email?: string
+  year_established?: number | null
+  specializations?: string[]
   created_at: string
+  updated_at?: string
 }
 
 export type CreateFirmPayload = {
@@ -14,8 +23,33 @@ export type CreateFirmPayload = {
 
 export type FirmDiscovery = Firm & {
   member_count?: number
-  description?: string
-  logo_url?: string | null
+}
+
+export type PartnershipPolicy = {
+  id: number
+  is_open: boolean
+  min_years_experience: number
+  requires_specialization_overlap: boolean
+  revenue_share_percentage: string
+  process_description: string
+  additional_requirements: string
+  created_at: string
+  updated_at: string
+}
+
+export type PartnershipRequest = {
+  id: number
+  requesting_firm: number
+  requesting_firm_name: string
+  target_firm: number
+  target_firm_name: string
+  requested_by_id: string
+  status: 'pending' | 'under_review' | 'approved' | 'rejected'
+  message: string
+  response_note: string
+  responded_by_id: string
+  created_at: string
+  updated_at: string
 }
 
 export type FirmMembership = {
@@ -123,4 +157,38 @@ export function removeFirmMember(memberId: number, reason: string, token: string
 
 export function acceptInvite(inviteToken: string, accessToken: string) {
   return api.post<FirmMembership & { firm_name?: string }>('firms', `/invites/${inviteToken}/accept/`, undefined, accessToken)
+}
+
+// Partnership
+export function getPartnershipPolicy(firmId: number, token: string) {
+  return api.get<PartnershipPolicy>('firms', `/${firmId}/partnership-policy/`, token)
+}
+
+export function updatePartnershipPolicy(firmId: number, data: Partial<PartnershipPolicy>, token: string) {
+  return api.request<PartnershipPolicy>('firms', `/${firmId}/partnership-policy/`, {
+    method: 'PUT',
+    token,
+    body: JSON.stringify(data) as unknown as BodyInit,
+  })
+}
+
+export function sendPartnershipRequest(firmId: number, message: string, token: string) {
+  return api.post<PartnershipRequest>('firms', `/${firmId}/partnership-request/`, { message }, token)
+}
+
+export function getPartnershipRequests(firmId: number, token: string) {
+  return api.get<PartnershipRequest[]>('firms', `/${firmId}/partnership-requests/`, token)
+}
+
+export function respondToPartnershipRequest(
+  requestId: number,
+  status: 'under_review' | 'approved' | 'rejected',
+  response_note: string,
+  token: string,
+) {
+  return api.patch<PartnershipRequest>('firms', `/partnership-requests/${requestId}/`, { status, response_note }, token)
+}
+
+export function updateFirmProfile(firmId: number, data: Partial<Firm>, token: string) {
+  return api.patch<Firm>('firms', `/${firmId}/`, data, token)
 }

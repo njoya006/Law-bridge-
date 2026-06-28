@@ -1,11 +1,27 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { api } from '../../../../lib/api'
 import { getFirmLawyers, type LawyerDiscovery } from '../../../../lib/discoveryApi'
-import type { FirmDiscovery } from '../../../../lib/firmsApi'
+import {
+  type FirmDiscovery,
+  type PartnershipPolicy,
+  getPartnershipPolicy,
+  sendPartnershipRequest,
+} from '../../../../lib/firmsApi'
+
+const STAFF_ROLES = new Set(['lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'secretary', 'managing_partner'])
+
+function getRole(): string {
+  try {
+    const token = localStorage.getItem('access')
+    if (!token) return 'client'
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return (payload.role as string) ?? 'client'
+  } catch { return 'client' }
+}
 
 function StarRating({ rating }: { rating: number }) {
   const stars = Math.round(rating)
@@ -21,7 +37,7 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
-function LawyerMiniCard({ lawyer, firmId }: { lawyer: LawyerDiscovery; firmId: string }) {
+function LawyerMiniCard({ lawyer, firmId, isStaff }: { lawyer: LawyerDiscovery; firmId: string; isStaff: boolean }) {
   const initials = lawyer.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
   const fee = lawyer.consultation_fee ? `${parseFloat(lawyer.consultation_fee).toLocaleString()} XAF` : 'On request'
 
@@ -56,14 +72,126 @@ function LawyerMiniCard({ lawyer, firmId }: { lawyer: LawyerDiscovery; firmId: s
           <Link href={`/discover/lawyer/${lawyer.id}`} className="px-2.5 py-1 rounded-lg border border-neutral-600/40 text-neutral-400 text-xs hover:text-gold-400 transition-colors">
             Profile
           </Link>
-          <Link
-            href={`/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}&firm_id=${firmId}`}
-            className="px-2.5 py-1 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 transition-colors"
-          >
-            Book
-          </Link>
+          {!isStaff && (
+            <Link
+              href={`/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}&firm_id=${firmId}`}
+              className="px-2.5 py-1 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 transition-colors"
+            >
+              Book
+            </Link>
+          )}
         </div>
       </div>
+    </div>
+  )
+}
+
+function PartnershipSection({
+  firm,
+  policy,
+  token,
+}: {
+  firm: FirmDiscovery
+  policy: PartnershipPolicy | null
+  token: string
+}) {
+  const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSend() {
+    setSending(true)
+    setError('')
+    try {
+      await sendPartnershipRequest(firm.id, message, token)
+      setSent(true)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to send request')
+    }
+    setSending(false)
+  }
+
+  if (!policy) {
+    return (
+      <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6" id="partnership">
+        <h2 className="font-heading text-body-lg text-neutral-50 mb-2">Partnership</h2>
+        <p className="text-neutral-500 text-sm">This firm has not published a partnership policy yet.</p>
+      </div>
+    )
+  }
+
+  if (!policy.is_open) {
+    return (
+      <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6" id="partnership">
+        <h2 className="font-heading text-body-lg text-neutral-50 mb-2">Partnership</h2>
+        <div className="flex items-center gap-2 text-amber-400 text-sm">
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          This firm is not currently accepting partnership requests.
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6 space-y-4" id="partnership">
+      <div className="flex items-center justify-between">
+        <h2 className="font-heading text-body-lg text-neutral-50">Partnership Policy</h2>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400">Open to Partners</span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+        <div className="rounded-lg bg-primary-900/40 p-3">
+          <p className="text-neutral-500 text-xs mb-1">Min. Experience Required</p>
+          <p className="text-neutral-100 font-semibold">{policy.min_years_experience} years</p>
+        </div>
+        <div className="rounded-lg bg-primary-900/40 p-3">
+          <p className="text-neutral-500 text-xs mb-1">Specialization Overlap</p>
+          <p className="text-neutral-100 font-semibold">{policy.requires_specialization_overlap ? 'Required' : 'Not required'}</p>
+        </div>
+        <div className="rounded-lg bg-primary-900/40 p-3">
+          <p className="text-neutral-500 text-xs mb-1">Revenue Share (Our cut)</p>
+          <p className="text-neutral-100 font-semibold">{policy.revenue_share_percentage}%</p>
+        </div>
+      </div>
+
+      {policy.process_description && (
+        <div>
+          <p className="text-neutral-500 text-xs mb-1">Partnership Process</p>
+          <p className="text-neutral-300 text-sm whitespace-pre-line">{policy.process_description}</p>
+        </div>
+      )}
+      {policy.additional_requirements && (
+        <div>
+          <p className="text-neutral-500 text-xs mb-1">Additional Requirements</p>
+          <p className="text-neutral-300 text-sm">{policy.additional_requirements}</p>
+        </div>
+      )}
+
+      {sent ? (
+        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-4 text-emerald-400 text-sm">
+          Partnership request sent successfully. {firm.name} will review your request.
+        </div>
+      ) : (
+        <div className="space-y-3 border-t border-neutral-700/30 pt-4">
+          <h3 className="text-neutral-200 text-sm font-medium">Request Partnership</h3>
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder={`Introduce your firm and explain why you'd like to partner with ${firm.name}…`}
+            rows={4}
+            className="w-full rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50"
+          />
+          {error && <p className="text-crimson-400 text-xs">{error}</p>}
+          <button
+            onClick={handleSend}
+            disabled={sending || !message.trim()}
+            className="px-5 py-2 rounded-lg bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 disabled:opacity-50 transition-colors"
+          >
+            {sending ? 'Sending…' : 'Send Partnership Request'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -72,20 +200,30 @@ export default function FirmDetailPage() {
   const params = useParams<{ id: string }>()
   const [firm, setFirm] = useState<FirmDiscovery & { member_count?: number } | null>(null)
   const [lawyers, setLawyers] = useState<LawyerDiscovery[]>([])
+  const [policy, setPolicy] = useState<PartnershipPolicy | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [isStaff, setIsStaff] = useState(false)
+  const [token, setToken] = useState('')
+  const partnershipRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const run = async () => {
-      const token = localStorage.getItem('access')
+      const tk = localStorage.getItem('access') ?? ''
+      setToken(tk)
+      const role = getRole()
+      setIsStaff(STAFF_ROLES.has(role))
+
       try {
-        const [firmData, lawyersData] = await Promise.allSettled([
-          api.get<FirmDiscovery & { member_count?: number }>('firms', `/${params.id}/`, token),
-          getFirmLawyers(params.id, token),
+        const [firmData, lawyersData, policyData] = await Promise.allSettled([
+          api.get<FirmDiscovery & { member_count?: number }>('firms', `/${params.id}/`, tk || null),
+          getFirmLawyers(params.id, tk || null),
+          tk ? getPartnershipPolicy(Number(params.id), tk) : Promise.reject('no token'),
         ])
         if (firmData.status === 'fulfilled') setFirm(firmData.value)
         else throw new Error('Firm not found')
         if (lawyersData.status === 'fulfilled') setLawyers(Array.isArray(lawyersData.value) ? lawyersData.value : [])
+        if (policyData.status === 'fulfilled') setPolicy(policyData.value)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load firm')
       } finally {
@@ -94,6 +232,13 @@ export default function FirmDetailPage() {
     }
     if (params.id) void run()
   }, [params.id])
+
+  // scroll to #partnership anchor if hash in URL
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#partnership' && partnershipRef.current) {
+      partnershipRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [loading])
 
   if (loading) return (
     <div className="max-w-5xl mx-auto space-y-4 animate-pulse">
@@ -115,9 +260,11 @@ export default function FirmDetailPage() {
 
   const initials = firm.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
   const availableLawyers = lawyers.filter(l => l.availability_status === 'available')
-  const specializations = [...new Set(lawyers.map(l => l.specialization).filter(Boolean))]
+  const specializations = firm.specializations?.length
+    ? firm.specializations
+    : [...new Set(lawyers.map(l => l.specialization).filter(Boolean))]
   const avgFee = lawyers.length > 0
-    ? lawyers.filter(l => l.consultation_fee).reduce((sum, l) => sum + parseFloat(l.consultation_fee!), 0) / lawyers.filter(l => l.consultation_fee).length
+    ? lawyers.filter(l => l.consultation_fee).reduce((sum, l) => sum + parseFloat(l.consultation_fee!), 0) / (lawyers.filter(l => l.consultation_fee).length || 1)
     : null
 
   return (
@@ -140,19 +287,61 @@ export default function FirmDetailPage() {
           )}
           <div className="flex-1">
             <h1 className="font-display text-display-sm text-neutral-50 mb-1">{firm.name}</h1>
-            <p className="text-neutral-400 text-sm mb-3">Registered law firm on Lawbridge</p>
+            {firm.description && <p className="text-neutral-400 text-sm mb-2">{firm.description}</p>}
+
+            {/* Contact / location row */}
+            <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-neutral-500 mb-3">
+              {(firm.city || firm.country) && (
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  {[firm.office_address, firm.city, firm.country].filter(Boolean).join(', ')}
+                </span>
+              )}
+              {firm.phone && (
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                  {firm.phone}
+                </span>
+              )}
+              {firm.contact_email && (
+                <span className="flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                  {firm.contact_email}
+                </span>
+              )}
+              {firm.website && (
+                <a href={firm.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-gold-400 transition-colors">
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+                  Website
+                </a>
+              )}
+              {firm.year_established && <span>Est. {firm.year_established}</span>}
+            </div>
+
             <div className="flex flex-wrap gap-4 text-sm text-neutral-400">
               <span>{firm.member_count ?? lawyers.length} active members</span>
               {availableLawyers.length > 0 && <span className="text-emerald-400">{availableLawyers.length} available now</span>}
-              {avgFee && <span>Avg. fee: {avgFee.toLocaleString()} XAF</span>}
+              {avgFee && <span>Avg. fee: {Math.round(avgFee).toLocaleString()} XAF</span>}
             </div>
           </div>
-          <Link
-            href={`/book?kind=firm&id=${firm.id}&name=${encodeURIComponent(firm.name)}`}
-            className="px-5 py-2.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-black font-semibold text-sm transition-colors flex-shrink-0"
-          >
-            Book with Firm
-          </Link>
+
+          {/* CTA */}
+          {isStaff ? (
+            <a
+              href="#partnership"
+              onClick={() => partnershipRef.current?.scrollIntoView({ behavior: 'smooth' })}
+              className="px-5 py-2.5 rounded-lg bg-primary-600/60 border border-neutral-600/50 hover:bg-primary-600 text-neutral-200 font-semibold text-sm transition-colors flex-shrink-0 cursor-pointer"
+            >
+              Request Partnership
+            </a>
+          ) : (
+            <Link
+              href={`/book?kind=firm&id=${firm.id}&name=${encodeURIComponent(firm.name)}`}
+              className="px-5 py-2.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-black font-semibold text-sm transition-colors flex-shrink-0"
+            >
+              Book with Firm
+            </Link>
+          )}
         </div>
       </div>
 
@@ -162,7 +351,7 @@ export default function FirmDetailPage() {
           { label: 'Total Members', value: firm.member_count ?? lawyers.length },
           { label: 'Available Now', value: availableLawyers.length },
           { label: 'Practice Areas', value: specializations.length },
-          { label: 'Avg. Consultation Fee', value: avgFee ? `${avgFee.toLocaleString()} XAF` : 'Varies' },
+          { label: 'Avg. Consultation Fee', value: avgFee ? `${Math.round(avgFee).toLocaleString()} XAF` : 'Varies' },
         ].map(stat => (
           <div key={stat.label} className="rounded-xl border border-neutral-700/30 bg-primary-800/30 p-4 text-center">
             <p className="text-xl font-bold text-gold-400">{stat.value}</p>
@@ -193,11 +382,18 @@ export default function FirmDetailPage() {
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {lawyers.map(lawyer => (
-              <LawyerMiniCard key={lawyer.id} lawyer={lawyer} firmId={String(firm.id)} />
+              <LawyerMiniCard key={lawyer.id} lawyer={lawyer} firmId={String(firm.id)} isStaff={isStaff} />
             ))}
           </div>
         )}
       </div>
+
+      {/* Partnership — only shown to staff (lawyers/firm members) */}
+      {isStaff && token && (
+        <div ref={partnershipRef}>
+          <PartnershipSection firm={firm} policy={policy} token={token} />
+        </div>
+      )}
 
       {/* Reviews placeholder */}
       <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6">

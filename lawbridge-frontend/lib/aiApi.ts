@@ -132,3 +132,73 @@ export async function sendChatMessage(
 
   callbacks.onDone()
 }
+
+// ── Legal Drafts ──────────────────────────────────────────────────────────────
+
+export type LegalDraft = {
+  id: string
+  draft_type: string
+  title: string
+  instructions: string
+  content: string
+  case_id: string | null
+  created_at: string
+}
+
+export type LegalDraftSummary = Pick<LegalDraft, 'id' | 'draft_type' | 'title' | 'case_id' | 'created_at'>
+
+export const DRAFT_TYPE_LABELS: Record<string, string> = {
+  letter_to_client:    'Letter to Client',
+  letter_to_court:     'Letter to Court',
+  motion:              'Motion / Requête',
+  contract_clause:     'Contract Clause',
+  memorandum:          'Legal Memorandum',
+  demand_letter:       'Demand Letter',
+  affidavit:           'Affidavit',
+  settlement_proposal: 'Settlement Proposal',
+  appeal_brief:        'Appeal Brief',
+  other:               'Other',
+}
+
+export async function listLegalDrafts(token: string): Promise<LegalDraftSummary[]> {
+  const res = await fetch(`${aiBase()}/ai/drafts/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`Failed to load drafts (${res.status})`)
+  return res.json() as Promise<LegalDraftSummary[]>
+}
+
+export async function getLegalDraft(id: string, token: string): Promise<LegalDraft> {
+  const res = await fetch(`${aiBase()}/ai/drafts/${id}/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`Draft not found (${res.status})`)
+  return res.json() as Promise<LegalDraft>
+}
+
+export async function createLegalDraft(
+  payload: { draft_type: string; instructions: string; title?: string; case_id?: string | null },
+  token: string,
+): Promise<LegalDraft> {
+  const res = await fetch(`${aiBase()}/ai/drafts/create/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Draft generation failed (${res.status}): ${text.slice(0, 200)}`)
+  }
+  return res.json() as Promise<LegalDraft>
+}
+
+export async function deleteLegalDraft(id: string, token: string): Promise<void> {
+  const res = await fetch(`${aiBase()}/ai/drafts/${id}/`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok && res.status !== 404) throw new Error(`Delete failed (${res.status})`)
+}
