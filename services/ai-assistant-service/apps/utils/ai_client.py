@@ -175,6 +175,26 @@ class GroqClient:
         self.client = Groq(api_key=api_key)
         self.model = model
 
+    def complete(
+        self,
+        user_message: str,
+        system: str = "",
+        max_tokens: int = 2048,
+    ) -> str:
+        """Non-streaming completion — returns the full response string."""
+        messages = [
+            {"role": "system", "content": system or LEGAL_SYSTEM_PROMPT},
+            {"role": "user", "content": user_message},
+        ]
+        completion = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            stream=False,
+            max_tokens=max_tokens,
+            temperature=0.2,
+        )
+        return completion.choices[0].message.content or ""
+
     def stream(
         self,
         user_message: str,
@@ -216,6 +236,22 @@ class OllamaFallbackClient:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.httpx = httpx
+
+    def complete(
+        self,
+        user_message: str,
+        system: str = "",
+        max_tokens: int = 2048,
+    ) -> str:
+        import json as _json
+        prompt = f"{system or LEGAL_SYSTEM_PROMPT}\n\nUser: {user_message}\nLexAI:"
+        with self.httpx.Client(timeout=self.httpx.Timeout(120)) as client:
+            resp = client.post(
+                f"{self.base_url}/api/generate",
+                json={"model": self.model, "prompt": prompt, "stream": False},
+            )
+            resp.raise_for_status()
+            return resp.json().get("response", "")
 
     def stream(
         self,

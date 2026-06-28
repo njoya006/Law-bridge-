@@ -998,7 +998,7 @@ function AnalysisPanel({ token }: { token: string }) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   async function analyze() {
-    if (!file && !context.trim()) return
+    if (!file && !context.trim()) { setError('Please upload a file or describe what you want analysed.'); return }
     setUploading(true)
     setError('')
     setResult(null)
@@ -1008,7 +1008,7 @@ function AnalysisPanel({ token }: { token: string }) {
       if (file) formData.append('file', file)
       if (context) formData.append('context', context)
 
-      const res = await fetch('/api/v1/ai/analyze/', {
+      const res = await fetch('/api/v1/ai/analyze/direct/', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
