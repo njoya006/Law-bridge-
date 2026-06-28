@@ -7,15 +7,10 @@ import { getMyFirmMemberships, type FirmDiscovery } from '../../lib/firmsApi'
 import { search } from '../../lib/searchApi'
 import { getOpenCases, applyForCase, type CaseItem } from '../../lib/casesApi'
 
-const STAFF_ROLES = new Set(['lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'secretary', 'managing_partner'])
-
-function getRole(): string {
+function isStaffPortal(): boolean {
   try {
-    const token = localStorage.getItem('access')
-    if (!token) return 'client'
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    return (payload.role as string) ?? 'client'
-  } catch { return 'client' }
+    return localStorage.getItem('portalRole') === 'lawyer'
+  } catch { return false }
 }
 
 function StarRating({ rating, count }: { rating: number; count?: number }) {
@@ -261,8 +256,7 @@ export default function DiscoverPage() {
     setLoading(true)
     const tk = typeof window !== 'undefined' ? localStorage.getItem('access') : null
     setToken(tk)
-    const role = getRole()
-    const staffUser = STAFF_ROLES.has(role)
+    const staffUser = isStaffPortal()
     setIsStaff(staffUser)
 
     const ownFirmIds = new Set<string>()

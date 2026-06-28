@@ -12,15 +12,10 @@ import {
   sendPartnershipRequest,
 } from '../../../../lib/firmsApi'
 
-const STAFF_ROLES = new Set(['lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'secretary', 'managing_partner'])
-
-function getRole(): string {
+function isStaffPortal(): boolean {
   try {
-    const token = localStorage.getItem('access')
-    if (!token) return 'client'
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    return (payload.role as string) ?? 'client'
-  } catch { return 'client' }
+    return localStorage.getItem('portalRole') === 'lawyer'
+  } catch { return false }
 }
 
 function StarRating({ rating }: { rating: number }) {
@@ -211,8 +206,7 @@ export default function FirmDetailPage() {
     const run = async () => {
       const tk = localStorage.getItem('access') ?? ''
       setToken(tk)
-      const role = getRole()
-      setIsStaff(STAFF_ROLES.has(role))
+      setIsStaff(isStaffPortal())
 
       try {
         const [firmData, lawyersData, policyData] = await Promise.allSettled([
