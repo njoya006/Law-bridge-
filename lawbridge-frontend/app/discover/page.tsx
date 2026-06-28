@@ -99,7 +99,7 @@ function LawyerCard({ lawyer, isStaff }: { lawyer: LawyerDiscovery; isStaff: boo
   )
 }
 
-function FirmCard({ firm, isStaff }: { firm: FirmDiscovery; isStaff: boolean }) {
+function FirmCard({ firm, isStaff, isOwnFirm }: { firm: FirmDiscovery; isStaff: boolean; isOwnFirm: boolean }) {
   const initials = firm.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
@@ -114,7 +114,12 @@ function FirmCard({ firm, isStaff }: { firm: FirmDiscovery; isStaff: boolean }) 
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h3 className="font-heading text-body-md text-neutral-50 truncate">{firm.name}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-heading text-body-md text-neutral-50 truncate">{firm.name}</h3>
+            {isOwnFirm && (
+              <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-gold-500/15 border border-gold-500/30 text-gold-400 font-semibold">Your Firm</span>
+            )}
+          </div>
           <p className="text-neutral-400 text-body-sm">{firm.member_count ?? 0} active members</p>
           {firm.city && <p className="text-neutral-500 text-xs">{firm.city}{firm.country ? `, ${firm.country}` : ''}</p>}
         </div>
@@ -141,7 +146,14 @@ function FirmCard({ firm, isStaff }: { firm: FirmDiscovery; isStaff: boolean }) 
         >
           View Firm
         </Link>
-        {isStaff ? (
+        {isOwnFirm ? (
+          <Link
+            href="/lawyer/team"
+            className="flex-1 text-center px-3 py-1.5 rounded-lg bg-primary-600/60 border border-gold-500/30 text-gold-400 text-xs font-semibold hover:bg-primary-600 transition-colors"
+          >
+            Manage
+          </Link>
+        ) : isStaff ? (
           <Link
             href={`/discover/firm/${firm.id}#partnership`}
             className="flex-1 text-center px-3 py-1.5 rounded-lg bg-primary-600/60 border border-neutral-600/50 text-neutral-200 text-xs font-semibold hover:bg-primary-600 hover:border-gold-500/50 transition-colors"
@@ -248,6 +260,7 @@ export default function DiscoverPage() {
   const [isStaff, setIsStaff] = useState(false)
   const [token, setToken] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'lawyers' | 'firms' | 'open-cases'>('lawyers')
+  const [ownFirmIds, setOwnFirmIds] = useState<Set<string>>(new Set())
 
   const matchText = (value: string | undefined, q: string) => (value ?? '').toLowerCase().includes(q)
 
@@ -259,13 +272,14 @@ export default function DiscoverPage() {
     const staffUser = isStaffPortal()
     setIsStaff(staffUser)
 
-    const ownFirmIds = new Set<string>()
+    const newOwnFirmIds = new Set<string>()
     if (tk) {
       try {
         const myMemberships = await getMyFirmMemberships(tk)
-        for (const m of myMemberships ?? []) ownFirmIds.add(String(m.firm))
+        for (const m of myMemberships ?? []) newOwnFirmIds.add(String(m.firm))
       } catch { /* ignore */ }
     }
+    setOwnFirmIds(newOwnFirmIds)
 
     if (staffUser && tk) {
       try {
@@ -286,7 +300,7 @@ export default function DiscoverPage() {
         }
         if (nextLawyers.length + nextFirms.length > 0) {
           setLawyers(nextLawyers)
-          setFirms(nextFirms.filter(f => !ownFirmIds.has(String(f.id))))
+          setFirms(nextFirms)
           setLoading(false)
           return
         }
@@ -299,7 +313,7 @@ export default function DiscoverPage() {
         setLawyers(allLawyers.filter(l =>
           [l.name, l.specialization, l.bio, l.practice_circuit].some(v => matchText(v, q))
         ))
-        setFirms(allFirms.filter(f => matchText(f.name, q) && !ownFirmIds.has(String(f.id))))
+        setFirms(allFirms.filter(f => matchText(f.name, q)))
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Search failed')
       }
@@ -310,7 +324,7 @@ export default function DiscoverPage() {
     try {
       const [lr, fr] = await Promise.allSettled([browseLawyers(tk), browseFirms(tk)])
       setLawyers(lr.status === 'fulfilled' ? (lr.value.results ?? []) : [])
-      setFirms(fr.status === 'fulfilled' ? (fr.value.results ?? []).filter((f: FirmDiscovery) => !ownFirmIds.has(String(f.id))) : [])
+      setFirms(fr.status === 'fulfilled' ? (fr.value.results ?? []) : [])
       if (lr.status === 'rejected') setError(lr.reason instanceof Error ? lr.reason.message : 'Lawyers unavailable')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Failed to load')
@@ -418,7 +432,7 @@ export default function DiscoverPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {firms.map(firm => <FirmCard key={firm.id} firm={firm} isStaff={isStaff} />)}
+              {firms.map(firm => <FirmCard key={firm.id} firm={firm} isStaff={isStaff} isOwnFirm={ownFirmIds.has(String(firm.id))} />)}
             </div>
           )}
         </section>

@@ -9,7 +9,9 @@ import {
   type FirmDiscovery,
   type PartnershipPolicy,
   getPartnershipPolicy,
+  getMyFirmMemberships,
   sendPartnershipRequest,
+  updatePartnershipPolicy,
 } from '../../../../lib/firmsApi'
 
 function isStaffPortal(): boolean {
@@ -83,17 +85,50 @@ function LawyerMiniCard({ lawyer, firmId, isStaff }: { lawyer: LawyerDiscovery; 
 
 function PartnershipSection({
   firm,
-  policy,
+  policy: initialPolicy,
   token,
+  isOwnAdmin,
 }: {
   firm: FirmDiscovery
   policy: PartnershipPolicy | null
   token: string
+  isOwnAdmin: boolean
 }) {
+  const [policy, setPolicy] = useState<PartnershipPolicy | null>(initialPolicy)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState<Partial<PartnershipPolicy>>({})
+  const [saving, setSaving] = useState(false)
+  const [saveErr, setSaveErr] = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+
+  function startEdit() {
+    setDraft({
+      is_open: policy?.is_open ?? false,
+      min_years_experience: policy?.min_years_experience ?? 0,
+      requires_specialization_overlap: policy?.requires_specialization_overlap ?? false,
+      revenue_share_percentage: policy?.revenue_share_percentage ?? '0',
+      process_description: policy?.process_description ?? '',
+      additional_requirements: policy?.additional_requirements ?? '',
+    })
+    setSaveErr('')
+    setEditing(true)
+  }
+
+  async function savePolicy() {
+    setSaving(true)
+    setSaveErr('')
+    try {
+      const updated = await updatePartnershipPolicy(firm.id, draft, token)
+      setPolicy(updated)
+      setEditing(false)
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : 'Failed to save')
+    }
+    setSaving(false)
+  }
 
   async function handleSend() {
     setSending(true)
@@ -107,6 +142,131 @@ function PartnershipSection({
     setSending(false)
   }
 
+  // --- Admin edit panel ---
+  if (isOwnAdmin && editing) {
+    return (
+      <div className="rounded-xl border border-gold-500/30 bg-primary-800/40 p-6 space-y-4" id="partnership">
+        <div className="flex items-center justify-between">
+          <h2 className="font-heading text-body-lg text-neutral-50">Edit Partnership Policy</h2>
+          <button onClick={() => setEditing(false)} className="text-neutral-500 hover:text-neutral-300 text-xs">Cancel</button>
+        </div>
+
+        <label className="flex items-center gap-3 cursor-pointer">
+          <div
+            onClick={() => setDraft(d => ({ ...d, is_open: !d.is_open }))}
+            className={`relative w-10 h-5 rounded-full transition-colors ${draft.is_open ? 'bg-emerald-500' : 'bg-neutral-600'}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${draft.is_open ? 'translate-x-5' : ''}`} />
+          </div>
+          <span className="text-sm text-neutral-200">{draft.is_open ? 'Open to partnership requests' : 'Not accepting partnerships'}</span>
+        </label>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-neutral-400 block mb-1">Min. Years Experience Required</label>
+            <input
+              type="number" min={0} max={50}
+              value={draft.min_years_experience ?? 0}
+              onChange={e => setDraft(d => ({ ...d, min_years_experience: Number(e.target.value) }))}
+              className="w-full rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 focus:outline-none focus:border-gold-500/50"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-neutral-400 block mb-1">Revenue Share % (your firm&apos;s cut)</label>
+            <input
+              type="number" min={0} max={100}
+              value={draft.revenue_share_percentage ?? 0}
+              onChange={e => setDraft(d => ({ ...d, revenue_share_percentage: e.target.value }))}
+              className="w-full rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 focus:outline-none focus:border-gold-500/50"
+            />
+          </div>
+        </div>
+
+        <label className="flex items-center gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={draft.requires_specialization_overlap ?? false}
+            onChange={e => setDraft(d => ({ ...d, requires_specialization_overlap: e.target.checked }))}
+            className="w-4 h-4 accent-gold-500"
+          />
+          <span className="text-sm text-neutral-200">Require specialization overlap</span>
+        </label>
+
+        <div>
+          <label className="text-xs text-neutral-400 block mb-1">Partnership Process (optional)</label>
+          <textarea
+            value={draft.process_description ?? ''}
+            onChange={e => setDraft(d => ({ ...d, process_description: e.target.value }))}
+            rows={3}
+            placeholder="Describe how partnerships work at your firm…"
+            className="w-full rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs text-neutral-400 block mb-1">Additional Requirements (optional)</label>
+          <textarea
+            value={draft.additional_requirements ?? ''}
+            onChange={e => setDraft(d => ({ ...d, additional_requirements: e.target.value }))}
+            rows={2}
+            placeholder="Any other requirements for partners…"
+            className="w-full rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50"
+          />
+        </div>
+
+        {saveErr && <p className="text-crimson-400 text-xs">{saveErr}</p>}
+        <button
+          onClick={savePolicy}
+          disabled={saving}
+          className="px-5 py-2 rounded-lg bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 disabled:opacity-50 transition-colors"
+        >
+          {saving ? 'Saving…' : 'Save Policy'}
+        </button>
+      </div>
+    )
+  }
+
+  // --- View for own admin (not editing) ---
+  if (isOwnAdmin) {
+    return (
+      <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6 space-y-4" id="partnership">
+        <div className="flex items-center justify-between">
+          <h2 className="font-heading text-body-lg text-neutral-50">Partnership Policy</h2>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs px-2 py-0.5 rounded-full border font-semibold ${policy?.is_open ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/10 border-amber-500/30 text-amber-400'}`}>
+              {policy?.is_open ? 'Open to Partners' : 'Closed'}
+            </span>
+            <button
+              onClick={startEdit}
+              className="text-xs px-3 py-1 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 hover:bg-gold-500/20 transition-colors"
+            >
+              Edit Policy
+            </button>
+          </div>
+        </div>
+        {!policy ? (
+          <p className="text-neutral-500 text-sm">No policy set yet. Click &quot;Edit Policy&quot; to configure your partnership settings.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            <div className="rounded-lg bg-primary-900/40 p-3">
+              <p className="text-neutral-500 text-xs mb-1">Min. Experience Required</p>
+              <p className="text-neutral-100 font-semibold">{policy.min_years_experience} years</p>
+            </div>
+            <div className="rounded-lg bg-primary-900/40 p-3">
+              <p className="text-neutral-500 text-xs mb-1">Specialization Overlap</p>
+              <p className="text-neutral-100 font-semibold">{policy.requires_specialization_overlap ? 'Required' : 'Not required'}</p>
+            </div>
+            <div className="rounded-lg bg-primary-900/40 p-3">
+              <p className="text-neutral-500 text-xs mb-1">Revenue Share (Our cut)</p>
+              <p className="text-neutral-100 font-semibold">{policy.revenue_share_percentage}%</p>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // --- View for other staff (read-only + request form) ---
   if (!policy) {
     return (
       <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6" id="partnership">
@@ -199,6 +359,7 @@ export default function FirmDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isStaff, setIsStaff] = useState(false)
+  const [isOwnAdmin, setIsOwnAdmin] = useState(false)
   const [token, setToken] = useState('')
   const partnershipRef = useRef<HTMLDivElement>(null)
 
@@ -209,15 +370,23 @@ export default function FirmDetailPage() {
       setIsStaff(isStaffPortal())
 
       try {
-        const [firmData, lawyersData, policyData] = await Promise.allSettled([
+        const [firmData, lawyersData, policyData, membershipsData] = await Promise.allSettled([
           api.get<FirmDiscovery & { member_count?: number }>('firms', `/${params.id}/`, tk || null),
           getFirmLawyers(params.id, tk || null),
           tk ? getPartnershipPolicy(Number(params.id), tk) : Promise.reject('no token'),
+          tk ? getMyFirmMemberships(tk) : Promise.reject('no token'),
         ])
         if (firmData.status === 'fulfilled') setFirm(firmData.value)
         else throw new Error('Firm not found')
         if (lawyersData.status === 'fulfilled') setLawyers(Array.isArray(lawyersData.value) ? lawyersData.value : [])
         if (policyData.status === 'fulfilled') setPolicy(policyData.value)
+        if (membershipsData.status === 'fulfilled') {
+          const myMems = membershipsData.value ?? []
+          const adminOfThisFirm = myMems.some(
+            m => String(m.firm) === params.id && ['owner', 'firm_admin'].includes(m.role)
+          )
+          setIsOwnAdmin(adminOfThisFirm)
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load firm')
       } finally {
@@ -320,7 +489,14 @@ export default function FirmDetailPage() {
           </div>
 
           {/* CTA */}
-          {isStaff ? (
+          {isOwnAdmin ? (
+            <Link
+              href="/lawyer/team"
+              className="px-5 py-2.5 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 font-semibold text-sm hover:bg-gold-500/20 transition-colors flex-shrink-0"
+            >
+              Manage Firm
+            </Link>
+          ) : isStaff ? (
             <a
               href="#partnership"
               onClick={() => partnershipRef.current?.scrollIntoView({ behavior: 'smooth' })}
@@ -371,7 +547,7 @@ export default function FirmDetailPage() {
         <h2 className="font-display text-display-xs text-neutral-50">Our Team ({lawyers.length})</h2>
         {lawyers.length === 0 ? (
           <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-8 text-center text-neutral-400">
-            No lawyer profiles found for this firm yet.
+            No team members found for this firm yet.
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -382,10 +558,10 @@ export default function FirmDetailPage() {
         )}
       </div>
 
-      {/* Partnership — only shown to staff (lawyers/firm members) */}
-      {isStaff && token && (
+      {/* Partnership — shown to own firm admins (to edit policy) and other staff (to request) */}
+      {(isStaff || isOwnAdmin) && token && (
         <div ref={partnershipRef}>
-          <PartnershipSection firm={firm} policy={policy} token={token} />
+          <PartnershipSection firm={firm} policy={policy} token={token} isOwnAdmin={isOwnAdmin} />
         </div>
       )}
 

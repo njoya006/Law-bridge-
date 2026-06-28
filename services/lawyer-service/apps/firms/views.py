@@ -109,7 +109,7 @@ def _resolve_member_uuid(member):
 
 
 class FirmLawyersView(APIView):
-    """GET /api/v1/firms/{firm_id}/lawyers/ — full lawyer profiles for all active firm members."""
+    """GET /api/v1/firms/{firm_id}/lawyers/ — members with LawyerProfile enrichment where available."""
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, firm_id):
@@ -117,9 +117,43 @@ class FirmLawyersView(APIView):
         from apps.discovery.serializers import LawyerDiscoverySerializer
         firm = get_object_or_404(Firm, id=firm_id)
         members = list(FirmMembership.objects.filter(firm=firm, is_active=True).select_related('user'))
-        user_uuids = [uid for m in members for uid in [_resolve_member_uuid(m)] if uid]
-        profiles = LawyerProfile.objects.filter(user_id__in=user_uuids)
-        return Response(LawyerDiscoverySerializer(profiles, many=True).data)
+
+        # Build uuid→member map for all active members
+        uuid_to_member = {}
+        for m in members:
+            uid = _resolve_member_uuid(m)
+            if uid:
+                uuid_to_member[uid] = m
+
+        # Members WITH a LawyerProfile — return full rich data
+        profiles = LawyerProfile.objects.filter(user_id__in=list(uuid_to_member.keys()))
+        profiled_uuids = {str(p.user_id) for p in profiles}
+        result = list(LawyerDiscoverySerializer(profiles, many=True).data)
+
+        # Members WITHOUT a LawyerProfile — return basic stub so team isn't empty
+        for uid, m in uuid_to_member.items():
+            if str(uid) not in profiled_uuids:
+                result.append({
+                    'id': uid,
+                    'name': m.user.get_full_name() or m.user.email.split('@')[0],
+                    'email': m.user.email,
+                    'firm_name': firm.name,
+                    'role': m.role,
+                    'specialization': m.role.replace('_', ' ').title(),
+                    'bio': '',
+                    'years_of_experience': 0,
+                    'consultation_fee': None,
+                    'average_rating': 0,
+                    'rating_count': 0,
+                    'active_cases': 0,
+                    'is_verified': False,
+                    'availability_status': 'available',
+                    'accepts_urgent_cases': False,
+                    'practice_circuit': '',
+                    'is_stub': True,
+                })
+
+        return Response(result)
 
 
 class FirmBrowseView(APIView):
@@ -507,7 +541,7 @@ class MemberDeleteView(APIView):
 
 class FirmPartnershipPolicyView(APIView):
     """GET/PUT /api/v1/firms/{firm_id}/partnership-policy/"""
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     def _get_firm_and_check_admin(self, request, firm_id):
         firm = get_object_or_404(Firm, id=firm_id)
@@ -521,6 +555,8 @@ class FirmPartnershipPolicyView(APIView):
         return Response(FirmPartnershipPolicySerializer(policy).data)
 
     def put(self, request, firm_id):
+        if not request.user or not request.user.is_authenticated:
+            return Response({'error': 'Authentication required'}, status=401)
         firm, is_admin = self._get_firm_and_check_admin(request, firm_id)
         if not is_admin:
             return Response({'error': 'Only firm admins can update the partnership policy'}, status=403)
@@ -555,12 +591,9 @@ class PartnershipRequestCreateView(APIView):
             return Response({'error': 'You cannot partner with your own firm'}, status=400)
 
         # Check if the target firm's policy allows partnerships
-        try:
-            policy = target_firm.partnership_policy
-            if not policy.is_open:
-                return Response({'error': f'{target_firm.name} is not currently accepting partnership requests'}, status=400)
-        except FirmPartnershipPolicy.DoesNotExist:
-            return Response({'error': f'{target_firm.name} has not set up a partnership policy yet'}, status=400)
+        policy, _ = FirmPartnershipPolicy.objects.get_or_create(firm=target_firm)
+        if not policy.is_open:
+            return Response({'error': f'{target_firm.name} is not currently accepting partnership requests'}, status=400)
 
         message = (request.data.get('message') or '').strip()
         req_obj, created = PartnershipRequest.objects.get_or_create(
