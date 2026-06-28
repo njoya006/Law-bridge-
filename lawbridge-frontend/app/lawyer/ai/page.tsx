@@ -13,6 +13,7 @@ import {
   deleteLegalDraft,
   clarifyDraft,
   streamDraft,
+  streamTranslate,
   type LegalDraft,
   type LegalDraftSummary,
   type ClarifyQuestion,
@@ -209,64 +210,381 @@ function ChatPanel({ token }: { token: string }) {
   )
 }
 
-// ── Document Renderer — formats raw AI draft text like a real legal document ──
+// ── Document Renderer ─────────────────────────────────────────────────────────
 
-function DocumentRenderer({ content }: { content: string }) {
-  const lines = content.split('\n')
-  let dateFound = false
+type DocSection = { tag: string; content: string }
 
-  const elements = lines.map((line, i) => {
-    const trimmed = line.trim()
+function parseDoc(raw: string): DocSection[] {
+  const sections: DocSection[] = []
+  const re = /\[([A-Z_]+)\]([\s\S]*?)\[\/\1\]/g
+  let last = 0, m: RegExpExecArray | null
+  while ((m = re.exec(raw)) !== null) {
+    const before = raw.slice(last, m.index).trim()
+    if (before) sections.push({ tag: 'TEXT', content: before })
+    sections.push({ tag: m[1], content: m[2].trim() })
+    last = re.lastIndex
+  }
+  const tail = raw.slice(last).trim()
+  if (tail) sections.push({ tag: 'TEXT', content: tail })
+  return sections
+}
 
-    if (!trimmed) return <div key={i} className="h-3" />
+function renderLine(line: string, i: number) {
+  const t = line.trim()
+  if (!t) return <div key={i} className="h-2" />
+  if (/^\d+[\.\)]\s/.test(t)) return <p key={i} className="pl-5 text-[14px] leading-relaxed mb-1 text-neutral-800">{t}</p>
+  if (/^[a-z]\)/.test(t)) return <p key={i} className="pl-8 text-[14px] leading-relaxed mb-0.5 text-neutral-700">{t}</p>
+  if (/^(•|-)\s/.test(t)) return <p key={i} className="pl-5 text-[14px] leading-relaxed mb-0.5 text-neutral-700">{t}</p>
+  return <p key={i} className="text-[14px] leading-relaxed mb-1 text-neutral-800">{t}</p>
+}
 
-    // RE: / SUBJECT: / OBJET: lines
-    if (/^(RE|SUBJECT|OBJET|OBJECT)\s*:/i.test(trimmed)) {
-      return (
-        <p key={i} className="font-semibold text-neutral-800 border-l-2 border-amber-600 pl-3 my-2">
-          {trimmed}
-        </p>
-      )
-    }
-
-    // Date line (first occurrence, right-aligned)
-    const isDate = /^\d{1,2}\s+\w+\s+\d{4}|\w+\s+\d{1,2},\s+\d{4}|^\d{1,2}\/\d{1,2}\/\d{4}/.test(trimmed)
-    if (isDate && !dateFound) {
-      dateFound = true
-      return <p key={i} className="text-right text-neutral-600 text-sm mb-4">{trimmed}</p>
-    }
-
-    // ALL-CAPS heading (title or section header)
-    if (trimmed.length > 4 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed)) {
-      return (
-        <h3 key={i} className="font-bold text-neutral-900 text-center tracking-wide uppercase mt-5 mb-2 text-sm">
-          {trimmed}
-        </h3>
-      )
-    }
-
-    // Dear / Cher salutation
-    if (/^(Dear|Cher|Chère|Madam|Monsieur|Madame)\b/i.test(trimmed)) {
-      return <p key={i} className="font-semibold text-neutral-800 mt-4 mb-2">{trimmed}</p>
-    }
-
-    // Closing
-    if (/^(Yours|Respectfully|Sincerely|Cordialement|Veuillez agréer|Faithfully)/i.test(trimmed)) {
-      return <p key={i} className="mt-6 text-neutral-700">{trimmed}</p>
-    }
-
-    // Numbered paragraph
-    if (/^\d+\.\s/.test(trimmed)) {
-      return <p key={i} className="text-neutral-700 leading-relaxed pl-4 mb-1">{trimmed}</p>
-    }
-
-    // Regular paragraph
-    return <p key={i} className="text-neutral-700 leading-relaxed mb-1">{trimmed}</p>
-  })
-
+function Block({ lines, className }: { lines: string; className?: string }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-8 mx-auto max-w-2xl font-serif text-[15px]">
-      {elements}
+    <div className={className}>
+      {lines.split('\n').map((l, i) => renderLine(l, i))}
+    </div>
+  )
+}
+
+function DocumentRenderer({ content, draftType }: { content: string; draftType?: string }) {
+  const sections = parseDoc(content)
+  const hasTags = sections.some(s => s.tag !== 'TEXT')
+
+  // ── Tag-based structured renderer ──
+  if (hasTags) {
+    const get = (tag: string) => sections.find(s => s.tag === tag)?.content ?? ''
+    const all = (tag: string) => sections.filter(s => s.tag === tag).map(s => s.content)
+
+    // Detect document family from tags present
+    const tags = new Set(sections.map(s => s.tag))
+    const isLetter = tags.has('LETTERHEAD') || tags.has('SALUTATION')
+    const isMotion = tags.has('MOTION_TITLE') || tags.has('PRAYER')
+    const isAffidavit = tags.has('AFFIDAVIT_TITLE') || tags.has('JURAT') || tags.has('DEPONENT')
+    const isMemo = tags.has('MEMO_HEADER') || tags.has('MEMO_META') || tags.has('ISSUES')
+    const isAppeal = tags.has('APPEAL_TITLE') || tags.has('GROUNDS')
+    const isClause = tags.has('CLAUSE_HEADER')
+
+    return (
+      <div className="bg-white rounded-xl shadow-md border border-neutral-200 mx-auto max-w-2xl text-neutral-900 overflow-hidden" style={{ fontFamily: "'Georgia', 'Times New Roman', serif" }}>
+
+        {/* ── LETTER / DEMAND / COURT LETTER layout ── */}
+        {isLetter && (
+          <>
+            {/* Letterhead */}
+            {get('LETTERHEAD') && (
+              <div className="bg-neutral-900 text-white px-8 py-5">
+                <div className="text-base font-bold tracking-wide mb-1">{get('LETTERHEAD').split('\n')[0]}</div>
+                {get('LETTERHEAD').split('\n').slice(1).map((l, i) => (
+                  <div key={i} className="text-neutral-300 text-xs">{l.trim()}</div>
+                ))}
+              </div>
+            )}
+            <div className="px-8 py-7 space-y-4">
+              {get('DATE') && (
+                <p className="text-right text-sm text-neutral-500 italic">{get('DATE')}</p>
+              )}
+              {get('TO') && (
+                <div className="text-sm text-neutral-700 leading-relaxed border-l-2 border-neutral-300 pl-3">
+                  {get('TO').split('\n').map((l, i) => <div key={i}>{l.trim()}</div>)}
+                </div>
+              )}
+              {get('REF') && (
+                <p className="text-xs text-neutral-500 font-medium tracking-wide">{get('REF')}</p>
+              )}
+              {get('SUBJECT') && (
+                <div className="border-t border-b border-neutral-200 py-2 my-2">
+                  <p className="font-bold text-neutral-900 text-sm tracking-wide">{get('SUBJECT')}</p>
+                </div>
+              )}
+              {get('SALUTATION') && (
+                <p className="font-semibold text-neutral-800 mt-2">{get('SALUTATION')}</p>
+              )}
+              {get('BODY') && (
+                <Block lines={get('BODY')} className="space-y-3 text-neutral-800 mt-2" />
+              )}
+              {get('CLOSING') && (
+                <p className="mt-6 text-neutral-700">{get('CLOSING')}</p>
+              )}
+              {get('SIGNATURE') && (
+                <div className="mt-8 pt-4 border-t border-neutral-100">
+                  {get('SIGNATURE').split('\n').map((l, i) => (
+                    <div key={i} className={`text-sm ${i === 0 ? 'font-bold text-neutral-900' : 'text-neutral-600'}`}>{l.trim()}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── MOTION / REQUÊTE layout ── */}
+        {isMotion && (
+          <div className="px-8 py-7 space-y-5">
+            {get('COURT') && (
+              <div className="text-center border-b-2 border-neutral-900 pb-4 mb-2">
+                {get('COURT').split('\n').map((l, i) => (
+                  <div key={i} className={i === 0 ? 'font-bold text-lg text-neutral-900 tracking-widest uppercase' : 'text-sm text-neutral-600 mt-0.5'}>{l.trim()}</div>
+                ))}
+              </div>
+            )}
+            {get('CASE_REF') && (
+              <div className="border border-neutral-300 rounded p-3 bg-neutral-50 text-sm text-center font-mono">
+                {get('CASE_REF').split('\n').map((l, i) => <div key={i}>{l.trim()}</div>)}
+              </div>
+            )}
+            {get('PARTIES') && (
+              <div className="text-sm text-neutral-700 space-y-1 border-l-4 border-neutral-900 pl-4">
+                {get('PARTIES').split('\n').map((l, i) => <div key={i}>{l.trim()}</div>)}
+              </div>
+            )}
+            {get('MOTION_TITLE') && (
+              <h2 className="text-center font-bold text-base uppercase tracking-wide text-neutral-900 py-2 border-b border-neutral-200">
+                {get('MOTION_TITLE')}
+              </h2>
+            )}
+            {get('PREAMBLE') && (
+              <p className="italic text-neutral-700 text-sm">{get('PREAMBLE')}</p>
+            )}
+            {get('BODY') && (
+              <Block lines={get('BODY')} className="space-y-2" />
+            )}
+            {get('PRAYER') && (
+              <div className="mt-4 bg-neutral-50 border border-neutral-200 rounded p-4">
+                <p className="font-bold text-sm text-neutral-900 mb-2 uppercase tracking-wide">Prayer / Conclusions</p>
+                <Block lines={get('PRAYER')} className="space-y-1" />
+              </div>
+            )}
+            {get('DATE') && <p className="text-sm text-neutral-500 italic mt-4">{get('DATE')}</p>}
+            {get('SIGNATURE') && (
+              <div className="mt-6 pt-4 border-t border-neutral-200">
+                {get('SIGNATURE').split('\n').map((l, i) => (
+                  <div key={i} className={`text-sm ${i === 0 ? 'font-bold' : 'text-neutral-600'}`}>{l.trim()}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── AFFIDAVIT layout ── */}
+        {isAffidavit && (
+          <div className="px-8 py-7 space-y-5">
+            {get('COURT') && (
+              <div className="text-center border-b-2 border-neutral-900 pb-3">
+                {get('COURT').split('\n').map((l, i) => (
+                  <div key={i} className={i === 0 ? 'font-bold text-lg uppercase tracking-widest' : 'text-sm text-neutral-600'}>{l.trim()}</div>
+                ))}
+              </div>
+            )}
+            {get('CASE_REF') && (
+              <div className="border border-neutral-300 rounded p-3 bg-neutral-50 text-sm font-mono text-center">
+                {get('CASE_REF').split('\n').map((l, i) => <div key={i}>{l.trim()}</div>)}
+              </div>
+            )}
+            {get('AFFIDAVIT_TITLE') && (
+              <h2 className="text-center font-bold uppercase text-base tracking-wide border-b border-neutral-300 pb-2">
+                {get('AFFIDAVIT_TITLE')}
+              </h2>
+            )}
+            {get('DEPONENT') && (
+              <p className="italic text-neutral-800 text-sm leading-relaxed">{get('DEPONENT')}</p>
+            )}
+            {get('BODY') && (
+              <Block lines={get('BODY')} className="space-y-2" />
+            )}
+            {get('JURAT') && (
+              <div className="mt-6 bg-neutral-50 border border-neutral-300 rounded p-4 text-sm space-y-3">
+                <p className="font-bold uppercase text-xs tracking-widest text-neutral-600">Jurat</p>
+                <p className="text-neutral-700">{get('JURAT')}</p>
+              </div>
+            )}
+            {get('SIGNATURE') && (
+              <div className="mt-4 pt-4 border-t border-neutral-200 text-sm">
+                {get('SIGNATURE').split('\n').map((l, i) => <div key={i} className="text-neutral-700">{l.trim()}</div>)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── MEMORANDUM layout ── */}
+        {isMemo && (
+          <div className="px-8 py-7 space-y-5">
+            {get('MEMO_HEADER') && (
+              <div className="bg-neutral-900 text-white px-6 py-4 -mx-8 -mt-7 mb-2 text-center">
+                {get('MEMO_HEADER').split('\n').map((l, i) => (
+                  <div key={i} className={i === 0 ? 'font-bold text-sm tracking-widest uppercase' : 'text-neutral-300 text-xs mt-0.5'}>{l.trim()}</div>
+                ))}
+              </div>
+            )}
+            {get('MEMO_META') && (
+              <div className="bg-neutral-50 border border-neutral-200 rounded p-4 text-sm space-y-1">
+                {get('MEMO_META').split('\n').map((l, i) => {
+                  const [label, ...rest] = l.split(':')
+                  return rest.length ? (
+                    <div key={i} className="flex gap-2"><span className="font-bold text-neutral-600 w-20 shrink-0">{label}:</span><span>{rest.join(':').trim()}</span></div>
+                  ) : <div key={i}>{l.trim()}</div>
+                })}
+              </div>
+            )}
+            {get('SUMMARY') && (
+              <div className="bg-amber-50 border-l-4 border-amber-500 px-4 py-3">
+                <p className="font-bold text-xs uppercase tracking-widest text-amber-700 mb-1">Executive Summary</p>
+                <p className="text-sm text-neutral-800 leading-relaxed">{get('SUMMARY')}</p>
+              </div>
+            )}
+            {get('ISSUES') && (
+              <div>
+                <p className="font-bold text-xs uppercase tracking-widest text-neutral-600 mb-2">Issues Presented</p>
+                <Block lines={get('ISSUES')} className="space-y-1" />
+              </div>
+            )}
+            {get('BRIEF_ANSWERS') && (
+              <div>
+                <p className="font-bold text-xs uppercase tracking-widest text-neutral-600 mb-2">Brief Answers</p>
+                <Block lines={get('BRIEF_ANSWERS')} className="space-y-1" />
+              </div>
+            )}
+            {get('BODY') && (
+              <Block lines={get('BODY')} className="space-y-3 pt-2 border-t border-neutral-100" />
+            )}
+            {get('CONCLUSION') && (
+              <div className="bg-neutral-50 border border-neutral-200 rounded p-4">
+                <p className="font-bold text-xs uppercase tracking-widest text-neutral-600 mb-2">Conclusion & Recommendations</p>
+                <Block lines={get('CONCLUSION')} className="space-y-1" />
+              </div>
+            )}
+            {get('SIGNATURE') && (
+              <div className="pt-4 border-t border-neutral-200 text-sm">
+                {get('SIGNATURE').split('\n').map((l, i) => <div key={i} className={i === 0 ? 'font-bold' : 'text-neutral-600'}>{l.trim()}</div>)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── APPEAL BRIEF layout ── */}
+        {isAppeal && (
+          <div className="px-8 py-7 space-y-5">
+            {get('COURT') && (
+              <div className="text-center border-b-2 border-neutral-900 pb-3">
+                {get('COURT').split('\n').map((l, i) => (
+                  <div key={i} className={i === 0 ? 'font-bold text-lg uppercase tracking-widest' : 'text-sm text-neutral-600'}>{l.trim()}</div>
+                ))}
+              </div>
+            )}
+            {get('CASE_REF') && (
+              <div className="border border-neutral-300 rounded p-3 bg-neutral-50 text-sm text-center font-mono">
+                {get('CASE_REF').split('\n').map((l, i) => <div key={i}>{l.trim()}</div>)}
+              </div>
+            )}
+            {get('PARTIES') && (
+              <div className="text-sm text-center space-y-1 text-neutral-700">
+                {get('PARTIES').split('\n').map((l, i) => (
+                  <div key={i} className={l.includes('APPELLANT') || l.includes('APPELANT') ? 'font-bold' : ''}>{l.trim()}</div>
+                ))}
+              </div>
+            )}
+            {get('APPEAL_TITLE') && (
+              <h2 className="text-center font-bold uppercase text-sm tracking-wide text-neutral-900 border-y border-neutral-300 py-2">
+                {get('APPEAL_TITLE')}
+              </h2>
+            )}
+            {get('BACKGROUND') && (
+              <div>
+                <p className="font-bold text-xs uppercase tracking-widest text-neutral-600 mb-2">Statement of the Case</p>
+                <Block lines={get('BACKGROUND')} className="space-y-2" />
+              </div>
+            )}
+            {get('GROUNDS') && (
+              <div className="bg-neutral-50 border border-neutral-200 rounded p-4">
+                <p className="font-bold text-xs uppercase tracking-widest text-neutral-600 mb-2">Grounds of Appeal</p>
+                <Block lines={get('GROUNDS')} className="space-y-1" />
+              </div>
+            )}
+            {get('ARGUMENTS') && (
+              <div>
+                <p className="font-bold text-xs uppercase tracking-widest text-neutral-600 mb-2">Submissions</p>
+                <Block lines={get('ARGUMENTS')} className="space-y-2" />
+              </div>
+            )}
+            {get('PRAYER') && (
+              <div className="bg-neutral-50 border border-neutral-200 rounded p-4">
+                <p className="font-bold text-xs uppercase tracking-widest text-neutral-600 mb-2">Prayer</p>
+                <Block lines={get('PRAYER')} className="space-y-1" />
+              </div>
+            )}
+            {get('DATE') && <p className="text-sm italic text-neutral-500">{get('DATE')}</p>}
+            {get('SIGNATURE') && (
+              <div className="pt-4 border-t border-neutral-200 text-sm">
+                {get('SIGNATURE').split('\n').map((l, i) => <div key={i} className={i === 0 ? 'font-bold' : 'text-neutral-600'}>{l.trim()}</div>)}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── CONTRACT CLAUSE layout ── */}
+        {isClause && (
+          <div className="px-8 py-7 space-y-4">
+            {get('CLAUSE_HEADER') && (
+              <div className="border-b-2 border-neutral-900 pb-3">
+                {get('CLAUSE_HEADER').split('\n').map((l, i) => (
+                  <div key={i} className={i === 0 ? 'font-bold text-base uppercase tracking-wide' : 'text-xs text-neutral-500 mt-0.5'}>{l.trim()}</div>
+                ))}
+              </div>
+            )}
+            {get('BODY') && <Block lines={get('BODY')} className="space-y-2" />}
+            {get('DEFINITIONS') && (
+              <div className="bg-neutral-50 border border-neutral-200 rounded p-4">
+                <p className="font-bold text-xs uppercase tracking-widest text-neutral-600 mb-2">Definitions</p>
+                <Block lines={get('DEFINITIONS')} className="space-y-1" />
+              </div>
+            )}
+            {get('NOTES') && (
+              <div className="bg-amber-50 border-l-4 border-amber-400 px-4 py-3">
+                <p className="font-bold text-xs uppercase tracking-widest text-amber-700 mb-1">Drafting Notes</p>
+                <Block lines={get('NOTES')} className="space-y-1 text-sm text-neutral-700" />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Fallback for OTHER or unknown tag combos */}
+        {!isLetter && !isMotion && !isAffidavit && !isMemo && !isAppeal && !isClause && (
+          <div className="px-8 py-7 space-y-3">
+            {sections.map((s, i) => {
+              if (s.tag === 'TITLE') return <h2 key={i} className="font-bold text-base text-center uppercase tracking-wide border-b pb-2">{s.content}</h2>
+              if (s.tag === 'DATE') return <p key={i} className="text-right text-sm text-neutral-500 italic">{s.content}</p>
+              if (s.tag === 'PARTIES') return <div key={i} className="border-l-4 border-neutral-300 pl-3 text-sm space-y-0.5">{s.content.split('\n').map((l, j) => <div key={j}>{l}</div>)}</div>
+              if (s.tag === 'BODY') return <Block key={i} lines={s.content} className="space-y-2" />
+              if (s.tag === 'SIGNATURE') return <div key={i} className="pt-4 border-t text-sm space-y-0.5">{s.content.split('\n').map((l, j) => <div key={j} className={j === 0 ? 'font-bold' : 'text-neutral-600'}>{l.trim()}</div>)}</div>
+              if (s.tag === 'TEXT') return <Block key={i} lines={s.content} className="space-y-2" />
+              return (
+                <div key={i} className="space-y-1">
+                  <p className="text-xs font-bold uppercase tracking-widest text-neutral-500">{s.tag.replace(/_/g, ' ')}</p>
+                  <Block lines={s.content} className="space-y-1" />
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Fallback: smart line-by-line renderer for unstructured text ──
+  let dateFound = false
+  const lines = content.split('\n')
+  return (
+    <div className="bg-white rounded-xl shadow-md border border-neutral-200 px-8 py-7 mx-auto max-w-2xl space-y-1" style={{ fontFamily: "'Georgia', serif" }}>
+      {lines.map((line, i) => {
+        const t = line.trim()
+        if (!t) return <div key={i} className="h-3" />
+        if (/^(RE|SUBJECT|OBJET)\s*:/i.test(t)) return <p key={i} className="font-bold border-l-2 border-amber-500 pl-3 py-1 text-neutral-900">{t}</p>
+        const isDate = /^\d{1,2}\s+\w+\s+\d{4}|\w+\s+\d{1,2},\s+\d{4}/.test(t)
+        if (isDate && !dateFound) { dateFound = true; return <p key={i} className="text-right text-sm text-neutral-500 italic">{t}</p> }
+        if (t.length > 4 && t === t.toUpperCase() && /[A-Z]{3}/.test(t)) return <h3 key={i} className="font-bold text-center uppercase tracking-wide text-sm pt-4 pb-1 text-neutral-900">{t}</h3>
+        if (/^(Dear|Cher|Chère|Madam|Monsieur)\b/i.test(t)) return <p key={i} className="font-semibold mt-4 text-neutral-900">{t}</p>
+        if (/^(Yours|Respectfully|Sincerely|Cordialement|Veuillez agréer)\b/i.test(t)) return <p key={i} className="mt-6 text-neutral-700">{t}</p>
+        if (/^\d+[\.\)]\s/.test(t)) return <p key={i} className="pl-5 leading-relaxed text-[14px] text-neutral-800">{t}</p>
+        return <p key={i} className="leading-relaxed text-[14px] text-neutral-800">{t}</p>
+      })}
     </div>
   )
 }
@@ -287,6 +605,12 @@ function DraftsPanel({ token }: { token: string }) {
   const [streamContent, setStreamContent] = useState('')
   const [error, setError] = useState('')
 
+  // Translation state
+  const [translating, setTranslating] = useState(false)
+  const [translatedContent, setTranslatedContent] = useState('')
+  const [translatedLang, setTranslatedLang] = useState<'en' | 'fr' | null>(null)
+  const [showTranslated, setShowTranslated] = useState(false)
+
   useEffect(() => {
     listLegalDrafts(token).then(setDrafts).catch(() => {})
   }, [token])
@@ -298,6 +622,27 @@ function DraftsPanel({ token }: { token: string }) {
     setAnswers({})
     setStreamContent('')
     setError('')
+    setTranslatedContent('')
+    setTranslatedLang(null)
+    setShowTranslated(false)
+  }
+
+  async function translate(targetLang: 'en' | 'fr') {
+    const source = selected?.content || streamContent
+    if (!source || translating) return
+    setTranslating(true)
+    setTranslatedContent('')
+    setTranslatedLang(targetLang)
+    setShowTranslated(true)
+    await streamTranslate(
+      { content: source, target_lang: targetLang },
+      token,
+      {
+        onToken: t => setTranslatedContent(prev => prev + t),
+        onDone: () => setTranslating(false),
+        onError: () => setTranslating(false),
+      },
+    )
   }
 
   async function askClarifyQuestions() {
@@ -495,7 +840,7 @@ function DraftsPanel({ token }: { token: string }) {
         {/* ── Step: generating / done (streaming document view) ── */}
         {(step === 'generating' || step === 'done') && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-700/40 flex-shrink-0">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-700/40 flex-shrink-0 flex-wrap gap-2">
               <div className="flex items-center gap-3">
                 {step === 'generating' && (
                   <svg className="w-4 h-4 animate-spin text-gold-400" fill="none" viewBox="0 0 24 24">
@@ -508,9 +853,32 @@ function DraftsPanel({ token }: { token: string }) {
                 </span>
               </div>
               {step === 'done' && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  {/* Translation buttons */}
+                  <div className="flex items-center gap-1 border border-neutral-700/40 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => { setShowTranslated(false) }}
+                      className={`px-2.5 py-1.5 text-xs transition-colors ${!showTranslated ? 'bg-gold-500/20 text-gold-300' : 'text-neutral-500 hover:text-neutral-200'}`}
+                    >
+                      Original
+                    </button>
+                    <button
+                      onClick={() => void translate('fr')}
+                      disabled={translating}
+                      className={`px-2.5 py-1.5 text-xs transition-colors ${showTranslated && translatedLang === 'fr' ? 'bg-gold-500/20 text-gold-300' : 'text-neutral-500 hover:text-neutral-200'}`}
+                    >
+                      {translating && translatedLang === 'fr' ? '…' : '🇫🇷 FR'}
+                    </button>
+                    <button
+                      onClick={() => void translate('en')}
+                      disabled={translating}
+                      className={`px-2.5 py-1.5 text-xs transition-colors ${showTranslated && translatedLang === 'en' ? 'bg-gold-500/20 text-gold-300' : 'text-neutral-500 hover:text-neutral-200'}`}
+                    >
+                      {translating && translatedLang === 'en' ? '…' : '🇬🇧 EN'}
+                    </button>
+                  </div>
                   <button
-                    onClick={() => navigator.clipboard.writeText(streamContent).catch(() => {})}
+                    onClick={() => navigator.clipboard.writeText(showTranslated ? translatedContent : streamContent).catch(() => {})}
                     className="px-3 py-1.5 rounded-lg border border-neutral-700/40 text-neutral-400 text-xs hover:text-gold-400 transition-colors"
                   >
                     Copy
@@ -525,8 +893,15 @@ function DraftsPanel({ token }: { token: string }) {
               )}
             </div>
             <div className="flex-1 overflow-y-auto p-6 bg-neutral-100/5">
-              {streamContent ? (
-                <DocumentRenderer content={streamContent} />
+              {showTranslated && translatedContent ? (
+                <DocumentRenderer content={translatedContent} draftType={form.draft_type} />
+              ) : showTranslated && translating ? (
+                <div className="h-32 flex items-center justify-center text-neutral-400 text-sm gap-2">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  Translating…
+                </div>
+              ) : streamContent ? (
+                <DocumentRenderer content={streamContent} draftType={form.draft_type} />
               ) : (
                 <div className="h-32 flex items-center justify-center text-neutral-500 text-sm">Starting…</div>
               )}
@@ -537,16 +912,39 @@ function DraftsPanel({ token }: { token: string }) {
         {/* ── Viewing saved draft ── */}
         {selected && step === 'form' && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-700/40 flex-shrink-0">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-700/40 flex-shrink-0 flex-wrap gap-2">
               <div>
                 <span className="text-neutral-200 text-sm font-medium">{selected.title}</span>
                 <span className="ml-3 text-neutral-500 text-xs">
                   {DRAFT_TYPE_LABELS[selected.draft_type] ?? selected.draft_type} · {new Date(selected.created_at).toLocaleDateString()}
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                {/* Translation buttons */}
+                <div className="flex items-center gap-1 border border-neutral-700/40 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setShowTranslated(false)}
+                    className={`px-2.5 py-1.5 text-xs transition-colors ${!showTranslated ? 'bg-gold-500/20 text-gold-300' : 'text-neutral-500 hover:text-neutral-200'}`}
+                  >
+                    Original
+                  </button>
+                  <button
+                    onClick={() => void translate('fr')}
+                    disabled={translating}
+                    className={`px-2.5 py-1.5 text-xs transition-colors ${showTranslated && translatedLang === 'fr' ? 'bg-gold-500/20 text-gold-300' : 'text-neutral-500 hover:text-neutral-200'}`}
+                  >
+                    {translating && translatedLang === 'fr' ? '…' : '🇫🇷 FR'}
+                  </button>
+                  <button
+                    onClick={() => void translate('en')}
+                    disabled={translating}
+                    className={`px-2.5 py-1.5 text-xs transition-colors ${showTranslated && translatedLang === 'en' ? 'bg-gold-500/20 text-gold-300' : 'text-neutral-500 hover:text-neutral-200'}`}
+                  >
+                    {translating && translatedLang === 'en' ? '…' : '🇬🇧 EN'}
+                  </button>
+                </div>
                 <button
-                  onClick={() => navigator.clipboard.writeText(selected.content).catch(() => {})}
+                  onClick={() => navigator.clipboard.writeText(showTranslated ? translatedContent : selected.content).catch(() => {})}
                   className="px-3 py-1.5 rounded-lg border border-neutral-700/40 text-neutral-400 text-xs hover:text-gold-400 transition-colors"
                 >
                   Copy
@@ -560,7 +958,16 @@ function DraftsPanel({ token }: { token: string }) {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-6 bg-neutral-100/5">
-              <DocumentRenderer content={selected.content} />
+              {showTranslated && translatedContent ? (
+                <DocumentRenderer content={translatedContent} draftType={selected.draft_type} />
+              ) : showTranslated && translating ? (
+                <div className="h-32 flex items-center justify-center text-neutral-400 text-sm gap-2">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                  Translating…
+                </div>
+              ) : (
+                <DocumentRenderer content={selected.content} draftType={selected.draft_type} />
+              )}
             </div>
           </div>
         )}

@@ -230,6 +230,59 @@ export type DraftStreamCallbacks = {
   onError: (msg: string) => void
 }
 
+export type TranslateCallbacks = {
+  onToken: (t: string) => void
+  onDone: () => void
+  onError: (msg: string) => void
+}
+
+export async function streamTranslate(
+  payload: { content: string; target_lang: 'en' | 'fr' },
+  token: string,
+  callbacks: TranslateCallbacks,
+): Promise<void> {
+  const res = await fetch(`${aiBase()}/ai/drafts/translate/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    callbacks.onError(`Translation failed (${res.status})`)
+    return
+  }
+  const reader = res.body?.getReader()
+  if (!reader) { callbacks.onError('No response body'); return }
+  const decoder = new TextDecoder()
+  let buffer = ''
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const raw = line.slice(6).trim()
+        if (!raw) continue
+        try {
+          const parsed = JSON.parse(raw) as { token?: string; done?: boolean; error?: string }
+          if (parsed.error) { callbacks.onError(parsed.error); return }
+          if (parsed.token) callbacks.onToken(parsed.token)
+          if (parsed.done) { callbacks.onDone(); return }
+        } catch { /* skip */ }
+      }
+    }
+  } finally {
+    reader.cancel().catch(() => undefined)
+  }
+  callbacks.onDone()
+}
+
 export async function streamDraft(
   payload: { draft_type: string; instructions: string; answers?: Record<string, string>; title?: string; case_id?: string | null },
   token: string,

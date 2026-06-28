@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 
 from .models import ChatSession, LegalDraft
 from .serializers import ChatSessionSerializer
-from apps.utils.ai_client import get_ai_client, LEGAL_SYSTEM_PROMPT
+from apps.utils.ai_client import get_ai_client, LEGAL_SYSTEM_PROMPT, DRAFT_LEGAL_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -170,16 +170,371 @@ class ChatSessionDetailView(APIView):
 
 
 DRAFT_TYPE_PROMPTS = {
-    'letter_to_client':    'Draft a formal letter from the lawyer to the client.',
-    'letter_to_court':     'Draft a formal letter addressed to the court.',
-    'motion':              'Draft a legal motion (requête) to be filed in court.',
-    'contract_clause':     'Draft a specific contract clause or set of clauses.',
-    'memorandum':          'Draft a legal memorandum (note de service / memo juridique).',
-    'demand_letter':       'Draft a demand letter (lettre de mise en demeure).',
-    'affidavit':           'Draft a sworn affidavit (déclaration sous serment).',
-    'settlement_proposal': 'Draft a settlement proposal between the parties.',
-    'appeal_brief':        'Draft an appeal brief (mémoire d\'appel) for court filing.',
-    'other':               'Draft the legal document as described.',
+    'letter_to_client': """
+Draft a formal professional letter from a lawyer/law firm to a client.
+Use the EXACT section markers below — fill every section completely:
+
+[LETTERHEAD]
+[Lawyer/Firm full name]
+[Professional title — e.g. Avocat au Barreau du Cameroun / Barrister & Solicitor]
+[Bar Registration No.]
+[Full address]
+[Tel / Email]
+[/LETTERHEAD]
+[DATE][Full date in format: 28 June 2026][/DATE]
+[TO]
+[Client full name]
+[Client full address]
+[/TO]
+[REF]File No.: [reference][/REF]
+[SUBJECT]RE: [SUBJECT IN CAPITALS][/SUBJECT]
+[SALUTATION]Dear [Mr./Ms./Dr.] [Surname],[/SALUTATION]
+[BODY]
+Write 3–5 formal paragraphs. Open by identifying capacity and purpose.
+State the legal position clearly. Where relevant, cite:
+- Art. 1134 Civil Code (contractual obligations)
+- Art. 1147-1151 Civil Code (non-performance and damages)
+- Applicable OHADA UA or Land Law (Ordinance 74/1) where property is involved.
+Close with a call to action or next step.
+[/BODY]
+[CLOSING]Yours faithfully,[/CLOSING]
+[SIGNATURE]
+[Full name]
+[Title/Qualification]
+[Bar/Roll Number]
+[Firm Name if applicable]
+[/SIGNATURE]
+""",
+
+    'demand_letter': """
+Draft a formal demand letter / lettre de mise en demeure. This is a pre-litigation notice.
+Use the EXACT section markers:
+
+[LETTERHEAD]
+[Lawyer/Firm name, bar number, address]
+[/LETTERHEAD]
+[DATE][Date][/DATE]
+[TO]
+[Opposing party full name and address]
+[/TO]
+[REF]File No.: [reference] — BY REGISTERED POST WITH ACKNOWLEDGEMENT[/REF]
+[SUBJECT]RE: FORMAL DEMAND FOR [SUBJECT — e.g. PAYMENT OF XAF X / SPECIFIC PERFORMANCE][/SUBJECT]
+[SALUTATION]Dear [Mr./Ms./Maître] [Surname],[/SALUTATION]
+[BODY]
+Paragraph 1 — Capacity: State you act for [client name] and the purpose.
+Paragraph 2 — Background: Recite the facts establishing the obligation (contract date, terms, performance by your client).
+Paragraph 3 — Breach: Detail the breach and failure to perform. Cite:
+  • Art. 1134 C.civ. (binding force of contracts)
+  • Art. 1147-1149 C.civ. (liability for non-performance, damages)
+  • Art. 1153 C.civ. (statutory interest on money debts from date of formal demand)
+  • For commercial debts: Art. 1-3 OHADA AUPSRVE (simplified recovery procedure / injonction de payer)
+  • For dishonoured cheques: Art. 73 OHADA Uniform Act on Securities
+Paragraph 4 — FORMAL DEMAND: Demand specific performance/payment of [amount + currency] within [X] days.
+Paragraph 5 — Consequences: State that failure will result in immediate legal proceedings, costs, and interest at the legal rate, without further notice.
+[/BODY]
+[CLOSING]Yours faithfully,[/CLOSING]
+[SIGNATURE]
+[Lawyer name, title, bar no.]
+[/SIGNATURE]
+""",
+
+    'letter_to_court': """
+Draft a formal letter to the court from the lawyer on behalf of a client.
+Use these markers:
+
+[LETTERHEAD]
+[Lawyer/Firm name, bar no., address]
+[/LETTERHEAD]
+[DATE][Date][/DATE]
+[TO]
+The Registrar / Le Greffier en Chef
+[Full court name and address]
+[/TO]
+[REF]Suit No. / Dossier No.: [reference][/REF]
+[SUBJECT]RE: [SUBJECT — e.g. REQUEST FOR ADJOURNMENT / FILING OF DOCUMENTS][/SUBJECT]
+[SALUTATION]Dear Sir/Madam,[/SALUTATION]
+[BODY]
+Paragraph 1: Identify counsel, client, and the matter before the court.
+Paragraph 2: State the specific request and grounds.
+Paragraph 3: Where applicable cite:
+  • Law No. 2005/007 CPC Arts. relevant to the procedural request
+  • Civil Procedure Rules (anglophone) or NCPC provisions (francophone)
+  • OHADA UA on Arbitration Art. X if arbitration-related
+Paragraph 4: Attach list of documents if any.
+[/BODY]
+[CLOSING]Yours faithfully,[/CLOSING]
+[SIGNATURE]
+[Counsel name, title, bar no.]
+Counsel for [Claimant/Defendant — name]
+[/SIGNATURE]
+""",
+
+    'motion': """
+Draft a formal legal motion / requête to be filed in court.
+Structure EXACTLY as follows:
+
+[COURT]
+IN THE [HIGH COURT / TRIBUNAL DE GRANDE INSTANCE] OF CAMEROON
+[Circuit / Jurisdiction] DIVISION
+[/COURT]
+[CASE_REF]
+SUIT NO. / DOSSIER NO.: [reference]
+[Title of suit: Claimant v. Defendant]
+[/CASE_REF]
+[PARTIES]
+APPLICANT / REQUÉRANT: [Full name, address]
+RESPONDENT / INTIMÉ: [Full name, address]
+[/PARTIES]
+[MOTION_TITLE]NOTICE OF MOTION / REQUÊTE EN [SUBJECT — e.g. PROVISIONAL MEASURES / RÉFÉRÉ][/MOTION_TITLE]
+[PREAMBLE]
+TAKE NOTICE that [Applicant name], by Counsel, moves this Honourable Court on [date] or soon thereafter for the following Orders:
+[/PREAMBLE]
+[BODY]
+GROUNDS:
+1. [Factual background — chronologically stated]
+2. [Legal basis — cite specifically:]
+   • Art. [X] Law No. 2005/007 CPC (procedure, evidence, enforcement)
+   • Art. [X] Civil Code (substantive right asserted)
+   • Art. [X] OHADA UA [name] (if commercial matter)
+   • Ordinance No. 74/1 1974 (if land matter)
+3. [The Applicant will suffer irreparable harm / is entitled to judgment as a matter of law because…]
+[/BODY]
+[PRAYER]
+WHEREFORE, the Applicant respectfully prays that this Honourable Court grant:
+1. [Specific order 1]
+2. [Specific order 2]
+3. Costs of this application be borne by the Respondent.
+4. Such further relief as this Court may deem just and equitable.
+[/PRAYER]
+[DATE]Dated at [city] on this [day] day of [month] [year].[/DATE]
+[SIGNATURE]
+[Counsel full name]
+[Barrister-at-Law & Solicitor / Avocat au Barreau du Cameroun]
+[Bar No.]
+Counsel for the Applicant
+[/SIGNATURE]
+""",
+
+    'affidavit': """
+Draft a sworn affidavit / déclaration sous serment in proper legal form.
+
+[COURT]
+IN THE [COURT NAME] OF CAMEROON
+[Circuit/Division]
+[/COURT]
+[CASE_REF]
+SUIT / DOSSIER NO.: [reference]
+[Party names]
+[/CASE_REF]
+[AFFIDAVIT_TITLE]AFFIDAVIT OF [DEPONENT FULL NAME][/AFFIDAVIT_TITLE]
+[DEPONENT]
+I, [Full name], [occupation], holder of National Identity Card / Passport No. [number], residing at [full address], being duly sworn/affirmed, do hereby solemnly and sincerely declare as follows:
+[/DEPONENT]
+[BODY]
+1. I am the [Applicant / Claimant / Defendant / Witness] in the above matter and I am competent to depose to the facts set out herein.
+2. [Paragraph of fact — each paragraph one distinct fact only]
+3. [Continue numbered paragraphs for each material fact]
+   Cite applicable law where relevant:
+   • Art. 116 Law No. 2005/007 CPC — statutory basis for sworn evidence
+   • Arts. 344-357 C.civ. — affidavit in personal status proceedings
+4. The facts deposed to herein are true and correct to the best of my knowledge, information, and belief.
+[/BODY]
+[JURAT]
+SWORN / AFFIRMED at [location] on this [day] day of [month] [year],
+before me:
+
+____________________________
+Commissioner for Oaths / Greffier / Notaire
+[Stamp]
+[/JURAT]
+[SIGNATURE]
+____________________________
+[Deponent: Full name]
+[/SIGNATURE]
+""",
+
+    'memorandum': """
+Draft a confidential legal memorandum / note juridique.
+
+[MEMO_HEADER]
+CONFIDENTIAL — LEGALLY PRIVILEGED
+LEGAL MEMORANDUM / NOTE JURIDIQUE
+[/MEMO_HEADER]
+[MEMO_META]
+TO: [Recipient name and title]
+FROM: [Author name and title]
+DATE: [Full date]
+RE: [Subject matter of memorandum]
+FILE NO.: [reference]
+CLASSIFICATION: Attorney-Client Privilege / Privilegiée
+[/MEMO_META]
+[SUMMARY]
+EXECUTIVE SUMMARY
+[2-3 sentence summary of the legal question, answer, and key action point]
+[/SUMMARY]
+[ISSUES]
+ISSUES PRESENTED
+1. [Precise legal question 1]
+2. [Precise legal question 2 if applicable]
+[/ISSUES]
+[BRIEF_ANSWERS]
+BRIEF ANSWERS
+1. [One-sentence answer to Issue 1, citing the key authority]
+2. [Answer to Issue 2]
+[/BRIEF_ANSWERS]
+[BODY]
+ANALYSIS
+
+A. [First Issue Heading]
+[Detailed legal analysis. Apply the IRAC method: Issue → Rule → Application → Conclusion.
+Cite applicable statutes precisely:]
+• [Statute / UA / Code article]
+• [Case law if available: Arrêt No. X, Cour Suprême, date]
+Apply the law to the specific facts. Distinguish adverse authorities if needed.
+
+B. [Second Issue Heading if applicable]
+[Same structure]
+
+RISKS & CONSIDERATIONS
+[Set out legal risks, limitation periods, procedural traps.]
+[/BODY]
+[CONCLUSION]
+CONCLUSION & RECOMMENDATIONS
+[Concise conclusion per issue. Specific next steps for the client/lawyer.]
+[/CONCLUSION]
+[SIGNATURE]
+Prepared by: [Author name]
+[Title / Bar No.]
+[Date]
+This memorandum is prepared for the exclusive use of [recipient] and is protected by attorney-client privilege.
+[/SIGNATURE]
+""",
+
+    'settlement_proposal': """
+Draft a without-prejudice settlement proposal between parties.
+
+[LETTERHEAD]
+[Lawyer/Firm name, bar no., address]
+[/LETTERHEAD]
+[DATE][Date][/DATE]
+[TO]
+[Opposing counsel or party name and address]
+[/TO]
+[REF]File No.: [reference] — WITHOUT PREJUDICE / SOUS TOUTES RÉSERVES[/REF]
+[SUBJECT]RE: SETTLEMENT PROPOSAL — [CASE TITLE / DOSSIER REFERENCE][/SUBJECT]
+[SALUTATION]Dear [Maître / Mr. / Ms.] [Surname],[/SALUTATION]
+[BODY]
+WITHOUT PREJUDICE
+
+Paragraph 1 — Authority: State you act for [client] and are authorised to make this proposal.
+Paragraph 2 — Background: Briefly state the dispute, the claim, and what each party seeks.
+Paragraph 3 — Proposed Terms:
+  My client proposes to settle this matter on the following terms:
+  (a) [Payment of XAF X by date Y — Art. 1234 C.civ.: discharge of obligation by payment]
+  (b) [Mutual release of all claims]
+  (c) [Specific performance obligation if any]
+  (d) [Confidentiality clause — Art. 1134 C.civ.]
+  (e) [Each party to bear own costs / costs allocation]
+Paragraph 4 — Expiry: This proposal is open for acceptance until [date] and will lapse automatically thereafter.
+Paragraph 5 — Without Prejudice: This communication is without prejudice to our client's legal rights and remedies and may not be produced in any proceedings without consent of both parties.
+[/BODY]
+[CLOSING]Yours faithfully,[/CLOSING]
+[SIGNATURE]
+[Lawyer name, title, bar no.]
+Counsel for [Client name]
+[/SIGNATURE]
+""",
+
+    'appeal_brief': """
+Draft an appeal brief / mémoire d'appel for filing in the Court of Appeal.
+
+[COURT]
+IN THE COURT OF APPEAL OF CAMEROON
+[Circuit — e.g. LITTORAL / CENTRE / ANGLOPHONE SW]
+[/COURT]
+[CASE_REF]
+APPEAL NO. / APPEL NO.: [reference]
+(Appeal from the Judgment / Jugement of [lower court] in Suit/Dossier No. [reference] dated [date])
+[/CASE_REF]
+[PARTIES]
+APPELLANT / APPELANT: [Full name, address, counsel]
+RESPONDENT / INTIMÉ: [Full name, address, counsel]
+[/PARTIES]
+[APPEAL_TITLE]BRIEF OF APPELLANT / MÉMOIRE DE L'APPELANT[/APPEAL_TITLE]
+[BACKGROUND]
+STATEMENT OF THE CASE / FAITS ET PROCÉDURE
+[Chronological account: contract or events → trial proceedings → lower court's judgment → notice of appeal filed on (date) within the time prescribed by Art. 353 Law No. 2005/007 CPC / Art. 172 NCPC.]
+[/BACKGROUND]
+[GROUNDS]
+GROUNDS OF APPEAL / MOYENS D'APPEL
+Ground 1: [Error of law — cite: Art. X C.civ. / OHADA UA / CPC misapplied]
+Ground 2: [Error of fact — lower court misapprehended the evidence by…]
+Ground 3: [Procedural irregularity — Art. X Law No. 2005/007 CPC violated because…]
+[Add additional grounds as warranted]
+[/GROUNDS]
+[ARGUMENTS]
+SUBMISSIONS IN SUPPORT / DÉVELOPPEMENT DES MOYENS
+
+On Ground 1:
+[Argument — Rule: cite authority precisely; Application: show how lower court erred; Conclusion: relief sought]
+
+On Ground 2:
+[Same structure]
+
+On Ground 3:
+[Same structure]
+[/ARGUMENTS]
+[PRAYER]
+PRAYER / CONCLUSIONS
+The Appellant respectfully prays that this Honourable Court:
+1. Set aside / infirmer le jugement du [lower court] dated [date].
+2. [Substitute order / render the judgment the lower court should have rendered].
+3. Award costs to the Appellant / Condamner l'Intimé aux dépens.
+[/PRAYER]
+[DATE]Respectfully submitted at [city] on [date].[/DATE]
+[SIGNATURE]
+[Counsel full name]
+[Barrister-at-Law / Avocat au Barreau du Cameroun]
+[Bar No.]
+Counsel for the Appellant
+[/SIGNATURE]
+""",
+
+    'contract_clause': """
+Draft a professional contract clause or set of related clauses.
+
+[CLAUSE_HEADER]
+ARTICLE [NUMBER] — [TITLE IN CAPITALS]
+(Insert into [Contract Type — e.g. Service Agreement / Contrat de Prestation de Services])
+[/CLAUSE_HEADER]
+[BODY]
+[NUMBER].1 [Sub-clause heading if needed]: [Text — precise, unambiguous language]
+[NUMBER].2 [Next sub-clause]: [Text]
+[NUMBER].3 [etc.]
+
+Key rules to follow in drafting:
+- Define key terms used (draw on Art. 1 AUDCG style if commercial)
+- Penalties/consequences: cite Art. 1147 C.civ. (non-performance liability)
+- Force majeure: Art. 1148 C.civ. — define unforeseeable, irresistible events
+- Dispute resolution: reference OHADA UA on Arbitration or courts of [jurisdiction]
+- Governing law: "This Agreement is governed by the laws of Cameroon and, where applicable, the OHADA Uniform Acts."
+[/BODY]
+[DEFINITIONS]
+DEFINITIONS (if applicable)
+"[Term]" means [precise definition].
+[/DEFINITIONS]
+[NOTES]
+DRAFTING NOTES
+[Flag any OHADA mandatory provisions, any CIV/CIMA insurance requirements, or labour code constraints that affect this clause.]
+[/NOTES]
+""",
+
+    'other': """
+Draft the legal document as fully described by the lawyer.
+Where applicable use section markers:
+[TITLE][/TITLE] [DATE][/DATE] [PARTIES][/PARTIES] [BODY][/BODY] [SIGNATURE][/SIGNATURE]
+Cite the relevant Cameroonian or OHADA law provisions that apply to the subject matter.
+""",
 }
 
 
@@ -394,10 +749,14 @@ class LegalDraftStreamView(APIView):
 
         type_prompt = DRAFT_TYPE_PROMPTS.get(draft_type, DRAFT_TYPE_PROMPTS['other'])
         draft_prompt = (
-            f"{LEGAL_SYSTEM_PROMPT}\n\n"
-            "You are now in DOCUMENT DRAFTING MODE. Output only the complete, "
-            "professionally formatted legal document — no explanations, no commentary.\n\n"
-            f"Document type: {type_prompt}\n"
+            f"{DRAFT_LEGAL_SYSTEM_PROMPT}\n\n"
+            "You are now in DOCUMENT DRAFTING MODE.\n"
+            "Rules:\n"
+            "1. Output ONLY the complete document using the section markers specified — no preamble, no commentary.\n"
+            "2. Fill EVERY section with real content — do NOT write [PLACEHOLDER], [NAME], [DATE], or empty brackets.\n"
+            "3. Cite the correct Cameroonian statute, OHADA Uniform Act, or legal provision where indicated.\n"
+            "4. Use formal, precise legal language appropriate to Cameroon's bijural system.\n\n"
+            f"DOCUMENT FORMAT INSTRUCTIONS:\n{type_prompt}\n"
         )
         if case_context:
             draft_prompt += f"\n{case_context}\n"
@@ -425,7 +784,7 @@ class LegalDraftStreamView(APIView):
             full_content = ''
             try:
                 ai = get_ai_client(settings)
-                for chunk in ai.stream(user_message=draft_prompt, history=[], case_context=''):
+                for chunk in ai.stream(user_message=draft_prompt, history=[], case_context='', max_tokens=4096):
                     full_content += chunk
                     yield f"data: {json.dumps({'token': chunk})}\n\n"
             except Exception as exc:
@@ -446,6 +805,52 @@ class LegalDraftStreamView(APIView):
             except Exception as exc:
                 logger.exception("Failed to save streamed draft")
                 yield f"data: {json.dumps({'error': f'Save failed: {exc}'})}\n\n"
+
+        response = StreamingHttpResponse(generate(), content_type='text/event-stream')
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'
+        return response
+
+
+class DraftTranslateView(APIView):
+    """POST /api/v1/ai/drafts/translate/ — stream a translation of a draft into EN or FR."""
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [ServerSentEventRenderer, JSONRenderer]
+
+    def post(self, request):
+        content = (request.data.get('content') or '').strip()
+        target_lang = (request.data.get('target_lang') or 'fr').strip().lower()
+        if not content:
+            return Response({'error': 'content required'}, status=400)
+        if target_lang not in ('en', 'fr'):
+            return Response({'error': 'target_lang must be "en" or "fr"'}, status=400)
+
+        lang_name = 'French (formal legal French — droit camerounais)' if target_lang == 'fr' else 'English (formal legal English — Cameroon common law style)'
+
+        translate_prompt = (
+            f"{DRAFT_LEGAL_SYSTEM_PROMPT}\n\n"
+            "You are now in TRANSLATION MODE.\n"
+            f"Translate the following Cameroonian legal document into {lang_name}.\n"
+            "Rules:\n"
+            "1. Preserve ALL section markers exactly as-is (e.g. [BODY], [/BODY], [SIGNATURE], etc.).\n"
+            "2. Translate only the text content inside the markers.\n"
+            "3. Preserve all legal citations exactly (Article numbers, law numbers, OHADA references).\n"
+            "4. Use correct legal terminology for the target language — e.g. 'requête' → 'motion', "
+            "'mise en demeure' → 'formal demand notice', 'mémoire d'appel' → 'appeal brief'.\n"
+            "5. Maintain the same professional register and formal tone.\n"
+            "6. Output ONLY the translated document — no explanations.\n\n"
+            f"DOCUMENT TO TRANSLATE:\n\n{content}"
+        )
+
+        def generate():
+            try:
+                ai = get_ai_client(settings)
+                for chunk in ai.stream(user_message=translate_prompt, history=[], case_context='', max_tokens=4096):
+                    yield f"data: {json.dumps({'token': chunk})}\n\n"
+                yield f"data: {json.dumps({'done': True})}\n\n"
+            except Exception as exc:
+                logger.exception("Translation stream error")
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
 
         response = StreamingHttpResponse(generate(), content_type='text/event-stream')
         response['Cache-Control'] = 'no-cache'
