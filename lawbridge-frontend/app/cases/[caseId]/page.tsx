@@ -14,14 +14,9 @@ import {
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
-const LAWYER_ROLES = new Set(['lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'managing_partner', 'secretary'])
-
-function getRole(): string {
+function getPortalRole(): 'lawyer' | 'client' {
   if (typeof window === 'undefined') return 'client'
-  try {
-    const access = localStorage.getItem('access') ?? ''
-    return JSON.parse(atob(access.split('.')[1])).role ?? 'client'
-  } catch { return 'client' }
+  try { return localStorage.getItem('portalRole') === 'lawyer' ? 'lawyer' : 'client' } catch { return 'client' }
 }
 
 function fmt(iso: string) {
@@ -1113,7 +1108,7 @@ export default function CaseDetailPage() {
   const [item, setItem] = useState<CaseItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [role, setRole] = useState('client')
+  const [role, setRole] = useState<'lawyer' | 'client'>('client')
 
   const load = useCallback(async () => {
     const access = localStorage.getItem('access')
@@ -1130,11 +1125,11 @@ export default function CaseDetailPage() {
   }, [caseId])
 
   useEffect(() => {
-    setRole(getRole())
+    setRole(getPortalRole())
     void load()
   }, [load])
 
-  const isLawyer = LAWYER_ROLES.has(role)
+  const isLawyer = role === 'lawyer'
   const chronological = item ? [...item.timeline].reverse() : []
 
   if (loading) {
