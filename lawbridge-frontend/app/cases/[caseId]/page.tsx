@@ -362,8 +362,8 @@ function buildConflictChecks(flags: ConflictFlags): ConflictCheck[] {
     {
       key: 'lawyer',
       label: 'Lawyer assignment',
-      detail: flags.has_lawyer ? 'A lawyer is currently assigned to this case' : 'No lawyer assigned',
-      state: flags.has_lawyer ? 'ok' : 'block',
+      detail: flags.has_lawyer ? 'A lawyer is currently assigned — you can request a change' : 'No lawyer assigned yet — you can request a specific lawyer',
+      state: 'ok',
     },
     {
       key: 'terminal',
@@ -627,7 +627,7 @@ function ReassignmentWizard({ caseItem, onComplete }: { caseItem: CaseItem; onCo
     finally { setWorking(false) }
   }
 
-  if (TERMINAL_STATUSES.has(caseItem.status) || !caseItem.assigned_lawyer_id) return null
+  if (TERMINAL_STATUSES.has(caseItem.status)) return null
 
   return (
     <>

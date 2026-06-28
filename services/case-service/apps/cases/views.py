@@ -469,9 +469,6 @@ def _run_conflict_checks(case) -> dict:
     elif flags['active_appeal']:
         flags['recommendation'] = 'blocked'
         flags['block_reason'] = 'Case has an active appeal — reassignment is not permitted during appeal proceedings'
-    elif not flags['has_lawyer']:
-        flags['recommendation'] = 'blocked'
-        flags['block_reason'] = 'No lawyer is currently assigned to this case'
     elif flags['court_date_imminent']:
         flags['recommendation'] = 'caution'
     elif flags['work_progress_pct'] >= 70:
