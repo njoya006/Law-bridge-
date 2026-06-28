@@ -37,9 +37,10 @@ function StarRating({ rating }: { rating: number }) {
 function LawyerMiniCard({ lawyer, firmId, isStaff }: { lawyer: LawyerDiscovery; firmId: string; isStaff: boolean }) {
   const initials = lawyer.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
   const fee = lawyer.consultation_fee ? `${parseFloat(lawyer.consultation_fee).toLocaleString()} XAF` : 'On request'
+  const isStub = Boolean(lawyer.is_stub)
 
   return (
-    <div className="bg-primary-800/30 border border-neutral-700/30 rounded-xl p-4 hover:border-gold-500/30 transition-all duration-200">
+    <div className={`bg-primary-800/30 border rounded-xl p-4 transition-all duration-200 ${isStub ? 'border-neutral-700/20 opacity-75' : 'border-neutral-700/30 hover:border-gold-500/30'}`}>
       <div className="flex items-start gap-3 mb-3">
         <div className="h-10 w-10 rounded-full bg-gradient-to-br from-gold-500/30 to-gold-600/30 border border-gold-500/20 flex items-center justify-center flex-shrink-0">
           <span className="text-gold-300 text-xs font-bold">{initials}</span>
@@ -48,37 +49,45 @@ function LawyerMiniCard({ lawyer, firmId, isStaff }: { lawyer: LawyerDiscovery; 
           <p className="font-heading text-body-sm text-neutral-100 truncate">{lawyer.name}</p>
           <p className="text-gold-400/70 text-xs truncate">{lawyer.specialization}</p>
         </div>
-        {lawyer.is_verified && (
+        {isStub ? (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-neutral-700/40 text-neutral-500 border border-neutral-700/30 flex-shrink-0">Member</span>
+        ) : lawyer.is_verified ? (
           <svg className="w-4 h-4 text-gold-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
             <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
           </svg>
-        )}
+        ) : null}
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-neutral-500 mb-3">
-        <StarRating rating={lawyer.average_rating} />
-        <span>{lawyer.years_of_experience}yr</span>
-        <span className={lawyer.availability_status === 'available' ? 'text-emerald-400' : 'text-amber-400'}>
-          {lawyer.availability_status === 'available' ? 'Available' : 'Busy'}
-        </span>
-      </div>
-
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-gold-400 text-xs font-semibold">{fee}</span>
-        <div className="flex gap-1.5">
-          <Link href={isStaff ? `/lawyer/discover/lawyer/${lawyer.id}` : `/discover/lawyer/${lawyer.id}`} className="px-2.5 py-1 rounded-lg border border-neutral-600/40 text-neutral-400 text-xs hover:text-gold-400 transition-colors">
-            Profile
-          </Link>
-          {!isStaff && (
-            <Link
-              href={`/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}&firm_id=${firmId}`}
-              className="px-2.5 py-1 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 transition-colors"
-            >
-              Book
-            </Link>
-          )}
+      {!isStub && (
+        <div className="flex items-center gap-3 text-xs text-neutral-500 mb-3">
+          <StarRating rating={lawyer.average_rating} />
+          <span>{lawyer.years_of_experience}yr</span>
+          <span className={lawyer.availability_status === 'available' ? 'text-emerald-400' : 'text-amber-400'}>
+            {lawyer.availability_status === 'available' ? 'Available' : 'Busy'}
+          </span>
         </div>
-      </div>
+      )}
+
+      {isStub ? (
+        <p className="text-neutral-600 text-xs">No public lawyer profile set up yet.</p>
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-gold-400 text-xs font-semibold">{fee}</span>
+          <div className="flex gap-1.5">
+            <Link href={isStaff ? `/lawyer/discover/lawyer/${lawyer.id}` : `/discover/lawyer/${lawyer.id}`} className="px-2.5 py-1 rounded-lg border border-neutral-600/40 text-neutral-400 text-xs hover:text-gold-400 transition-colors">
+              Profile
+            </Link>
+            {!isStaff && (
+              <Link
+                href={`/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}&firm_id=${firmId}`}
+                className="px-2.5 py-1 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 transition-colors"
+              >
+                Book
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

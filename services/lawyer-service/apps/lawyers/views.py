@@ -15,7 +15,11 @@ class LawyerPublicDetailView(APIView):
 
     def get(self, request, lawyer_id):
         try:
-            profile = LawyerProfile.objects.get(id=lawyer_id)
+            # Try profile PK first, fall back to auth-service UUID (user_id)
+            try:
+                profile = LawyerProfile.objects.get(id=lawyer_id)
+            except (LawyerProfile.DoesNotExist, ValueError):
+                profile = LawyerProfile.objects.get(user_id=lawyer_id)
         except (LawyerProfile.DoesNotExist, ValueError):
             return Response({'error': 'Lawyer not found'}, status=status.HTTP_404_NOT_FOUND)
         return Response(LawyerProfileSerializer(profile).data)

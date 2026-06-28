@@ -22,6 +22,7 @@ export type LawyerDiscovery = {
   accepts_urgent_cases: boolean
   consultation_mode: 'in_person' | 'virtual' | 'both'
   is_verified: boolean
+  is_stub?: boolean
 }
 
 export function browseLawyers(token?: string | null, specialization?: string, circuit?: string) {
