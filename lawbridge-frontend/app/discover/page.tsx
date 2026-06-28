@@ -13,8 +13,9 @@ function isStaffPortal(): boolean {
   } catch { return false }
 }
 
-function StarRating({ rating, count }: { rating: number; count?: number }) {
-  const stars = Math.round(rating)
+function StarRating({ rating, count }: { rating: number | string; count?: number }) {
+  const r = Number(rating) || 0
+  const stars = Math.round(r)
   return (
     <span className="flex items-center gap-1">
       {[1,2,3,4,5].map(i => (
@@ -22,7 +23,7 @@ function StarRating({ rating, count }: { rating: number; count?: number }) {
           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
         </svg>
       ))}
-      <span className="text-neutral-400 text-xs ml-0.5">{rating.toFixed(1)}{count !== undefined ? ` (${count})` : ''}</span>
+      <span className="text-neutral-400 text-xs ml-0.5">{r.toFixed(1)}{count !== undefined ? ` (${count})` : ''}</span>
     </span>
   )
 }
@@ -39,7 +40,7 @@ function AvailabilityBadge({ status }: { status: LawyerDiscovery['availability_s
 }
 
 function LawyerCard({ lawyer, isStaff }: { lawyer: LawyerDiscovery; isStaff: boolean }) {
-  const initials = lawyer.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const initials = (lawyer.name || '?').split(' ').map((w: string) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
   const fee = lawyer.consultation_fee ? `${parseFloat(lawyer.consultation_fee).toLocaleString()} XAF` : 'Fee on request'
 
   return (
@@ -100,7 +101,7 @@ function LawyerCard({ lawyer, isStaff }: { lawyer: LawyerDiscovery; isStaff: boo
 }
 
 function FirmCard({ firm, isStaff, isOwnFirm }: { firm: FirmDiscovery; isStaff: boolean; isOwnFirm: boolean }) {
-  const initials = firm.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
+  const initials = (firm.name || '?').split(' ').map((w: string) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
 
   return (
     <div className="bg-primary-800/40 border border-neutral-700/40 rounded-xl p-5 hover:border-gold-500/40 hover:bg-primary-800/60 transition-all duration-200 flex flex-col gap-4">

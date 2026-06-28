@@ -7,8 +7,9 @@ import { getLawyerById, type LawyerDiscovery, type AvailabilitySlot } from '../.
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
-function StarRating({ rating, count }: { rating: number; count?: number }) {
-  const stars = Math.round(rating)
+function StarRating({ rating, count }: { rating: number | string; count?: number }) {
+  const r = Number(rating) || 0
+  const stars = Math.round(r)
   return (
     <span className="flex items-center gap-1">
       {[1,2,3,4,5].map(i => (
@@ -16,7 +17,7 @@ function StarRating({ rating, count }: { rating: number; count?: number }) {
           <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
         </svg>
       ))}
-      <span className="text-neutral-400 ml-1">{rating.toFixed(1)}{count !== undefined ? ` · ${count} reviews` : ''}</span>
+      <span className="text-neutral-400 ml-1">{r.toFixed(1)}{count !== undefined ? ` · ${count} reviews` : ''}</span>
     </span>
   )
 }
@@ -64,7 +65,7 @@ export default function LawyerDetailPage() {
     </div>
   )
 
-  const initials = lawyer.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const initials = (lawyer.name || '?').split(' ').map((w: string) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
   const fee = lawyer.consultation_fee ? `${parseFloat(lawyer.consultation_fee).toLocaleString()} XAF` : 'Fee on request'
   const availableSlots = (lawyer.availability_slots ?? []).filter(s => s.is_available)
   const caseTypes = lawyer.accepted_case_types ? lawyer.accepted_case_types.split(',').map(s => s.trim()).filter(Boolean) : []
@@ -193,7 +194,7 @@ export default function LawyerDetailPage() {
             {lawyer.rating_count > 0 ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-4">
-                  <div className="text-4xl font-bold text-gold-400">{lawyer.average_rating.toFixed(1)}</div>
+                  <div className="text-4xl font-bold text-gold-400">{(Number(lawyer.average_rating) || 0).toFixed(1)}</div>
                   <div>
                     <StarRating rating={lawyer.average_rating} />
                     <p className="text-neutral-500 text-xs mt-1">{lawyer.rating_count} reviews</p>
