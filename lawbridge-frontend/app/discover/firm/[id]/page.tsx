@@ -66,7 +66,7 @@ function LawyerMiniCard({ lawyer, firmId, isStaff }: { lawyer: LawyerDiscovery; 
       <div className="flex items-center justify-between gap-2">
         <span className="text-gold-400 text-xs font-semibold">{fee}</span>
         <div className="flex gap-1.5">
-          <Link href={`/discover/lawyer/${lawyer.id}`} className="px-2.5 py-1 rounded-lg border border-neutral-600/40 text-neutral-400 text-xs hover:text-gold-400 transition-colors">
+          <Link href={isStaff ? `/lawyer/discover/lawyer/${lawyer.id}` : `/discover/lawyer/${lawyer.id}`} className="px-2.5 py-1 rounded-lg border border-neutral-600/40 text-neutral-400 text-xs hover:text-gold-400 transition-colors">
             Profile
           </Link>
           {!isStaff && (
@@ -417,7 +417,7 @@ export default function FirmDetailPage() {
       <div className="rounded-xl border border-crimson-500/30 bg-crimson-900/10 p-6 text-crimson-300">
         {error || 'Firm not found.'}
       </div>
-      <Link href="/discover" className="mt-4 inline-block text-gold-400 hover:text-gold-300">← Back to Discover</Link>
+      <Link href={isStaffPortal() ? '/lawyer/discover' : '/discover'} className="mt-4 inline-block text-gold-400 hover:text-gold-300">← Back to Discover</Link>
     </div>
   )
 
@@ -432,7 +432,7 @@ export default function FirmDetailPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      <Link href="/discover" className="inline-flex items-center gap-2 text-neutral-400 hover:text-gold-400 text-sm transition-colors">
+      <Link href={isStaff ? '/lawyer/discover' : '/discover'} className="inline-flex items-center gap-2 text-neutral-400 hover:text-gold-400 text-sm transition-colors">
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
         Back to Discover
       </Link>

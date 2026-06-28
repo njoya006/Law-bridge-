@@ -200,7 +200,7 @@ export default function LawyerSidebar() {
       <nav className="p-3 overflow-y-auto flex-1 space-y-1">
         {nav.map(item => {
           const IconComponent = item.icon
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
           return (
             <Link
               key={item.href}

@@ -53,7 +53,7 @@ export default function MyOfficePage() {
           <h2 className="font-display text-display-md">My Office</h2>
           <p className="mt-1 text-primary-300">Live matters, clients, and events assigned to you.</p>
         </div>
-        <Link href="/discover" className="inline-flex items-center justify-center rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-black">
+        <Link href="/lawyer/discover" className="inline-flex items-center justify-center rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-black">
           Discover clients
         </Link>
       </header>

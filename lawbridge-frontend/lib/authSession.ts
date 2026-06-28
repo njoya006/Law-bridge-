@@ -19,7 +19,7 @@ type MeResponse = {
   role: string
 }
 
-const allowedStaffRoles = new Set(['partner', 'associate', 'secretary', 'firm_admin', 'firm-admin', 'managing_partner'])
+const allowedStaffRoles = new Set(['lawyer', 'owner', 'partner', 'associate', 'secretary', 'firm_admin', 'firm-admin', 'managing_partner'])
 
 export function saveSession(access: string, refresh?: string) {
   localStorage.setItem('access', access)

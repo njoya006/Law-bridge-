@@ -80,7 +80,7 @@ function LawyerCard({ lawyer, isStaff }: { lawyer: LawyerDiscovery; isStaff: boo
         </div>
         <div className="flex gap-2">
           <Link
-            href={`/discover/lawyer/${lawyer.id}`}
+            href={isStaff ? `/lawyer/discover/lawyer/${lawyer.id}` : `/discover/lawyer/${lawyer.id}`}
             className="px-3 py-1.5 rounded-lg border border-neutral-600/50 text-neutral-300 text-xs hover:border-gold-500/50 hover:text-gold-400 transition-colors"
           >
             View Profile
@@ -141,7 +141,7 @@ function FirmCard({ firm, isStaff, isOwnFirm }: { firm: FirmDiscovery; isStaff: 
 
       <div className="flex gap-2 pt-1 border-t border-neutral-700/30">
         <Link
-          href={`/discover/firm/${firm.id}`}
+          href={isStaff ? `/lawyer/discover/firm/${firm.id}` : `/discover/firm/${firm.id}`}
           className="flex-1 text-center px-3 py-1.5 rounded-lg border border-neutral-600/50 text-neutral-300 text-xs hover:border-gold-500/50 hover:text-gold-400 transition-colors"
         >
           View Firm
@@ -155,7 +155,7 @@ function FirmCard({ firm, isStaff, isOwnFirm }: { firm: FirmDiscovery; isStaff: 
           </Link>
         ) : isStaff ? (
           <Link
-            href={`/discover/firm/${firm.id}#partnership`}
+            href={`/lawyer/discover/firm/${firm.id}#partnership`}
             className="flex-1 text-center px-3 py-1.5 rounded-lg bg-primary-600/60 border border-neutral-600/50 text-neutral-200 text-xs font-semibold hover:bg-primary-600 hover:border-gold-500/50 transition-colors"
           >
             Partner

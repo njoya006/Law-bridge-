@@ -70,12 +70,17 @@ export default function BookPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
+    // Lawyers don't book other lawyers from this flow
+    if (localStorage.getItem('portalRole') === 'lawyer') {
+      router.replace('/lawyer/discover')
+      return
+    }
     const p = new URLSearchParams(window.location.search)
     setKind((p.get('kind') as 'lawyer' | 'firm') || 'lawyer')
     setTargetId(p.get('id') || '')
     setTargetName(p.get('name') || '')
     setBookingFee(p.get('fee') || '')
-  }, [])
+  }, [router])
 
   const hasFee = Boolean(bookingFee && parseFloat(bookingFee) > 0)
   const feeDisplay = hasFee ? `${parseFloat(bookingFee).toLocaleString()} XAF` : null
