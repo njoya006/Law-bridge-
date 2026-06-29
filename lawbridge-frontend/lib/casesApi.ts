@@ -71,8 +71,8 @@ export function getCaseDetail(caseId: string, token: string) {
   return api.get<CaseItem>('case', `/cases/${caseId}/`, token)
 }
 
-export function assignCase(caseId: string, lawyerId: string, token: string) {
-  return api.post<CaseItem>('case', `/cases/${caseId}/assign/`, { lawyer_id: lawyerId }, token)
+export function assignCase(caseId: string, lawyerId: string, token: string, note?: string) {
+  return api.post<CaseItem>('case', `/cases/${caseId}/assign/`, { lawyer_id: lawyerId, note }, token)
 }
 
 export function addCaseNote(caseId: string, content: string, isPrivate: boolean, token: string) {

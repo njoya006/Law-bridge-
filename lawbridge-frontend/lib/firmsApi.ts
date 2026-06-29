@@ -127,6 +127,21 @@ export function getFirmMembers(firmId: number, token: string) {
   return api.get<FirmMembership[]>('firms', `/${firmId}/members/`, token)
 }
 
+export type FirmLawyer = {
+  id: string
+  name: string
+  email?: string
+  role?: string
+  specialization?: string
+  is_stub?: boolean
+  consultation_fee?: string | null
+  availability_status?: string
+}
+
+export function getFirmLawyers(firmId: number, token?: string | null) {
+  return api.get<FirmLawyer[]>('firms', `/${firmId}/lawyers/`, token)
+}
+
 export function getFirmPendingInvites(firmId: number, token: string) {
   return api.get<FirmInvite[]>('firms', `/${firmId}/pending-invites/`, token)
 }

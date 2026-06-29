@@ -1,0 +1,519 @@
+'use client'
+
+import React, { useEffect, useState, useRef, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { getMyCases, type CaseItem } from '../../../lib/casesApi'
+import { getIncomingBookings } from '../../../lib/casesApi'
+import { getMyFirmMemberships, getFirmMembers, getFirmLawyers, type FirmMembership, type FirmLawyer } from '../../../lib/firmsApi'
+
+function fmtXAF(n: number) { return n > 0 ? `${n.toLocaleString()} XAF` : '0 XAF' }
+function fmtDate(iso: string) {
+  try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) } catch { return iso }
+}
+function fmtNow() {
+  return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+type ReportType = 'general' | 'financial' | 'clients' | 'lawyers' | 'activity' | 'full'
+type Period = 'current_month' | 'last_month' | 'ytd' | 'all_time'
+
+const REPORT_TYPES: { id: ReportType; label: string; icon: string; desc: string }[] = [
+  { id: 'general', label: 'General Report', icon: '📋', desc: 'High-level firm overview: active cases, team, bookings' },
+  { id: 'financial', label: 'Financial Report', icon: '💰', desc: 'Revenue, payment status, fee breakdown per booking' },
+  { id: 'clients', label: 'Clients Report', icon: '👤', desc: 'All clients, their matters, status, and contact info' },
+  { id: 'lawyers', label: 'Lawyers Participation', icon: '⚖️', desc: 'Case assignments, active load, and performance by lawyer' },
+  { id: 'activity', label: 'Activity Report', icon: '📅', desc: 'Timeline of all firm events, status changes, and notes' },
+  { id: 'full', label: 'Full Firm Report', icon: '🏛️', desc: 'Complete report combining all sections above' },
+]
+
+const PERIODS: { id: Period; label: string }[] = [
+  { id: 'current_month', label: 'Current Month' },
+  { id: 'last_month', label: 'Last Month' },
+  { id: 'ytd', label: 'Year to Date' },
+  { id: 'all_time', label: 'All Time' },
+]
+
+function filterByPeriod<T extends { created_at: string }>(items: T[], period: Period): T[] {
+  const now = new Date()
+  let from: Date
+  switch (period) {
+    case 'current_month': from = new Date(now.getFullYear(), now.getMonth(), 1); break
+    case 'last_month': from = new Date(now.getFullYear(), now.getMonth() - 1, 1); break
+    case 'ytd': from = new Date(now.getFullYear(), 0, 1); break
+    default: return items
+  }
+  const to = period === 'last_month' ? new Date(now.getFullYear(), now.getMonth(), 1) : new Date(now.getTime() + 1)
+  return items.filter(i => { const d = new Date(i.created_at); return d >= from && d < to })
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="report-section mb-8">
+      <h2 className="text-lg font-bold text-neutral-100 border-b border-neutral-700/40 pb-2 mb-4">{title}</h2>
+      {children}
+    </div>
+  )
+}
+
+function StatGrid({ stats }: { stats: { label: string; value: string | number; sub?: string }[] }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+      {stats.map(s => (
+        <div key={s.label} className="bg-primary-900/50 border border-neutral-700/40 rounded-xl p-4">
+          <p className="text-2xl font-bold text-neutral-50">{s.value}</p>
+          <p className="text-sm text-neutral-400 mt-0.5">{s.label}</p>
+          {s.sub && <p className="text-xs text-neutral-600 mt-0.5">{s.sub}</p>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+interface ReportData {
+  cases: CaseItem[]
+  bookings: CaseItem[]
+  members: FirmMembership[]
+  lawyers: FirmLawyer[]
+  firmName: string
+  period: Period
+  generatedAt: string
+}
+
+function GeneralSection({ data }: { data: ReportData }) {
+  const open = data.cases.filter(c => !['closed', 'dismissed', 'archived', 'settled'].includes(c.status))
+  const closed = data.cases.filter(c => ['closed', 'settled'].includes(c.status))
+  const pending = data.bookings.filter(b => b.booking_status === 'pending')
+  return (
+    <Section title="Firm Overview">
+      <StatGrid stats={[
+        { label: 'Total Cases', value: data.cases.length },
+        { label: 'Open Cases', value: open.length, sub: `${closed.length} closed` },
+        { label: 'Pending Bookings', value: pending.length },
+        { label: 'Firm Members', value: data.members.length, sub: `${data.lawyers.length} lawyers` },
+      ]} />
+      <div className="overflow-x-auto rounded-xl border border-neutral-700/40">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b border-neutral-700/40 bg-primary-800/40">
+            <th className="text-left px-4 py-2 text-xs text-neutral-400">Matter</th>
+            <th className="text-left px-4 py-2 text-xs text-neutral-400">Type</th>
+            <th className="text-left px-4 py-2 text-xs text-neutral-400">Status</th>
+            <th className="text-left px-4 py-2 text-xs text-neutral-400">Opened</th>
+          </tr></thead>
+          <tbody>
+            {data.cases.slice(0, 15).map((c, i) => (
+              <tr key={c.id} className={`border-b border-neutral-700/20 ${i % 2 === 0 ? 'bg-primary-800/10' : ''}`}>
+                <td className="px-4 py-2 text-neutral-200 truncate max-w-[200px]">{c.title}</td>
+                <td className="px-4 py-2 text-neutral-400 text-xs capitalize">{c.case_type}</td>
+                <td className="px-4 py-2 text-neutral-400 text-xs capitalize">{c.status.replace(/_/g, ' ')}</td>
+                <td className="px-4 py-2 text-neutral-500 text-xs">{fmtDate(c.created_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {data.cases.length > 15 && <p className="text-xs text-neutral-600 mt-2">Showing 15 of {data.cases.length} cases.</p>}
+    </Section>
+  )
+}
+
+function FinancialSection({ data }: { data: ReportData }) {
+  const rows = data.bookings.map(b => {
+    const meta = b.booking_metadata ?? {}
+    const c = parseFloat(meta.consultation_fee || meta.booking_fee || '0') || 0
+    const p = parseFloat(meta.procedural_fee || '0') || 0
+    const prof = parseFloat(meta.professional_fee || '0') || 0
+    return { id: b.id, title: b.title, consult: c, proc: p, prof, total: c + p, pay_status: meta.payment_status || 'none', method: meta.payment_method || '—', ref: meta.payment_reference || '—' }
+  })
+  const verified = rows.filter(r => r.pay_status === 'verified').reduce((s, r) => s + r.total, 0)
+  const pending = rows.filter(r => r.pay_status === 'pending_verification').reduce((s, r) => s + r.total, 0)
+  const total = rows.reduce((s, r) => s + r.total, 0)
+  return (
+    <Section title="Financial Report">
+      <StatGrid stats={[
+        { label: 'Total Billed', value: fmtXAF(total) },
+        { label: 'Verified Revenue', value: fmtXAF(verified), sub: `${rows.filter(r => r.pay_status === 'verified').length} payments` },
+        { label: 'Pending Verification', value: fmtXAF(pending), sub: `${rows.filter(r => r.pay_status === 'pending_verification').length} pending` },
+        { label: 'Total Bookings', value: rows.length },
+      ]} />
+      <div className="overflow-x-auto rounded-xl border border-neutral-700/40">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b border-neutral-700/40 bg-primary-800/40">
+            {['Matter', 'Consultation', 'Procedural', 'Professional', 'Total', 'Status', 'Method', 'Reference'].map(h => (
+              <th key={h} className="text-left px-3 py-2 text-xs text-neutral-400">{h}</th>
+            ))}
+          </tr></thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={r.id} className={`border-b border-neutral-700/20 ${i % 2 === 0 ? 'bg-primary-800/10' : ''}`}>
+                <td className="px-3 py-2 text-neutral-200 truncate max-w-[160px]">{r.title}</td>
+                <td className="px-3 py-2 text-neutral-400 text-right">{fmtXAF(r.consult)}</td>
+                <td className="px-3 py-2 text-neutral-400 text-right">{fmtXAF(r.proc)}</td>
+                <td className="px-3 py-2 text-neutral-500 text-right text-xs">{r.prof > 0 ? fmtXAF(r.prof) : 'TBD'}</td>
+                <td className="px-3 py-2 text-neutral-200 font-semibold text-right">{fmtXAF(r.total)}</td>
+                <td className="px-3 py-2 text-xs capitalize"><span className={`px-1.5 py-0.5 rounded-full border text-[10px] ${r.pay_status === 'verified' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : r.pay_status === 'pending_verification' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-neutral-800/30 text-neutral-500 border-neutral-700/30'}`}>{r.pay_status === 'pending_verification' ? 'Pending' : r.pay_status}</span></td>
+                <td className="px-3 py-2 text-neutral-500 text-xs">{r.method}</td>
+                <td className="px-3 py-2 text-neutral-600 font-mono text-xs">{r.ref}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  )
+}
+
+function ClientsSection({ data }: { data: ReportData }) {
+  const byClient: Record<string, CaseItem[]> = {}
+  for (const c of data.bookings) {
+    const email = c.booking_metadata?.client_email || c.client_id || 'Unknown'
+    if (!byClient[email]) byClient[email] = []
+    byClient[email].push(c)
+  }
+  const clients = Object.entries(byClient)
+  return (
+    <Section title="Clients Report">
+      <StatGrid stats={[
+        { label: 'Unique Clients', value: clients.length },
+        { label: 'Total Matters', value: data.bookings.length },
+        { label: 'Accepted', value: data.bookings.filter(b => b.booking_status === 'accepted').length },
+        { label: 'Pending', value: data.bookings.filter(b => b.booking_status === 'pending').length },
+      ]} />
+      <div className="space-y-3">
+        {clients.map(([email, cases]) => (
+          <div key={email} className="rounded-xl border border-neutral-700/40 bg-primary-900/20 p-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-full bg-primary-800 border border-neutral-700/40 flex items-center justify-center text-xs font-bold text-neutral-300">{email[0].toUpperCase()}</div>
+              <div>
+                <p className="text-sm font-medium text-neutral-100">{email}</p>
+                <p className="text-xs text-neutral-500">{cases.length} matter{cases.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            <div className="space-y-1 pl-11">
+              {cases.map(c => (
+                <div key={c.id} className="flex items-center gap-2 text-xs text-neutral-400">
+                  <span className="truncate flex-1">{c.title}</span>
+                  <span className="text-neutral-600 capitalize">{c.status.replace(/_/g, ' ')}</span>
+                  <span className="text-neutral-600">{fmtDate(c.created_at)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {clients.length === 0 && <p className="text-neutral-500 text-sm italic">No client data found for this period.</p>}
+      </div>
+    </Section>
+  )
+}
+
+function LawyersSection({ data }: { data: ReportData }) {
+  const byLawyer: Record<string, CaseItem[]> = {}
+  for (const c of data.cases) {
+    const id = c.assigned_lawyer_id ? String(c.assigned_lawyer_id) : 'unassigned'
+    if (!byLawyer[id]) byLawyer[id] = []
+    byLawyer[id].push(c)
+  }
+  return (
+    <Section title="Lawyer Participation Report">
+      <StatGrid stats={[
+        { label: 'Firm Lawyers', value: data.lawyers.length },
+        { label: 'Assigned Cases', value: data.cases.filter(c => c.assigned_lawyer_id).length },
+        { label: 'Unassigned Cases', value: data.cases.filter(c => !c.assigned_lawyer_id).length },
+        { label: 'Avg Load', value: data.lawyers.length > 0 ? (data.cases.length / data.lawyers.length).toFixed(1) : '—', sub: 'cases per lawyer' },
+      ]} />
+      <div className="space-y-3">
+        {data.lawyers.map(l => {
+          const assigned = byLawyer[l.id] || []
+          const open = assigned.filter(c => !['closed', 'dismissed', 'archived', 'settled'].includes(c.status))
+          return (
+            <div key={l.id} className="rounded-xl border border-neutral-700/40 bg-primary-900/20 p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-8 h-8 rounded-full bg-primary-800 border border-neutral-700/40 flex items-center justify-center text-xs font-bold text-gold-400">{l.name[0]}</div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-neutral-100">{l.name}</p>
+                  <p className="text-xs text-neutral-500">{l.specialization || l.role || 'Lawyer'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-neutral-50">{assigned.length}</p>
+                  <p className="text-xs text-neutral-500">{open.length} open</p>
+                </div>
+              </div>
+              {assigned.length > 0 && (
+                <div className="space-y-1 pl-11 mt-2">
+                  {assigned.slice(0, 5).map(c => (
+                    <div key={c.id} className="flex items-center gap-2 text-xs text-neutral-400">
+                      <span className="truncate flex-1">{c.title}</span>
+                      <span className="text-neutral-600 capitalize">{c.status.replace(/_/g, ' ')}</span>
+                    </div>
+                  ))}
+                  {assigned.length > 5 && <p className="text-xs text-neutral-600">+{assigned.length - 5} more</p>}
+                </div>
+              )}
+            </div>
+          )
+        })}
+        {byLawyer['unassigned'] && byLawyer['unassigned'].length > 0 && (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <p className="text-sm font-medium text-amber-300 mb-2">Unassigned Cases ({byLawyer['unassigned'].length})</p>
+            <div className="space-y-1">
+              {byLawyer['unassigned'].slice(0, 5).map(c => (
+                <div key={c.id} className="text-xs text-neutral-400 truncate">{c.title} — {fmtDate(c.created_at)}</div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </Section>
+  )
+}
+
+function ActivitySection({ data }: { data: ReportData }) {
+  type Event = { date: string; type: string; title: string; detail: string }
+  const events: Event[] = []
+  for (const c of data.cases) {
+    for (const t of (c.timeline || [])) {
+      events.push({ date: t.timestamp, type: t.status, title: c.title, detail: t.notes })
+    }
+  }
+  events.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  return (
+    <Section title="Activity Report">
+      <StatGrid stats={[
+        { label: 'Total Events', value: events.length },
+        { label: 'Cases with Activity', value: data.cases.filter(c => c.timeline?.length).length },
+        { label: 'New Bookings', value: data.bookings.length },
+        { label: 'Period', value: PERIODS.find(p => p.id === data.period)?.label || data.period },
+      ]} />
+      <div className="space-y-2 max-h-[600px] overflow-y-auto">
+        {events.slice(0, 50).map((e, i) => (
+          <div key={i} className="flex gap-3 p-3 rounded-lg border border-neutral-700/30 bg-primary-900/20">
+            <div className="flex-shrink-0 w-20 text-xs text-neutral-600">{fmtDate(e.date)}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-neutral-300 capitalize">{e.type.replace(/_/g, ' ')} — <span className="text-neutral-400">{e.title}</span></p>
+              {e.detail && <p className="text-xs text-neutral-600 mt-0.5">{e.detail}</p>}
+            </div>
+          </div>
+        ))}
+        {events.length === 0 && <p className="text-neutral-500 text-sm italic">No activity events found for this period.</p>}
+        {events.length > 50 && <p className="text-xs text-neutral-600">Showing 50 of {events.length} events.</p>}
+      </div>
+    </Section>
+  )
+}
+
+function ReportContent({ data, type }: { data: ReportData; type: ReportType }) {
+  return (
+    <>
+      {(type === 'general' || type === 'full') && <GeneralSection data={data} />}
+      {(type === 'financial' || type === 'full') && <FinancialSection data={data} />}
+      {(type === 'clients' || type === 'full') && <ClientsSection data={data} />}
+      {(type === 'lawyers' || type === 'full') && <LawyersSection data={data} />}
+      {(type === 'activity' || type === 'full') && <ActivitySection data={data} />}
+    </>
+  )
+}
+
+async function sendToOwners(firmId: number, reportType: string, period: string, token: string) {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_FIRMS_URL || 'https://api.lawbridge.app/firms'}/api/v1/firms/${firmId}/members/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) return
+    const members: Array<{ user_uuid?: string; role: string }> = await res.json()
+    const owners = members.filter(m => ['owner', 'managing_partner', 'partner'].includes(m.role))
+    await Promise.allSettled(owners.map(o => {
+      if (!o.user_uuid) return Promise.resolve()
+      return fetch('/api/internal/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          recipient_id: o.user_uuid,
+          title: 'Report Ready',
+          message: `The ${reportType} report (${period}) has been generated and is ready for your review.`,
+          event_type: 'report_ready',
+          channel: 'in_app',
+        }),
+      })
+    }))
+  } catch { /* non-fatal */ }
+}
+
+function ReportsPageInner() {
+  const searchParams = useSearchParams()
+  const [reportType, setReportType] = useState<ReportType>((searchParams.get('type') as ReportType) || 'general')
+  const [period, setPeriod] = useState<Period>((searchParams.get('period') as Period) || 'current_month')
+  const [data, setData] = useState<ReportData | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [shipping, setShipping] = useState(false)
+  const [shipped, setShipped] = useState(false)
+  const [firmId, setFirmId] = useState<number | null>(null)
+  const reportRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const access = localStorage.getItem('access')
+    if (!access) return
+    getMyFirmMemberships(access).then(ms => {
+      const a = ms.find(m => m.is_active !== false)
+      if (a) setFirmId(a.firm)
+    }).catch(() => {})
+  }, [])
+
+  async function generate() {
+    const access = localStorage.getItem('access')
+    if (!access) return
+    setLoading(true); setData(null); setShipped(false)
+    try {
+      const [casesRes, bookingsRes, membershipsRes] = await Promise.allSettled([
+        getMyCases(access),
+        getIncomingBookings(access),
+        getMyFirmMemberships(access),
+      ])
+      const allCases = casesRes.status === 'fulfilled' ? (casesRes.value.results ?? []) : []
+      const allBookings = bookingsRes.status === 'fulfilled' ? (bookingsRes.value.results ?? []) : []
+      let members: FirmMembership[] = []
+      let lawyers: FirmLawyer[] = []
+      let fName = 'Your Firm'
+      if (membershipsRes.status === 'fulfilled') {
+        const active = membershipsRes.value.find(m => m.is_active !== false)
+        if (active) {
+          fName = `Firm #${active.firm}`
+          const [memRes, lawRes] = await Promise.allSettled([
+            getFirmMembers(active.firm, access),
+            getFirmLawyers(active.firm, access),
+          ])
+          if (memRes.status === 'fulfilled') members = memRes.value
+          if (lawRes.status === 'fulfilled') lawyers = lawRes.value
+        }
+      }
+      const filtered = filterByPeriod(allCases, period)
+      const filteredBookings = filterByPeriod(allBookings, period)
+      setData({ cases: filtered.length > 0 ? filtered : allCases, bookings: filteredBookings.length > 0 ? filteredBookings : allBookings, members, lawyers, firmName: fName, period, generatedAt: new Date().toISOString() })
+    } finally { setLoading(false) }
+  }
+
+  async function shipToOwners() {
+    if (!firmId) return
+    const access = localStorage.getItem('access')
+    if (!access) return
+    setShipping(true)
+    try {
+      await sendToOwners(firmId, REPORT_TYPES.find(r => r.id === reportType)?.label || reportType, PERIODS.find(p => p.id === period)?.label || period, access)
+      setShipped(true)
+    } finally { setShipping(false) }
+  }
+
+  function printReport() {
+    window.print()
+  }
+
+  return (
+    <div className="space-y-6">
+      <style>{`@media print { .no-print { display: none !important; } .print-report { background: white !important; color: black !important; } }`}</style>
+
+      <header className="no-print flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-display text-display-md text-neutral-50">Report Generator</h1>
+          <p className="mt-1 text-sm text-neutral-400">Generate and ship firm reports to owners and partners.</p>
+        </div>
+      </header>
+
+      {/* Controls */}
+      <div className="no-print grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div>
+          <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">Report Type</p>
+          <div className="space-y-2">
+            {REPORT_TYPES.map(rt => (
+              <button key={rt.id} onClick={() => setReportType(rt.id)}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${reportType === rt.id ? 'border-gold-500/50 bg-gold-500/10' : 'border-neutral-700/40 hover:border-neutral-600/50 bg-primary-900/20'}`}>
+                <span className="text-xl flex-shrink-0">{rt.icon}</span>
+                <div>
+                  <p className="text-sm font-medium text-neutral-100">{rt.label}</p>
+                  <p className="text-xs text-neutral-500">{rt.desc}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">Period</p>
+            <div className="grid grid-cols-2 gap-2">
+              {PERIODS.map(p => (
+                <button key={p.id} onClick={() => setPeriod(p.id)}
+                  className={`p-3 rounded-xl border text-sm transition-colors ${period === p.id ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-neutral-700/40 text-neutral-400 hover:border-neutral-600/50 hover:text-neutral-200'}`}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={generate} disabled={loading}
+            className="w-full py-3 rounded-xl bg-gold-500/20 border border-gold-500/30 text-gold-300 hover:bg-gold-500/30 font-semibold text-sm transition-colors disabled:opacity-50">
+            {loading ? (
+              <span className="flex items-center justify-center gap-2"><span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />Generating…</span>
+            ) : '📊 Generate Report'}
+          </button>
+
+          {data && (
+            <div className="space-y-2">
+              <button onClick={printReport} className="w-full py-2.5 rounded-xl border border-neutral-700/40 text-neutral-300 hover:text-neutral-100 text-sm font-medium transition-colors">🖨️ Print / Save as PDF</button>
+              <button onClick={shipToOwners} disabled={shipping || shipped}
+                className={`w-full py-2.5 rounded-xl border text-sm font-medium transition-colors ${shipped ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-blue-500/30 text-blue-300 hover:bg-blue-500/10'} disabled:opacity-50`}>
+                {shipped ? '✅ Shipped to owners' : shipping ? 'Sending…' : '📨 Ship to Firm Owners'}
+              </button>
+            </div>
+          )}
+
+          {data && (
+            <div className="rounded-xl border border-neutral-700/40 bg-primary-900/20 p-4">
+              <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-2">Report Info</p>
+              <div className="space-y-1 text-xs text-neutral-400">
+                <p>Type: <span className="text-neutral-200">{REPORT_TYPES.find(r => r.id === reportType)?.label}</span></p>
+                <p>Period: <span className="text-neutral-200">{PERIODS.find(p => p.id === period)?.label}</span></p>
+                <p>Generated: <span className="text-neutral-200">{fmtNow()}</span></p>
+                <p>Cases: <span className="text-neutral-200">{data.cases.length}</span> · Bookings: <span className="text-neutral-200">{data.bookings.length}</span></p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Report output */}
+      {data && (
+        <div ref={reportRef} className="print-report bg-primary-950 rounded-2xl border border-neutral-700/40 p-6 space-y-2">
+          <div className="border-b border-neutral-700/40 pb-4 mb-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-xs text-gold-400 uppercase tracking-widest font-semibold">Confidential — Internal Report</p>
+                <h1 className="text-2xl font-bold text-neutral-50 mt-1">{REPORT_TYPES.find(r => r.id === reportType)?.label}</h1>
+                <p className="text-sm text-neutral-400 mt-0.5">{data.firmName} · {PERIODS.find(p => p.id === period)?.label}</p>
+              </div>
+              <div className="text-right text-xs text-neutral-500">
+                <p>Generated: {fmtNow()}</p>
+                <p>Prepared by: Firm Secretary</p>
+              </div>
+            </div>
+          </div>
+          <ReportContent data={data} type={reportType} />
+        </div>
+      )}
+
+      {!data && !loading && (
+        <div className="rounded-2xl border border-neutral-700/40 bg-primary-900/20 p-12 text-center">
+          <p className="text-4xl mb-3">📊</p>
+          <p className="text-neutral-300 font-medium">Select a report type and period, then click Generate</p>
+          <p className="text-neutral-500 text-sm mt-1">Reports are generated live from your firm's data.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function ReportsPage() {
+  return (
+    <Suspense fallback={<div className="py-16 text-center text-neutral-400">Loading…</div>}>
+      <ReportsPageInner />
+    </Suspense>
+  )
+}
