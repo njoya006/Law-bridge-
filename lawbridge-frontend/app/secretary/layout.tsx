@@ -16,13 +16,15 @@ const nav = [
 function SecreatarySidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const name = typeof window !== 'undefined' ? (localStorage.getItem('fullName') || 'Secretary') : 'Secretary'
+  const initials = name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
   return (
     <aside className="fixed inset-y-0 left-0 z-40 w-60 flex flex-col bg-primary-900 border-r border-neutral-700/40">
       <div className="flex items-center gap-3 px-5 py-5 border-b border-neutral-700/30">
-        <div className="w-8 h-8 rounded-lg bg-gold-500/20 border border-gold-500/30 flex items-center justify-center text-gold-400 font-bold text-sm flex-shrink-0">S</div>
+        <div className="w-8 h-8 rounded-lg bg-gold-500/20 border border-gold-500/30 flex items-center justify-center text-gold-400 font-bold text-sm flex-shrink-0">{initials}</div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-neutral-100 truncate">Secretary</p>
-          <p className="text-xs text-neutral-500 truncate">Firm Administration</p>
+          <p className="text-sm font-semibold text-neutral-100 truncate">{name}</p>
+          <p className="text-xs text-neutral-500 truncate">Firm Secretary</p>
         </div>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">

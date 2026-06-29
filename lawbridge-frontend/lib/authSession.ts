@@ -33,6 +33,8 @@ export function clearSession() {
   localStorage.removeItem('userRole')
   localStorage.removeItem('lawyerId')
   localStorage.removeItem('authUserId')
+  localStorage.removeItem('fullName')
+  localStorage.removeItem('userEmail')
 }
 
 export async function loginWithEmail(email: string, password: string) {
@@ -60,6 +62,8 @@ export function applyRoleToSession(me: MeResponse, preferredPortalRole?: 'client
   localStorage.setItem('portalRole', isClient ? 'client' : 'lawyer')
   localStorage.setItem('userRole', me.role)
   localStorage.setItem('authUserId', me.id)
+  if (me.full_name) localStorage.setItem('fullName', me.full_name)
+  if (me.email) localStorage.setItem('userEmail', me.email)
 
   if (isStaff) {
     localStorage.setItem('lawyerId', me.id)

@@ -23,7 +23,8 @@ export default function LawyerLoginPage() {
     try {
       const result = await loginWithEmail(email, password)
       applyRoleToSession(result.me, 'lawyer')
-      router.push('/lawyer/dashboard')
+      const role = (result.me.role || '').toLowerCase()
+      router.push(role === 'secretary' ? '/secretary/dashboard' : '/lawyer/dashboard')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to sign in')
     } finally {
