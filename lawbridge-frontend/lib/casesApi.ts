@@ -4,7 +4,14 @@ export type BookingMeta = {
   target_type?: 'lawyer' | 'firm'
   target_name?: string
   consultation_type?: string
+  /** Legacy single fee field — kept for backward compat */
   booking_fee?: string
+  /** Compulsory court/filing procedural fees */
+  procedural_fee?: string
+  /** Compulsory lawyer consultation fee */
+  consultation_fee?: string
+  /** Negotiable professional/representation fee (discussed after acceptance) */
+  professional_fee?: string
   payment_method?: string
   payment_reference?: string
   payment_status?: string

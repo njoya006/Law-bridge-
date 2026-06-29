@@ -54,8 +54,12 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
   const meta = booking.booking_metadata ?? {}
   const status = booking.booking_status || 'pending'
   const cfg = CLIENT_STATUS[status] ?? CLIENT_STATUS.pending
-  const hasFee = Boolean(meta.booking_fee && parseFloat(meta.booking_fee) > 0)
-  const feeDisplay = hasFee ? `${parseFloat(meta.booking_fee!).toLocaleString()} XAF` : null
+  const consultFeeNum = parseFloat(meta.consultation_fee || meta.booking_fee || '0') || 0
+  const procFeeNum = parseFloat(meta.procedural_fee || '0') || 0
+  const profFee = meta.professional_fee || ''
+  const totalFeeNum = consultFeeNum + procFeeNum
+  const hasFee = totalFeeNum > 0
+  const feeDisplay = hasFee ? `${totalFeeNum.toLocaleString()} XAF` : null
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -100,26 +104,47 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
         </div>
       </div>
 
-      {/* Payment */}
-      {hasFee && (
+      {/* Payment / Fee Breakdown */}
+      {(hasFee || true) && (
         <div className="rounded-xl border border-gold-500/30 bg-gold-500/5 p-6 space-y-3">
-          <h2 className="font-heading text-body-lg text-gold-400">Payment Record</h2>
+          <h2 className="font-heading text-body-lg text-gold-400">Fee Breakdown</h2>
           <div className="space-y-2 text-sm">
-            {([
-              ['Booking fee', <span key="fee" className="text-gold-300 font-semibold">{feeDisplay}</span>],
-              ['Method', formatPaymentMethod(meta.payment_method)],
-              meta.payment_reference ? ['Reference', <span key="ref" className="font-mono text-xs">{meta.payment_reference}</span>] : null,
-              ['Payment status', <span key="ps" className={`capitalize font-medium ${meta.payment_status === 'verified' ? 'text-emerald-400' : meta.payment_status === 'pending_verification' ? 'text-amber-400' : 'text-neutral-400'}`}>{meta.payment_status?.replace('_', ' ') ?? '—'}</span>],
-            ].filter(Boolean) as Array<[React.ReactNode, React.ReactNode]>).map(([label, value]) => (
-              <div key={String(label)} className="flex justify-between">
-                <span className="text-neutral-400">{label}</span>
-                <span className="text-neutral-200">{value}</span>
+            <div className="flex justify-between py-1 border-b border-neutral-700/20">
+              <span className="text-neutral-400">Consultation Fee <span className="text-amber-400 text-xs ml-1">compulsory</span></span>
+              <span className="text-neutral-200 font-medium">{consultFeeNum > 0 ? `${consultFeeNum.toLocaleString()} XAF` : '—'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-neutral-700/20">
+              <span className="text-neutral-400">Procedural Fee <span className="text-amber-400 text-xs ml-1">compulsory</span></span>
+              <span className="text-neutral-200 font-medium">{procFeeNum > 0 ? `${procFeeNum.toLocaleString()} XAF` : '—'}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-neutral-700/20">
+              <span className="text-neutral-400">Professional Fee <span className="text-emerald-400 text-xs ml-1">negotiable</span></span>
+              <span className="text-neutral-500 text-xs italic">{profFee ? `${parseFloat(profFee).toLocaleString()} XAF` : 'To be agreed'}</span>
+            </div>
+            {hasFee && <>
+              <div className="flex justify-between py-1 border-b border-neutral-700/20">
+                <span className="text-neutral-400">Total Paid Now</span>
+                <span className="text-gold-300 font-bold">{feeDisplay}</span>
               </div>
-            ))}
+              <div className="flex justify-between py-1 border-b border-neutral-700/20">
+                <span className="text-neutral-400">Method</span>
+                <span className="text-neutral-200">{formatPaymentMethod(meta.payment_method)}</span>
+              </div>
+              {meta.payment_reference && <div className="flex justify-between py-1 border-b border-neutral-700/20">
+                <span className="text-neutral-400">Reference</span>
+                <span className="text-neutral-200 font-mono text-xs">{meta.payment_reference}</span>
+              </div>}
+              <div className="flex justify-between py-1">
+                <span className="text-neutral-400">Payment Status</span>
+                <span className={`capitalize font-medium ${meta.payment_status === 'verified' ? 'text-emerald-400' : meta.payment_status === 'pending_verification' ? 'text-amber-400' : 'text-neutral-400'}`}>
+                  {meta.payment_status?.replace('_', ' ') ?? '—'}
+                </span>
+              </div>
+            </>}
           </div>
-          {status === 'declined' && (
+          {status === 'declined' && hasFee && (
             <p className="mt-3 pt-3 border-t border-gold-500/20 text-sm text-amber-300">
-              Your booking fee of <strong>{feeDisplay}</strong> will be refunded within 3–5 business days.
+              Your compulsory fees of <strong>{feeDisplay}</strong> will be refunded within 3–5 business days.
             </p>
           )}
         </div>
@@ -289,8 +314,12 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
   const meta = booking.booking_metadata ?? {}
   const status = booking.booking_status || 'pending'
   const isPending = status === 'pending'
-  const hasFee = Boolean(meta.booking_fee && parseFloat(meta.booking_fee) > 0)
-  const feeDisplay = hasFee ? `${parseFloat(meta.booking_fee!).toLocaleString()} XAF` : null
+  const consultFeeNum = parseFloat(meta.consultation_fee || meta.booking_fee || '0') || 0
+  const procFeeNum = parseFloat(meta.procedural_fee || '0') || 0
+  const profFee = meta.professional_fee || ''
+  const totalFeeNum = consultFeeNum + procFeeNum
+  const hasFee = totalFeeNum > 0
+  const feeDisplay = hasFee ? `${totalFeeNum.toLocaleString()} XAF` : null
 
   const [declining, setDeclining] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
@@ -385,25 +414,44 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
         </div>
       )}
 
-      {/* Payment info (lawyer sees for verification) */}
-      {hasFee && (
-        <div className="rounded-xl border border-gold-500/30 bg-gold-500/5 p-6 space-y-3">
-          <h2 className="font-heading text-body-lg text-gold-400">Payment Details</h2>
-          <div className="space-y-2 text-sm">
-            {([
-              ['Booking fee', <span key="fee" className="text-gold-300 font-semibold">{feeDisplay}</span>],
-              ['Payment method', formatPaymentMethod(meta.payment_method)],
-              meta.payment_reference ? ['Transaction reference', <span key="ref" className="font-mono text-xs">{meta.payment_reference}</span>] : null,
-              ['Payment status', <span key="ps" className={`capitalize font-medium ${meta.payment_status === 'verified' ? 'text-emerald-400' : meta.payment_status === 'pending_verification' ? 'text-amber-400' : 'text-neutral-400'}`}>{meta.payment_status?.replace('_', ' ') ?? '—'}</span>],
-            ].filter(Boolean) as Array<[React.ReactNode, React.ReactNode]>).map(([label, value]) => (
-              <div key={String(label)} className="flex justify-between">
-                <span className="text-neutral-400">{label}</span>
-                <span className="text-neutral-200">{value}</span>
-              </div>
-            ))}
+      {/* Fee Breakdown (lawyer sees for verification) */}
+      <div className="rounded-xl border border-gold-500/30 bg-gold-500/5 p-6 space-y-3">
+        <h2 className="font-heading text-body-lg text-gold-400">Fee Breakdown</h2>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between py-1 border-b border-neutral-700/20">
+            <span className="text-neutral-400">Consultation Fee <span className="text-amber-400 text-xs ml-1">compulsory</span></span>
+            <span className="text-neutral-200 font-medium">{consultFeeNum > 0 ? `${consultFeeNum.toLocaleString()} XAF` : '—'}</span>
           </div>
+          <div className="flex justify-between py-1 border-b border-neutral-700/20">
+            <span className="text-neutral-400">Procedural Fee <span className="text-amber-400 text-xs ml-1">compulsory</span></span>
+            <span className="text-neutral-200 font-medium">{procFeeNum > 0 ? `${procFeeNum.toLocaleString()} XAF` : '—'}</span>
+          </div>
+          <div className="flex justify-between py-1 border-b border-neutral-700/20">
+            <span className="text-neutral-400">Professional Fee <span className="text-emerald-400 text-xs ml-1">negotiable</span></span>
+            <span className="text-neutral-500 text-xs italic">{profFee ? `${parseFloat(profFee).toLocaleString()} XAF` : 'To be agreed'}</span>
+          </div>
+          {hasFee && <>
+            <div className="flex justify-between py-1 border-b border-neutral-700/20">
+              <span className="text-neutral-400">Total Received</span>
+              <span className="text-gold-300 font-bold">{feeDisplay}</span>
+            </div>
+            <div className="flex justify-between py-1 border-b border-neutral-700/20">
+              <span className="text-neutral-400">Payment Method</span>
+              <span className="text-neutral-200">{formatPaymentMethod(meta.payment_method)}</span>
+            </div>
+            {meta.payment_reference && <div className="flex justify-between py-1 border-b border-neutral-700/20">
+              <span className="text-neutral-400">Transaction Ref</span>
+              <span className="text-neutral-200 font-mono text-xs">{meta.payment_reference}</span>
+            </div>}
+            <div className="flex justify-between py-1">
+              <span className="text-neutral-400">Payment Status</span>
+              <span className={`capitalize font-medium ${meta.payment_status === 'verified' ? 'text-emerald-400' : meta.payment_status === 'pending_verification' ? 'text-amber-400' : 'text-neutral-400'}`}>
+                {meta.payment_status?.replace('_', ' ') ?? '—'}
+              </span>
+            </div>
+          </>}
         </div>
-      )}
+      </div>
 
       {/* Accept / Decline actions */}
       {isPending && (

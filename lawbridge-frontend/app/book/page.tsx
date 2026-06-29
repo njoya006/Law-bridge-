@@ -51,7 +51,8 @@ export default function BookPage() {
   const [kind, setKind] = useState<'lawyer' | 'firm'>('lawyer')
   const [targetId, setTargetId] = useState('')
   const [targetName, setTargetName] = useState('')
-  const [bookingFee, setBookingFee] = useState('')
+  const [consultationFee, setConsultationFee] = useState('')
+  const [proceduralFee, setProceduralFee] = useState('')
   const [caseType, setCaseType] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -79,11 +80,15 @@ export default function BookPage() {
     setKind((p.get('kind') as 'lawyer' | 'firm') || 'lawyer')
     setTargetId(p.get('id') || '')
     setTargetName(p.get('name') || '')
-    setBookingFee(p.get('fee') || '')
+    setConsultationFee(p.get('fee') || '')
+    setProceduralFee(p.get('procedural_fee') || '')
   }, [router])
 
-  const hasFee = Boolean(bookingFee && parseFloat(bookingFee) > 0)
-  const feeDisplay = hasFee ? `${parseFloat(bookingFee).toLocaleString()} XAF` : null
+  const consultationFeeNum = parseFloat(consultationFee) || 0
+  const proceduralFeeNum = parseFloat(proceduralFee) || 0
+  const totalDueNow = consultationFeeNum + proceduralFeeNum
+  const hasFee = totalDueNow > 0
+  const feeDisplay = hasFee ? `${totalDueNow.toLocaleString()} XAF` : null
 
   const validate1 = () => {
     const e: Record<string, string> = {}
@@ -125,7 +130,11 @@ export default function BookPage() {
         booking_status: 'pending',
         booking_metadata: {
           target_type: kind, target_id: targetId, target_name: targetName,
-          consultation_type: consultationType, booking_fee: bookingFee,
+          consultation_type: consultationType,
+          booking_fee: String(totalDueNow),
+          consultation_fee: consultationFee,
+          procedural_fee: proceduralFee,
+          professional_fee: '',
           payment_method: paymentMethod, payment_reference: paymentRef,
           payment_status: paymentRef ? 'pending_verification' : 'none',
           preferred_date: preferredDate, preferred_time: preferredTime,
@@ -294,8 +303,26 @@ export default function BookPage() {
 
           {hasFee ? (
             <div className="rounded-xl border border-gold-500/30 bg-gold-500/5 p-6 space-y-4">
-              <h2 className="font-heading text-body-lg text-gold-400">Booking Fee — {feeDisplay}</h2>
-              <p className="text-neutral-500 text-xs">Refunded if declined. Full legal fees discussed separately with the lawyer.</p>
+              <h2 className="font-heading text-body-lg text-gold-400">Fee Breakdown</h2>
+              <div className="space-y-2 text-sm border border-neutral-700/40 rounded-lg p-4 bg-primary-900/40">
+                <div className="flex justify-between">
+                  <span className="text-neutral-400">Consultation Fee <span className="text-amber-400 text-xs ml-1">compulsory</span></span>
+                  <span className="text-neutral-200 font-medium">{consultationFeeNum > 0 ? `${consultationFeeNum.toLocaleString()} XAF` : '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-400">Procedural Fee <span className="text-amber-400 text-xs ml-1">compulsory</span></span>
+                  <span className="text-neutral-200 font-medium">{proceduralFeeNum > 0 ? `${proceduralFeeNum.toLocaleString()} XAF` : '—'}</span>
+                </div>
+                <div className="flex justify-between border-t border-neutral-700/30 pt-2 mt-1">
+                  <span className="text-neutral-400">Professional Fee <span className="text-emerald-400 text-xs ml-1">negotiable</span></span>
+                  <span className="text-neutral-500 text-xs italic">Agreed after acceptance</span>
+                </div>
+                <div className="flex justify-between border-t border-gold-500/30 pt-2 mt-1">
+                  <span className="text-gold-300 font-semibold">Due Now</span>
+                  <span className="text-gold-400 font-bold">{feeDisplay}</span>
+                </div>
+              </div>
+              <p className="text-neutral-500 text-xs">Compulsory fees are refunded if the booking is declined. Professional fees are negotiated directly with the lawyer after acceptance.</p>
               <div>
                 <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-2">Payment Method *</label>
                 <div className="space-y-2">

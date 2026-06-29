@@ -501,6 +501,83 @@ function AddNotePanel({ caseId, onAdded }: { caseId: string; onAdded: () => void
   )
 }
 
+// ── Court session logger (lawyers only, active cases) ─────────────────────────
+
+function CourtSessionPanel({ caseId, currentStatus, onLogged }: { caseId: string; currentStatus: string; onLogged: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+
+  const handleLog = async () => {
+    if (!notes.trim()) return
+    const access = localStorage.getItem('access')
+    if (!access) return
+    setSaving(true); setError(''); setSuccess(false)
+    try {
+      await updateCaseStatus(caseId, currentStatus, `[Court Session] ${notes.trim()}`, access)
+      setNotes(''); setSuccess(true); setOpen(false)
+      onLogged()
+      setTimeout(() => setSuccess(false), 4000)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to log session')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-orange-500/30 bg-orange-900/10 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-orange-400 animate-pulse flex-shrink-0" />
+          <p className="text-xs uppercase tracking-wide text-orange-300 font-semibold">Log Court Session</p>
+        </div>
+        {success && (
+          <span className="text-xs text-emerald-400 font-medium">Logged · Client notified ✓</span>
+        )}
+        <button
+          onClick={() => setOpen(v => !v)}
+          className="text-xs text-orange-400 hover:text-orange-300 transition-colors font-medium"
+        >
+          {open ? 'Cancel' : 'Add update'}
+        </button>
+      </div>
+      {!open && (
+        <p className="text-xs text-neutral-500">Record what happened in today's court session. The client will be notified by email.</p>
+      )}
+      {open && (
+        <>
+          <textarea
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            placeholder="Describe what happened in court today: proceedings, outcome, next steps, adjournment details…"
+            rows={4}
+            className="w-full rounded-lg px-3 py-2.5 bg-primary-800/60 text-neutral-50 border border-orange-500/30
+              focus:outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-400 text-sm resize-none
+              placeholder:text-neutral-600"
+          />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-neutral-500">Client will be notified by email with this update.</p>
+            <div className="flex items-center gap-3">
+              {error && <span className="text-xs text-crimson-300">{error}</span>}
+              <button
+                onClick={handleLog}
+                disabled={saving || !notes.trim()}
+                className="px-4 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-500 text-white text-sm
+                  font-medium transition-colors disabled:opacity-40"
+              >
+                {saving ? 'Logging…' : 'Log Session'}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Reassignment Wizard ───────────────────────────────────────────────────────
 
 type WizardStep = 'rate' | 'conflicts' | 'mediation' | 'search' | 'done'
@@ -1541,6 +1618,11 @@ export default function CaseDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Court session logger — shown to lawyers when case is active in court */}
+      {isLawyer && ['in_progress', 'hearing_scheduled', 'hearing_adjourned', 'awaiting_court_date'].includes(item.status) && (
+        <CourtSessionPanel caseId={item.id} currentStatus={item.status} onLogged={load} />
+      )}
 
       {/* Timeline */}
       <div className="rounded-2xl border border-neutral-700/30 bg-primary-800/20 p-5">

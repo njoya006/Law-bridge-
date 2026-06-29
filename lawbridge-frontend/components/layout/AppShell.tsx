@@ -43,9 +43,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAuthRoute = pathname?.startsWith('/auth')
   const isLawyerRoute = pathname?.startsWith('/lawyer')
+  const isSecretaryRoute = pathname?.startsWith('/secretary')
   const isPublicRoute = pathname === '/' || pathname === '/about' || pathname === '/support'
 
-  if (isAuthRoute || isLawyerRoute || isPublicRoute) {
+  if (isAuthRoute || isLawyerRoute || isSecretaryRoute || isPublicRoute) {
     return <>{children}</>
   }
 
