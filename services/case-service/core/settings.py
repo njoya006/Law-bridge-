@@ -98,7 +98,7 @@ REST_FRAMEWORK = {
 
 # Allow frontend dev server to access APIs during local development
 CORS_ALLOW_ALL_ORIGINS = True
-LAWYER_SERVICE_URL = config('LAWYER_SERVICE_URL', default='http://lawyer-service:8003/api/v1/firms')
+LAWYER_SERVICE_URL = config('LAWYER_SERVICE_URL', default='http://lawyer-service/api/v1/firms')
 
 
 from datetime import timedelta

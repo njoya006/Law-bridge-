@@ -62,7 +62,7 @@ def is_internal_request(request):
     return request.headers.get('X-Internal-Api-Key') == config('INTERNAL_API_KEY', default='dev-internal-key')
 
 
-STAFF_ROLES = {'lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'secretary', 'managing_partner'}
+STAFF_ROLES = {'lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'secretary', 'managing_partner', 'owner', 'guest'}
 
 
 def extract_token_payload(request):
@@ -100,6 +100,12 @@ def user_can_access_case(request, case):
     current_firms = get_user_firm_ids_from_lawyer_service(user_id, auth_header=auth_header)
     if not current_firms:
         return False
+
+    # Firm member can access a booking directed at their firm (pending, no lawyer assigned yet)
+    if case.booking_metadata:
+        target_id = str(case.booking_metadata.get('target_id', ''))
+        if target_id and target_id in current_firms:
+            return True
 
     if case.assigned_lawyer_id:
         assigned_firms = get_user_firm_ids_from_lawyer_service(case.assigned_lawyer_id, internal=True)
@@ -278,14 +284,21 @@ class IncomingBookingsView(APIView):
             return Response({'error': 'Only lawyers and firm admins can view incoming bookings'}, status=status.HTTP_403_FORBIDDEN)
 
         user_id = payload.get('user_id') or extract_user_id_from_token(request)
+        auth_header = get_auth_header(request)
 
-        # Match by target_id (lawyer profile UUID) or by assigned_lawyer_id with pending status
-        # Using __icontains on JSONField is supported in Django 3.1+ with PostgreSQL
+        # Fetch firm IDs this user belongs to so firm bookings are visible to all members
+        user_firm_ids = get_user_firm_ids_from_lawyer_service(user_id, auth_header=auth_header)
+
         from django.db.models import Q
-        cases = Case.objects.filter(
-            Q(booking_metadata__target_id=str(user_id)) |
-            Q(assigned_lawyer_id=user_id, booking_status='pending')
-        ).exclude(booking_status='').order_by('-created_at')
+        # Direct lawyer bookings (target_id == lawyer's auth UUID)
+        q = Q(booking_metadata__target_id=str(user_id))
+        # Firm bookings (target_id == firm's integer ID, e.g. "7")
+        for firm_id in user_firm_ids:
+            q |= Q(booking_metadata__target_id=str(firm_id))
+        # Cases directly assigned to this lawyer with a pending booking status
+        q |= Q(assigned_lawyer_id=user_id, booking_status='pending')
+
+        cases = Case.objects.filter(q).exclude(booking_status='').order_by('-created_at')
 
         status_filter = request.query_params.get('status')
         if status_filter:
