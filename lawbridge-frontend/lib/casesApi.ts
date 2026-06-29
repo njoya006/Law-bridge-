@@ -11,9 +11,25 @@ export type BookingMeta = {
   preferred_date?: string
   preferred_time?: string
   location?: string
+  virtual_link?: string
   urgency?: string
   client_email?: string
   decline_reason?: string
+}
+
+export type WorkflowStatusMsg = {
+  headline: string
+  detail: string
+  next: string
+  estimate: string
+}
+
+export type WorkflowData = {
+  stages: string[]
+  next_status: string | null
+  allowed_transitions: string[]
+  current_message: { en: WorkflowStatusMsg; fr: WorkflowStatusMsg }
+  transition_previews: Record<string, WorkflowStatusMsg>
 }
 
 export type CaseItem = {
@@ -31,6 +47,7 @@ export type CaseItem = {
   assigned_lawyer_id?: string | null
   timeline: Array<{ timestamp: string; status: string; notes: string; updated_by?: string | null }>
   notes?: Array<{ id: string; lawyer_id: string; content: string; is_private: boolean; created_at: string; updated_at: string }>
+  workflow?: WorkflowData
   created_at: string
   updated_at: string
 }

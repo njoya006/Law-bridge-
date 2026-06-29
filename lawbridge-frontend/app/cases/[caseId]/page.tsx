@@ -9,7 +9,7 @@ import {
   getReassignmentRequest, initiateReassignment, confirmReassignment,
   cancelReassignment, selectReplacementLawyer,
   REASSIGNMENT_REASONS,
-  type CaseItem, type ReassignmentRequest, type ConflictFlags,
+  type CaseItem, type ReassignmentRequest, type ConflictFlags, type WorkflowStatusMsg,
 } from '../../../lib/casesApi'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
@@ -94,28 +94,176 @@ function TimelineEntry({
   )
 }
 
-// ── Status update panel (lawyers only) ────────────────────────────────────────
+// ── Client: Case Progress stepper ─────────────────────────────────────────────
+
+function CaseProgressCard({ caseItem }: { caseItem: CaseItem }) {
+  const wf = caseItem.workflow
+  if (!wf) return null
+
+  const stages = wf.stages
+  const currentIdx = stages.indexOf(caseItem.status)
+  const lang = caseItem.language === 'fr' ? 'fr' : 'en'
+  const msg: WorkflowStatusMsg = lang === 'fr' ? wf.current_message.fr : wf.current_message.en
+  const isOffPipeline = currentIdx === -1
+
+  return (
+    <div className="rounded-2xl border border-gold-500/20 bg-gradient-to-b from-gold-950/20 via-transparent to-transparent p-5 space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse flex-shrink-0" />
+          <p className="font-heading text-sm font-semibold text-gold-300">Case Progress</p>
+        </div>
+        {isOffPipeline && (
+          <StatusBadge status={caseItem.status} size="sm" />
+        )}
+      </div>
+
+      {/* Desktop horizontal stepper */}
+      <div className="hidden sm:block">
+        <div className="relative px-2 pt-1 pb-6">
+          <div className="absolute top-4.5 left-6 right-6 h-px bg-neutral-800/80" />
+          {!isOffPipeline && currentIdx > 0 && (
+            <div
+              className="absolute top-4.5 left-6 h-px bg-gradient-to-r from-gold-500 to-gold-400 transition-all duration-700"
+              style={{ width: `calc(${(currentIdx / Math.max(stages.length - 1, 1)) * 100}% - 0.75rem)` }}
+            />
+          )}
+          <div className="relative flex justify-between gap-1">
+            {stages.map((stage, idx) => {
+              const done    = !isOffPipeline && idx < currentIdx
+              const active  = !isOffPipeline && idx === currentIdx
+              const label   = STATUS_LABELS[stage] ?? stage
+              return (
+                <div key={stage} className="flex flex-col items-center gap-2" style={{ flex: '1 1 0', minWidth: 0 }}>
+                  <div className={`h-7 w-7 rounded-full flex items-center justify-center flex-shrink-0 border transition-all duration-300
+                    ${done   ? 'bg-gold-500 border-gold-400/80 text-black shadow-[0_0_10px_rgba(234,179,8,0.25)]' : ''}
+                    ${active ? 'bg-gold-500/20 border-gold-400 text-gold-200 shadow-[0_0_14px_rgba(234,179,8,0.35)]' : ''}
+                    ${!done && !active ? 'bg-primary-900/80 border-neutral-700/40 text-neutral-600' : ''}
+                  `}>
+                    {done ? (
+                      <svg viewBox="0 0 12 12" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    ) : active ? (
+                      <div className="h-2 w-2 rounded-full bg-gold-400 animate-pulse" />
+                    ) : (
+                      <div className="h-1.5 w-1.5 rounded-full bg-neutral-700/80" />
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-medium text-center leading-tight transition-colors px-0.5
+                    ${done ? 'text-gold-500/80' : active ? 'text-neutral-200' : 'text-neutral-600'}
+                  `} style={{ maxWidth: '72px' }}>
+                    {label}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile vertical stepper */}
+      <div className="sm:hidden space-y-0.5">
+        {stages.map((stage, idx) => {
+          const done   = !isOffPipeline && idx < currentIdx
+          const active = !isOffPipeline && idx === currentIdx
+          if (!done && !active && currentIdx >= 0 && idx > currentIdx + 1) return null
+          if (isOffPipeline && idx > 1) return null
+          const label = STATUS_LABELS[stage] ?? stage
+          return (
+            <div key={stage} className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-colors
+              ${active ? 'bg-gold-500/10' : ''}
+            `}>
+              <div className={`h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border
+                ${done   ? 'bg-gold-500 border-gold-400 text-black' : ''}
+                ${active ? 'bg-gold-500/15 border-gold-400 text-gold-300' : ''}
+                ${!done && !active ? 'bg-primary-900 border-neutral-700/40 text-neutral-600' : ''}
+              `}>
+                {done ? (
+                  <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : idx + 1}
+              </div>
+              <span className={`text-xs font-medium flex-1
+                ${done ? 'text-gold-500/80' : active ? 'text-neutral-200' : 'text-neutral-600'}
+              `}>{label}</span>
+              {active && <span className="text-[10px] font-semibold text-gold-400 flex-shrink-0">Current</span>}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* What this means */}
+      <div className="rounded-xl border border-neutral-700/30 bg-primary-900/50 p-4 space-y-3">
+        <p className="font-heading text-sm font-semibold text-neutral-100 leading-snug">{msg.headline}</p>
+        <p className="text-sm text-neutral-400 leading-relaxed">{msg.detail}</p>
+        {msg.next && (
+          <div className="flex gap-2.5 pt-2 border-t border-neutral-800/60">
+            <div className="flex-shrink-0 mt-0.5 h-4 w-4 rounded-full bg-gold-500/15 border border-gold-400/30 flex items-center justify-center">
+              <div className="h-1.5 w-1.5 rounded-full bg-gold-400" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] text-neutral-500 uppercase tracking-wide font-semibold mb-0.5">
+                {lang === 'fr' ? 'Prochaine étape' : 'What happens next'}
+              </p>
+              <p className="text-xs text-neutral-300 leading-relaxed">{msg.next}</p>
+            </div>
+          </div>
+        )}
+        {msg.estimate && (
+          <p className="text-[11px] text-neutral-600 italic pt-1 border-t border-neutral-800/40">{msg.estimate}</p>
+        )}
+      </div>
+
+      {/* Bilingual secondary view (shown when case language is EN, shows FR below as courtesy) */}
+      {lang === 'en' && wf.current_message.fr.headline !== wf.current_message.en.headline && (
+        <details className="group">
+          <summary className="text-xs text-neutral-600 hover:text-neutral-400 cursor-pointer select-none transition-colors">
+            Voir en français ↓
+          </summary>
+          <div className="mt-2 rounded-xl border border-neutral-800/50 bg-primary-900/30 p-3 space-y-2">
+            <p className="text-xs font-semibold text-neutral-300">{wf.current_message.fr.headline}</p>
+            <p className="text-xs text-neutral-500 leading-relaxed">{wf.current_message.fr.detail}</p>
+          </div>
+        </details>
+      )}
+    </div>
+  )
+}
+
+// ── Lawyer: Smart status update panel ─────────────────────────────────────────
 
 function StatusUpdatePanel({ caseItem, onUpdated }: { caseItem: CaseItem; onUpdated: (updated: CaseItem) => void }) {
-  const [newStatus, setNewStatus] = useState(caseItem.status)
-  const [note, setNote] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+  const wf = caseItem.workflow
+  const nextStatus      = wf?.next_status ?? null
+  const allowedList     = wf?.allowed_transitions?.length
+    ? wf.allowed_transitions
+    : STATUS_ORDER.filter(s => s !== caseItem.status)
+  const previews        = wf?.transition_previews ?? {}
+
+  const [chosenStatus, setChosenStatus] = useState<string>(nextStatus ?? allowedList[0] ?? '')
+  const [showAdvanced, setShowAdvanced]  = useState(!nextStatus)
+  const [note, setNote]                  = useState('')
+  const [saving, setSaving]              = useState(false)
+  const [error, setError]                = useState('')
+  const [success, setSuccess]            = useState<string | null>(null)
 
   const isTerminal = TERMINAL_STATUSES.has(caseItem.status)
-  const unchanged = newStatus === caseItem.status
 
-  const handleSave = async () => {
-    if (unchanged) return
+  const handleSave = async (statusToSave: string) => {
+    if (!statusToSave || statusToSave === caseItem.status) return
     const access = localStorage.getItem('access')
     if (!access) return
-    setSaving(true); setError(''); setSuccess(false)
+    setSaving(true); setError(''); setSuccess(null)
     try {
-      const updated = await updateCaseStatus(caseItem.id, newStatus, note, access)
+      const updated = await updateCaseStatus(caseItem.id, statusToSave, note, access)
       setNote('')
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 4000)
+      setChosenStatus(updated.workflow?.next_status ?? allowedList[0] ?? '')
+      setShowAdvanced(false)
+      setSuccess(STATUS_LABELS[statusToSave] ?? statusToSave)
+      setTimeout(() => setSuccess(null), 6000)
       onUpdated(updated)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to update status')
@@ -124,65 +272,163 @@ function StatusUpdatePanel({ caseItem, onUpdated }: { caseItem: CaseItem; onUpda
     }
   }
 
+  const preview: WorkflowStatusMsg | null = chosenStatus ? (previews[chosenStatus] ?? null) : null
+
   return (
-    <div className="rounded-2xl border border-gold-400/20 bg-gold-500/5 p-5 space-y-4">
-      <div className="flex items-center gap-2">
-        <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse" />
-        <p className="font-heading text-sm font-semibold text-gold-300">Update Case Status</p>
+    <div className="rounded-2xl border border-gold-400/20 bg-gradient-to-b from-gold-950/20 to-transparent p-5 space-y-4">
+      {/* Panel header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse flex-shrink-0" />
+          <p className="font-heading text-sm font-semibold text-gold-300">Advance Case</p>
+        </div>
+        <span className="text-xs text-neutral-500">
+          Current: <span className="text-neutral-300 font-medium">{STATUS_LABELS[caseItem.status] ?? caseItem.status}</span>
+        </span>
       </div>
 
       {isTerminal && (
-        <p className="text-xs text-neutral-500 italic">
-          This case is in a terminal state ({STATUS_LABELS[caseItem.status]}). You can still update it if needed.
-        </p>
+        <div className="rounded-lg border border-neutral-700/40 bg-neutral-800/20 px-3 py-2">
+          <p className="text-xs text-neutral-500">
+            This case has reached a terminal state. You can still record a correction if needed.
+          </p>
+        </div>
       )}
 
-      <div>
-        <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-1.5">
-          New Status
-        </label>
-        <select
-          value={newStatus}
-          onChange={e => setNewStatus(e.target.value)}
-          className="w-full rounded-lg px-3 py-2.5 bg-primary-800/60 text-neutral-50 border border-neutral-700/50
-            focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-400 text-sm"
-        >
-          {STATUS_ORDER.map(s => (
-            <option key={s} value={s} className="bg-primary-900">{STATUS_LABELS[s]}</option>
-          ))}
-        </select>
-      </div>
+      {/* Smart next-step button */}
+      {nextStatus && !isTerminal && (
+        <div className="space-y-2">
+          <p className="text-[10px] uppercase tracking-wide text-neutral-500 font-semibold">
+            Suggested next step
+          </p>
+          <button
+            onClick={() => { setChosenStatus(nextStatus); handleSave(nextStatus) }}
+            disabled={saving}
+            className="w-full flex items-center justify-between gap-3 px-5 py-3.5 rounded-xl
+              bg-gradient-to-r from-gold-600/90 to-gold-500/80 hover:from-gold-500 hover:to-gold-400
+              text-black font-bold text-sm transition-all shadow-lg shadow-gold-900/20
+              disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+          >
+            <span className="flex items-center gap-2">
+              {saving && chosenStatus === nextStatus ? (
+                <span className="h-4 w-4 rounded-full border-2 border-black/20 border-t-black animate-spin flex-shrink-0" />
+              ) : (
+                <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 flex-shrink-0 opacity-70">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" />
+                </svg>
+              )}
+              Move to: {STATUS_LABELS[nextStatus] ?? nextStatus}
+            </span>
+            <span className="text-[10px] font-medium opacity-60 flex-shrink-0">Client notified automatically</span>
+          </button>
+        </div>
+      )}
 
+      {/* Advanced: choose different outcome */}
       <div>
-        <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-1.5">
-          Update Note <span className="text-neutral-600 normal-case">(visible to client)</span>
-        </label>
-        <textarea
-          value={note}
-          onChange={e => setNote(e.target.value)}
-          placeholder="What happened? What's the next step? Add any relevant details for the client…"
-          rows={3}
-          className="w-full rounded-lg px-3 py-2.5 bg-primary-800/60 text-neutral-50 border border-neutral-700/50
-            focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-400 text-sm resize-none
-            placeholder:text-neutral-600"
-        />
-      </div>
-
-      <div className="flex items-center gap-3">
         <button
-          onClick={handleSave}
-          disabled={saving || unchanged}
-          className="px-5 py-2 rounded-lg bg-gold-500 hover:bg-gold-400 text-black font-semibold text-sm
-            transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          onClick={() => setShowAdvanced(v => !v)}
+          className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors flex items-center gap-1"
         >
-          {saving ? 'Saving…' : 'Push Update'}
+          <svg
+            viewBox="0 0 20 20" fill="currentColor"
+            className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? 'rotate-90' : ''}`}
+          >
+            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+          </svg>
+          {nextStatus ? 'Choose a different outcome' : 'Select status to apply'}
         </button>
-        {unchanged && !saving && (
-          <span className="text-xs text-neutral-600">Select a different status to push an update</span>
+
+        {showAdvanced && (
+          <div className="mt-3 space-y-3">
+            <select
+              value={chosenStatus}
+              onChange={e => setChosenStatus(e.target.value)}
+              className="w-full rounded-lg px-3 py-2.5 bg-primary-800/60 text-neutral-50 border border-neutral-700/50
+                focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-400 text-sm"
+            >
+              <option value="" disabled className="bg-primary-900 text-neutral-500">— select status —</option>
+              {allowedList.map(s => (
+                <option key={s} value={s} className="bg-primary-900">
+                  {STATUS_LABELS[s] ?? s}
+                </option>
+              ))}
+            </select>
+
+            {/* Notification preview for the chosen status */}
+            {preview && chosenStatus !== caseItem.status && (
+              <div className="rounded-xl border border-neutral-700/40 bg-primary-900/40 p-3.5 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-wide text-neutral-500 font-semibold flex items-center gap-1.5">
+                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3 text-gold-400">
+                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-2.83-2h5.66A3 3 0 0110 18z" />
+                  </svg>
+                  Client will receive
+                </p>
+                <p className="text-xs font-semibold text-neutral-200">{preview.headline}</p>
+                <p className="text-xs text-neutral-400 leading-relaxed line-clamp-2">{preview.detail}</p>
+              </div>
+            )}
+
+            <div>
+              <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-1.5">
+                Note <span className="text-neutral-600 normal-case font-normal">(optional, appended to client notification)</span>
+              </label>
+              <textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                placeholder="Add context for the client: what happened, what they need to do…"
+                rows={2}
+                className="w-full rounded-lg px-3 py-2.5 bg-primary-800/60 text-neutral-50 border border-neutral-700/50
+                  focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-400 text-sm resize-none
+                  placeholder:text-neutral-600"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => handleSave(chosenStatus)}
+                disabled={saving || !chosenStatus || chosenStatus === caseItem.status}
+                className="px-5 py-2 rounded-lg bg-gold-500 hover:bg-gold-400 text-black font-semibold text-sm
+                  transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {saving ? 'Saving…' : 'Apply Update'}
+              </button>
+              {error && <span className="text-sm text-crimson-300">{error}</span>}
+            </div>
+          </div>
         )}
-        {success && <span className="text-sm text-emerald-400">Status updated.</span>}
-        {error && <span className="text-sm text-crimson-300">{error}</span>}
       </div>
+
+      {/* Note field when using smart button */}
+      {!showAdvanced && nextStatus && (
+        <div>
+          <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-1.5">
+            Add a note <span className="text-neutral-600 normal-case font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="Any details for the client about this update…"
+            rows={2}
+            className="w-full rounded-lg px-3 py-2.5 bg-primary-800/60 text-neutral-50 border border-neutral-700/50
+              focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-400 text-sm resize-none
+              placeholder:text-neutral-600"
+          />
+        </div>
+      )}
+
+      {/* Success confirmation */}
+      {success && (
+        <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-900/20 px-4 py-3">
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-emerald-400 flex-shrink-0">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-emerald-300">Updated to: {success}</p>
+            <p className="text-xs text-emerald-500">Client notified in-app and by email.</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1181,6 +1427,78 @@ export default function CaseDetailPage() {
           </Link>
         </div>
       </div>
+
+      {/* Booking Request card — shown when case originated as a consultation booking */}
+      {item.booking_status && (() => {
+        const meta = item.booking_metadata ?? {}
+        const bs = item.booking_status
+        const isPending  = bs === 'pending'
+        const isAccepted = bs === 'accepted'
+        const bannerCls = isPending  ? 'border-amber-500/30 bg-amber-500/5' :
+                          isAccepted ? 'border-emerald-500/30 bg-emerald-500/5' :
+                                       'border-crimson-500/30 bg-crimson-500/5'
+        const badgeCls  = isPending  ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
+                          isAccepted ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' :
+                                       'border-crimson-500/30 bg-crimson-500/10 text-crimson-400'
+        const badgeText = isPending ? 'Awaiting Response' : isAccepted ? 'Accepted' : 'Declined'
+        return (
+          <div className={`rounded-xl border p-5 space-y-4 ${bannerCls}`}>
+            <div className="flex items-center justify-between">
+              <p className="font-heading text-sm font-semibold text-neutral-100">Booking Request</p>
+              <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${badgeCls}`}>{badgeText}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {meta.target_name && (
+                <div>
+                  <p className="text-xs text-neutral-500 uppercase tracking-wide mb-0.5">Booked with</p>
+                  <p className="text-neutral-100 font-medium">{meta.target_name}</p>
+                </div>
+              )}
+              {meta.consultation_type && (
+                <div>
+                  <p className="text-xs text-neutral-500 uppercase tracking-wide mb-0.5">Consultation type</p>
+                  <p className="text-neutral-200 capitalize">{meta.consultation_type.replace('_', ' ')}</p>
+                </div>
+              )}
+              {meta.preferred_date && (
+                <div>
+                  <p className="text-xs text-neutral-500 uppercase tracking-wide mb-0.5">Requested date</p>
+                  <p className="text-neutral-200">{meta.preferred_date}{meta.preferred_time ? ` at ${meta.preferred_time}` : ''}</p>
+                </div>
+              )}
+              {meta.location && (
+                <div>
+                  <p className="text-xs text-neutral-500 uppercase tracking-wide mb-0.5">Location</p>
+                  <p className="text-neutral-200">{meta.location}</p>
+                </div>
+              )}
+              {meta.booking_fee && parseFloat(meta.booking_fee) > 0 && (
+                <div>
+                  <p className="text-xs text-neutral-500 uppercase tracking-wide mb-0.5">Booking fee</p>
+                  <p className="text-gold-400 font-semibold">{parseFloat(meta.booking_fee).toLocaleString()} XAF</p>
+                </div>
+              )}
+              {meta.urgency && (
+                <div>
+                  <p className="text-xs text-neutral-500 uppercase tracking-wide mb-0.5">Priority</p>
+                  <p className={`capitalize font-medium ${meta.urgency === 'urgent' ? 'text-crimson-400' : 'text-neutral-300'}`}>{meta.urgency}</p>
+                </div>
+              )}
+            </div>
+            {bs === 'declined' && meta.decline_reason && (
+              <div className="pt-3 border-t border-crimson-500/20 text-sm text-neutral-400">
+                <span className="text-crimson-300 font-medium">Decline reason: </span>{meta.decline_reason}
+              </div>
+            )}
+            <Link href={`/bookings/${item.id}`} className="inline-block text-xs text-gold-400 hover:text-gold-300 font-medium transition-colors">
+              View full booking details →
+            </Link>
+          </div>
+        )
+      })()}
+
+      {/* Case progress stepper — clients only */}
+      {!isLawyer && <CaseProgressCard caseItem={item} />}
 
       {/* Status update panel — lawyers only */}
       {isLawyer && (

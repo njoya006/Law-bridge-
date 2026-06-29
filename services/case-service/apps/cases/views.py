@@ -335,8 +335,55 @@ class CaseStatusUpdateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        old_status = case.status
         user_id = payload.get('user_id') or extract_user_id_from_token(request)
         case.add_timeline_entry(new_status, notes=note, updated_by=user_id)
+
+        # Fire bilingual in-app notification to the client
+        try:
+            from .workflow import get_status_message
+            msg_en = get_status_message(new_status, 'en')
+            msg_fr = get_status_message(new_status, 'fr')
+            note_en = f'\n\nNote from your lawyer: {note}' if note else ''
+            note_fr = f'\n\nNote de votre avocat : {note}' if note else ''
+            notif_url = config(
+                'NOTIFICATION_SERVICE_URL',
+                default='http://notification-service/api/v1/notifications/internal/create/',
+            )
+            notif_payload = json.dumps({
+                'user_id': str(case.client_id),
+                'event_type': 'case_status_updated',
+                'title_en': msg_en['headline'],
+                'title_fr': msg_fr['headline'],
+                'message_en': (
+                    f"{msg_en['detail']}\n\n"
+                    f"What happens next: {msg_en['next']}"
+                    f"{note_en}"
+                ),
+                'message_fr': (
+                    f"{msg_fr['detail']}\n\n"
+                    f"Prochaine étape : {msg_fr['next']}"
+                    f"{note_fr}"
+                ),
+                'metadata': {
+                    'case_id': str(case.id),
+                    'case_title': case.title,
+                    'case_type': case.case_type,
+                    'old_status': old_status,
+                    'new_status': new_status,
+                },
+                'lang': case.language or 'en',
+                'send_email': True,
+            }).encode()
+            notif_req = Request(
+                notif_url,
+                data=notif_payload,
+                headers={'Content-Type': 'application/json', 'X-Internal-Key': config('INTERNAL_API_KEY', default='dev-internal-key')},
+                method='POST',
+            )
+            urlopen(notif_req, timeout=3)
+        except Exception as notif_err:
+            pass  # Never fail the status update because of a notification error
 
         return Response(CaseSerializer(case).data)
 
