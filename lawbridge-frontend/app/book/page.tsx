@@ -53,6 +53,7 @@ export default function BookPage() {
   const [targetName, setTargetName] = useState('')
   const [consultationFee, setConsultationFee] = useState('')
   const [proceduralFee, setProceduralFee] = useState('')
+  const [professionalFee, setProfessionalFee] = useState('')
   const [caseType, setCaseType] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -82,6 +83,7 @@ export default function BookPage() {
     setTargetName(p.get('name') || '')
     setConsultationFee(p.get('fee') || '')
     setProceduralFee(p.get('procedural_fee') || '')
+    setProfessionalFee(p.get('professional_fee') || '')
   }, [router])
 
   const consultationFeeNum = parseFloat(consultationFee) || 0
@@ -134,7 +136,7 @@ export default function BookPage() {
           booking_fee: String(totalDueNow),
           consultation_fee: consultationFee,
           procedural_fee: proceduralFee,
-          professional_fee: '',
+          professional_fee: professionalFee,
           payment_method: paymentMethod, payment_reference: paymentRef,
           payment_status: paymentRef ? 'pending_verification' : 'none',
           preferred_date: preferredDate, preferred_time: preferredTime,
@@ -315,7 +317,9 @@ export default function BookPage() {
                 </div>
                 <div className="flex justify-between border-t border-neutral-700/30 pt-2 mt-1">
                   <span className="text-neutral-400">Professional Fee <span className="text-emerald-400 text-xs ml-1">negotiable</span></span>
-                  <span className="text-neutral-500 text-xs italic">Agreed after acceptance</span>
+                  <span className="text-neutral-500 text-xs italic">
+                    {parseFloat(professionalFee) > 0 ? `${parseFloat(professionalFee).toLocaleString()} XAF (indicative)` : 'Agreed after acceptance'}
+                  </span>
                 </div>
                 <div className="flex justify-between border-t border-gold-500/30 pt-2 mt-1">
                   <span className="text-gold-300 font-semibold">Due Now</span>

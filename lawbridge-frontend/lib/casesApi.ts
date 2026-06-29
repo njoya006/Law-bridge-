@@ -141,7 +141,12 @@ export type LawyerProfile = {
   bar_number: string
   years_of_experience: number
   bijural_flag: string
+  /** Compulsory consultation fee */
   consultation_fee: string
+  /** Compulsory procedural/court filing fee */
+  procedural_fee?: string
+  /** Negotiable professional representation fee (0 or absent = TBD) */
+  professional_fee?: string
   availability_status: string
   practice_circuit?: string
   accepted_case_types?: string

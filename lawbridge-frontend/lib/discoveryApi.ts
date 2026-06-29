@@ -16,6 +16,8 @@ export type LawyerDiscovery = {
   qualifications: string
   bar_number: string
   consultation_fee: string | null
+  procedural_fee?: string | null
+  professional_fee?: string | null
   availability_status: 'available' | 'busy' | 'on_leave' | 'inactive'
   practice_circuit: string
   accepted_case_types: string

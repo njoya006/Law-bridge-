@@ -17,7 +17,7 @@ class LawyerProfileSerializer(serializers.ModelSerializer):
         model = LawyerProfile
         fields = (
             'id', 'user_id', 'full_name', 'specialization', 'qualifications', 'bio',
-            'bar_number', 'years_of_experience', 'bijural_flag', 'consultation_fee',
+            'bar_number', 'years_of_experience', 'bijural_flag', 'consultation_fee', 'procedural_fee', 'professional_fee',
             'availability_status',
             'max_active_cases', 'practice_circuit', 'accepted_case_types',
             'accepts_urgent_cases', 'consultation_mode',
@@ -35,7 +35,7 @@ class LawyerProfileUpdateSerializer(serializers.ModelSerializer):
         model = LawyerProfile
         fields = (
             'specialization', 'qualifications', 'bio',
-            'bar_number', 'years_of_experience', 'bijural_flag', 'consultation_fee',
+            'bar_number', 'years_of_experience', 'bijural_flag', 'consultation_fee', 'procedural_fee', 'professional_fee',
             'availability_status',
             'max_active_cases', 'practice_circuit', 'accepted_case_types',
             'accepts_urgent_cases', 'consultation_mode',

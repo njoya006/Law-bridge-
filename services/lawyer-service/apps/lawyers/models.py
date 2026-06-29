@@ -53,7 +53,9 @@ class LawyerProfile(models.Model):
     bijural_flag = models.CharField(max_length=32, choices=BIJURAL_CHOICES)
     
     # Pricing
-    consultation_fee = models.DecimalField(max_digits=12, decimal_places=2)  # XAF
+    consultation_fee = models.DecimalField(max_digits=12, decimal_places=2)  # XAF — compulsory
+    procedural_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # Compulsory court/filing fees
+    professional_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # Negotiable representation fee (0 = TBD)
     
     # Status
     availability_status = models.CharField(

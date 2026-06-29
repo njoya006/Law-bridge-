@@ -67,6 +67,9 @@ export default function LawyerDetailPage() {
 
   const initials = (lawyer.name || '?').split(' ').map((w: string) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
   const fee = lawyer.consultation_fee ? `${parseFloat(lawyer.consultation_fee).toLocaleString()} XAF` : 'Fee on request'
+  const procFee = parseFloat(lawyer.procedural_fee || '0') || 0
+  const profFee = parseFloat(lawyer.professional_fee || '0') || 0
+  const bookHref = `/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}&procedural_fee=${procFee}&professional_fee=${profFee}`
   const availableSlots = (lawyer.availability_slots ?? []).filter(s => s.is_available)
   const caseTypes = lawyer.accepted_case_types ? lawyer.accepted_case_types.split(',').map(s => s.trim()).filter(Boolean) : []
 
@@ -130,11 +133,30 @@ export default function LawyerDetailPage() {
 
           {/* Book CTA */}
           <div className="sm:text-right space-y-2">
-            <p className="text-xs text-neutral-500">Consultation fee</p>
-            <p className="text-gold-400 font-bold text-xl">{fee}</p>
+            <div className="space-y-1 text-sm">
+              <div className="flex sm:justify-end gap-2 items-baseline">
+                <span className="text-xs text-neutral-500">Consultation</span>
+                <span className="text-gold-400 font-bold text-lg">{fee}</span>
+                <span className="text-amber-400 text-[10px]">compulsory</span>
+              </div>
+              {procFee > 0 && (
+                <div className="flex sm:justify-end gap-2 items-baseline">
+                  <span className="text-xs text-neutral-500">Procedural</span>
+                  <span className="text-gold-300 font-medium">{procFee.toLocaleString()} XAF</span>
+                  <span className="text-amber-400 text-[10px]">compulsory</span>
+                </div>
+              )}
+              {profFee > 0 && (
+                <div className="flex sm:justify-end gap-2 items-baseline">
+                  <span className="text-xs text-neutral-500">Professional</span>
+                  <span className="text-emerald-400 font-medium">{profFee.toLocaleString()} XAF</span>
+                  <span className="text-emerald-400 text-[10px]">negotiable</span>
+                </div>
+              )}
+            </div>
             {lawyer.availability_status === 'available' && (
               <Link
-                href={`/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}`}
+                href={bookHref}
                 className="inline-block px-5 py-2.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-black font-semibold text-sm transition-colors"
               >
                 Book Consultation
@@ -248,7 +270,7 @@ export default function LawyerDetailPage() {
             </p>
             {lawyer.availability_status === 'available' ? (
               <Link
-                href={`/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}`}
+                href={bookHref}
                 className="w-full block text-center px-4 py-2.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-black font-semibold text-sm transition-colors"
               >
                 Book Consultation

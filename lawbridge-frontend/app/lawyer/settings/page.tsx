@@ -84,11 +84,12 @@ const DEFAULT_CASE_PREFS: CasePrefs = {
   availability_status: 'available',
 }
 
-type Tab = 'availability' | 'caseprefs' | 'notifications' | 'language' | 'security'
+type Tab = 'availability' | 'caseprefs' | 'fees' | 'notifications' | 'language' | 'security'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'availability', label: 'Availability Schedule' },
   { id: 'caseprefs', label: 'Case Preferences' },
+  { id: 'fees', label: 'Fees' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'language', label: 'Language & Locale' },
   { id: 'security', label: 'Security' },
@@ -433,6 +434,12 @@ export default function LawyerSettingsPage() {
   const [caseError, setCaseError] = useState('')
   const [caseSuccess, setCaseSuccess] = useState(false)
 
+  // Fee state
+  const [fees, setFees] = useState({ consultation_fee: '', procedural_fee: '', professional_fee: '' })
+  const [feesSaving, setFeesSaving] = useState(false)
+  const [feesError, setFeesError] = useState('')
+  const [feesSuccess, setFeesSuccess] = useState(false)
+
   // Password state
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
   const [pwError, setPwError] = useState('')
@@ -450,8 +457,8 @@ export default function LawyerSettingsPage() {
           .then(data => setPrefs(prev => ({ ...prev, ...data })))
           .catch(() => {}),
 
-        // Load lawyer profile for case preferences
-        api.get<{ availability_status: string; max_active_cases: number; practice_circuit: string; accepted_case_types: string; accepts_urgent_cases: boolean; consultation_mode: string }>(
+        // Load lawyer profile for case preferences and fees
+        api.get<{ availability_status: string; max_active_cases: number; practice_circuit: string; accepted_case_types: string; accepts_urgent_cases: boolean; consultation_mode: string; consultation_fee?: string; procedural_fee?: string; professional_fee?: string }>(
           'lawyer', '/lawyers/me/', access
         ).then(p => {
           setCasePrefs({
@@ -461,6 +468,11 @@ export default function LawyerSettingsPage() {
             accepts_urgent_cases: p.accepts_urgent_cases ?? true,
             consultation_mode: (p.consultation_mode ?? 'both') as CasePrefs['consultation_mode'],
             availability_status: p.availability_status ?? 'available',
+          })
+          setFees({
+            consultation_fee: p.consultation_fee ?? '',
+            procedural_fee: p.procedural_fee ?? '',
+            professional_fee: p.professional_fee ?? '',
           })
         }).catch(() => setNoLawyerProfile(true)),
 
@@ -540,6 +552,25 @@ export default function LawyerSettingsPage() {
     }
   }
 
+  const handleSaveFees = async () => {
+    if (noLawyerProfile) {
+      setFeesError('Create your professional profile in Office Settings before setting fees.')
+      return
+    }
+    const access = localStorage.getItem('access')
+    if (!access) return
+    setFeesSaving(true); setFeesError(''); setFeesSuccess(false)
+    try {
+      await api.put('lawyer', '/lawyers/me/', fees, access)
+      setFeesSuccess(true)
+      setTimeout(() => setFeesSuccess(false), 3000)
+    } catch (cause) {
+      setFeesError(cause instanceof Error ? cause.message : 'Failed to save fees')
+    } finally {
+      setFeesSaving(false)
+    }
+  }
+
   return (
     <div className="max-w-4xl w-full space-y-6">
       <div>
@@ -607,6 +638,79 @@ export default function LawyerSettingsPage() {
                   saveError={caseError}
                   saveSuccess={caseSuccess}
                 />
+              )}
+
+              {activeTab === 'fees' && (
+                <Card className="p-6 space-y-6">
+                  <div>
+                    <h2 className="font-heading text-body-lg text-neutral-50 mb-1">Fee Structure</h2>
+                    <p className="text-neutral-400 text-body-sm">Set the fees you charge clients. Consultation and procedural fees are compulsory and shown upfront. Professional fees are negotiable and indicated as a starting point.</p>
+                  </div>
+
+                  <div className="space-y-5">
+                    <div>
+                      <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-2">
+                        Consultation Fee (XAF) <span className="text-amber-400 ml-1">Compulsory</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={fees.consultation_fee}
+                        onChange={e => setFees(f => ({ ...f, consultation_fee: e.target.value }))}
+                        placeholder="e.g. 25000"
+                        className="w-full max-w-xs rounded-lg px-4 py-3 bg-primary-900/60 text-neutral-50 border border-neutral-700/50 focus:outline-none focus:border-gold-500/50"
+                      />
+                      <p className="text-xs text-neutral-500 mt-1">Charged at booking time. Refunded if you decline the booking.</p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-2">
+                        Procedural Fee (XAF) <span className="text-amber-400 ml-1">Compulsory</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={fees.procedural_fee}
+                        onChange={e => setFees(f => ({ ...f, procedural_fee: e.target.value }))}
+                        placeholder="e.g. 10000"
+                        className="w-full max-w-xs rounded-lg px-4 py-3 bg-primary-900/60 text-neutral-50 border border-neutral-700/50 focus:outline-none focus:border-gold-500/50"
+                      />
+                      <p className="text-xs text-neutral-500 mt-1">Court filing fees, process server costs, etc. Charged at booking time.</p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-2">
+                        Professional Fee (XAF) <span className="text-emerald-400 ml-1">Negotiable</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={fees.professional_fee}
+                        onChange={e => setFees(f => ({ ...f, professional_fee: e.target.value }))}
+                        placeholder="e.g. 150000 (indicative)"
+                        className="w-full max-w-xs rounded-lg px-4 py-3 bg-primary-900/60 text-neutral-50 border border-neutral-700/50 focus:outline-none focus:border-gold-500/50"
+                      />
+                      <p className="text-xs text-neutral-500 mt-1">Ongoing legal representation fee. Shown as indicative — agreed directly with the client after acceptance. Leave 0 if fully negotiable.</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-gold-500/20 bg-gold-500/5 p-4 text-sm text-neutral-300">
+                    <p className="font-medium text-gold-300 mb-1">How fees work</p>
+                    <ul className="space-y-1 text-xs text-neutral-400 list-disc pl-4">
+                      <li><strong className="text-amber-300">Consultation + Procedural fees</strong> — collected at booking time via Mobile Money or bank transfer.</li>
+                      <li><strong className="text-emerald-300">Professional fee</strong> — discussed and agreed with the client after you accept the booking.</li>
+                      <li>The secretary can view and verify all payment records.</li>
+                    </ul>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <Button onClick={handleSaveFees} disabled={feesSaving}>
+                      {feesSaving ? 'Saving…' : 'Save Fees'}
+                    </Button>
+                    {feesSuccess && <span className="text-emerald-400 text-sm">Fees saved ✓</span>}
+                    {feesError && <span className="text-crimson-300 text-sm">{feesError}</span>}
+                  </div>
+                </Card>
               )}
 
               {activeTab === 'notifications' && (
