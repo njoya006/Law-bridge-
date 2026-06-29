@@ -11,7 +11,7 @@ import {
   REASSIGNMENT_REASONS,
   type CaseItem, type ReassignmentRequest, type ConflictFlags, type WorkflowStatusMsg,
 } from '../../../lib/casesApi'
-import { buildWorkflow } from '../../../lib/workflow'
+import { buildWorkflow, LAWYER_ACTIONS } from '../../../lib/workflow'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -277,14 +277,19 @@ function StatusUpdatePanel({ caseItem, onUpdated }: { caseItem: CaseItem; onUpda
   return (
     <div className="rounded-2xl border border-gold-400/20 bg-gradient-to-b from-gold-950/20 to-transparent p-5 space-y-4">
       {/* Panel header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse flex-shrink-0" />
-          <p className="font-heading text-sm font-semibold text-gold-300">Advance Case</p>
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-gold-400 animate-pulse flex-shrink-0" />
+            <p className="font-heading text-sm font-semibold text-gold-300">Advance Case</p>
+          </div>
+          <span className="text-xs font-semibold text-neutral-200 bg-primary-800/60 border border-neutral-700/40 rounded-full px-2.5 py-0.5">
+            {STATUS_LABELS[caseItem.status] ?? caseItem.status}
+          </span>
         </div>
-        <span className="text-xs text-neutral-500">
-          Current: <span className="text-neutral-300 font-medium">{STATUS_LABELS[caseItem.status] ?? caseItem.status}</span>
-        </span>
+        {LAWYER_ACTIONS[caseItem.status] && (
+          <p className="text-xs text-neutral-500 leading-relaxed pl-4">{LAWYER_ACTIONS[caseItem.status]}</p>
+        )}
       </div>
 
       {isTerminal && (

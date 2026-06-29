@@ -155,3 +155,23 @@ export function buildWorkflow(caseType: string, currentStatus: string) {
     transition_previews: previews,
   }
 }
+
+// ── Lawyer-facing action prompts ─────────────────────────────────────────────
+// What the lawyer should DO at each stage — shown in lawyer-only views.
+
+export const LAWYER_ACTIONS: Record<string, string> = {
+  filed:               'Case is registered. Begin your initial review of the client\'s submission.',
+  under_review:        'Analyse the facts, assess legal merits, and develop a strategy. Contact the client if further details are needed.',
+  evidence_collection: 'Gather documents, contracts, witness statements, and any supporting evidence from the client.',
+  awaiting_court_date: 'File all required court documents and monitor scheduling. Prepare the client for what to expect.',
+  hearing_scheduled:   'Prepare your arguments, review all evidence, and brief the client on the hearing process.',
+  hearing_adjourned:   'Coordinate with the court clerk for the earliest available rescheduled date.',
+  in_progress:         'Argue the case at each session. Keep the client informed after every appearance.',
+  mediation:           'Represent the client in mediation sessions and aim for a fair, enforceable settlement.',
+  verdict:             'Review the judgment with the client. Advise on enforcement or appeal options with strict attention to deadlines.',
+  settled:             'Draft and execute the settlement agreement. Ensure all terms are clearly documented.',
+  appeal_filed:        'Prepare the appellate brief. Compile the complete record from the original trial.',
+  appeal_in_progress:  'Present arguments to the appellate court. Keep the client updated on hearings and decisions.',
+  closed:              'Archive all case files. Confirm with the client that all obligations are fulfilled.',
+  dismissed:           'Explain the grounds to the client. Advise promptly on re-filing, appeal, or alternatives.',
+}

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { api } from '../../../lib/api'
 import { acceptBooking, declineBooking, STATUS_LABELS, CaseItem as Booking, BookingMeta } from '../../../lib/casesApi'
-import { buildWorkflow } from '../../../lib/workflow'
+import { buildWorkflow, LAWYER_ACTIONS } from '../../../lib/workflow'
 
 function formatDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) }
@@ -457,39 +457,66 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
             const nextStatus = wf.next_status
             const stages = wf.stages
             const currentIdx = stages.indexOf(booking.status)
-            const nextMsg = nextStatus ? wf.transition_previews[nextStatus] : null
+            const currentAction = LAWYER_ACTIONS[booking.status]
+            const nextAction = nextStatus ? LAWYER_ACTIONS[nextStatus] : null
+            const nextClientMsg = nextStatus ? wf.transition_previews[nextStatus] : null
             return (
               <div className="space-y-3">
-                <div className="rounded-xl border border-neutral-700/30 bg-primary-900/50 p-4 space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-neutral-500 uppercase tracking-wide font-semibold">Current stage</span>
-                    <span className="font-medium text-neutral-200">{STATUS_LABELS[booking.status] ?? booking.status}</span>
+                {/* Stage card */}
+                <div className="rounded-xl border border-neutral-700/30 bg-primary-900/50 divide-y divide-neutral-800/60">
+                  {/* Current */}
+                  <div className="px-4 py-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-neutral-500 uppercase tracking-wide font-semibold">Your current stage</span>
+                      <span className="text-xs font-semibold text-neutral-200">{STATUS_LABELS[booking.status] ?? booking.status}</span>
+                    </div>
+                    {currentAction && (
+                      <p className="text-xs text-neutral-400 leading-relaxed">{currentAction}</p>
+                    )}
                   </div>
+
+                  {/* Suggested next */}
                   {nextStatus && (
-                    <div className="flex items-center justify-between text-xs pt-2 border-t border-neutral-800/60">
-                      <span className="text-neutral-500 uppercase tracking-wide font-semibold">Suggested next</span>
-                      <span className="font-semibold text-gold-300">{STATUS_LABELS[nextStatus] ?? nextStatus}</span>
+                    <div className="px-4 py-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-gold-500/80 uppercase tracking-wide font-semibold">Recommended next step</span>
+                        <span className="text-xs font-semibold text-gold-300">{STATUS_LABELS[nextStatus] ?? nextStatus}</span>
+                      </div>
+                      {nextAction && (
+                        <p className="text-xs text-neutral-400 leading-relaxed">{nextAction}</p>
+                      )}
+                      {/* Client notification preview — clearly labelled */}
+                      {nextClientMsg && (
+                        <div className="mt-2 rounded-lg border border-neutral-700/40 bg-neutral-800/30 px-3 py-2">
+                          <p className="text-[10px] text-neutral-600 uppercase tracking-wide font-semibold mb-0.5">
+                            Client will be notified
+                          </p>
+                          <p className="text-[11px] text-neutral-500 italic">"{nextClientMsg.headline}"</p>
+                        </div>
+                      )}
                     </div>
                   )}
-                  {nextMsg && (
-                    <p className="text-xs text-neutral-500 leading-relaxed pt-1">{nextMsg.headline} — {nextMsg.next}</p>
-                  )}
+
+                  {/* Progress bar */}
                   {currentIdx >= 0 && (
-                    <div className="pt-2">
-                      <div className="h-1 rounded-full bg-neutral-800">
+                    <div className="px-4 py-3">
+                      <div className="flex items-center justify-between text-[10px] text-neutral-600 mb-1.5">
+                        <span>Case progress</span>
+                        <span>{currentIdx + 1} of {stages.length} stages</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-neutral-800">
                         <div
-                          className="h-1 rounded-full bg-gradient-to-r from-gold-500 to-gold-400 transition-all"
+                          className="h-1.5 rounded-full bg-gradient-to-r from-gold-600 to-gold-400 transition-all"
                           style={{ width: `${Math.round(((currentIdx + 1) / stages.length) * 100)}%` }}
                         />
                       </div>
-                      <p className="text-[10px] text-neutral-600 mt-1">{currentIdx + 1} of {stages.length} stages complete</p>
                     </div>
                   )}
                 </div>
 
                 <Link
                   href={`/cases/${booking.id}`}
-                  className="flex items-center justify-between w-full rounded-xl border border-gold-400/30 bg-gold-500/8 px-4 py-3.5 hover:border-gold-400/60 hover:bg-gold-500/15 transition-all"
+                  className="flex items-center justify-between w-full rounded-xl border border-gold-400/30 bg-gold-500/5 px-4 py-3.5 hover:border-gold-400/60 hover:bg-gold-500/10 transition-all"
                 >
                   <div>
                     <p className="text-sm font-semibold text-gold-300">Open Case Manager</p>
