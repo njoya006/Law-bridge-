@@ -1,6 +1,6 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views import RegisterView, MeView, UserLookupView, PreferencesView, AvatarUploadView, AvatarServeView, PasswordChangeView
+from .views import RegisterView, MeView, UserLookupView, UserDetailView, PreferencesView, AvatarUploadView, AvatarServeView, PasswordChangeView
 from .serializers import CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -18,4 +18,5 @@ urlpatterns = [
     path('avatars/<uuid:user_uuid>/', AvatarServeView.as_view(), name='avatar-serve'),
     path('preferences/', PreferencesView.as_view(), name='preferences'),
     path('users/', UserLookupView.as_view(), name='user-lookup'),
+    path('users/<uuid:user_id>/', UserDetailView.as_view(), name='user-detail'),
 ]

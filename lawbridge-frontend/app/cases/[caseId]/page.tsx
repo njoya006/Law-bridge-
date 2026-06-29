@@ -12,6 +12,7 @@ import {
   type CaseItem, type ReassignmentRequest, type ConflictFlags, type WorkflowStatusMsg,
 } from '../../../lib/casesApi'
 import { buildWorkflow, LAWYER_ACTIONS } from '../../../lib/workflow'
+import { ClientCard, LawyerCard } from '../../../components/IdentityCards'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -1529,10 +1530,14 @@ export default function CaseDetailPage() {
             </div>
           ))}
         </div>
-        {item.assigned_lawyer_id && (
-          <div className="px-5 py-3">
-            <p className="text-xs text-neutral-500 uppercase tracking-wide">Assigned Lawyer</p>
-            <p className="text-sm text-neutral-200 mt-0.5 font-mono">{item.assigned_lawyer_id}</p>
+        {item.client_id && isLawyer && (
+          <div className="p-2">
+            <ClientCard clientId={item.client_id} clientEmail={item.booking_metadata?.client_email} />
+          </div>
+        )}
+        {item.assigned_lawyer_id && !isLawyer && (
+          <div className="p-2">
+            <LawyerCard lawyerUserId={item.assigned_lawyer_id} fallbackName={item.booking_metadata?.target_name} />
           </div>
         )}
       </div>

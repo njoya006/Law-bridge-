@@ -44,6 +44,27 @@ class UserLookupView(APIView):
         return Response(serializer.data)
 
 
+class UserDetailView(APIView):
+    """GET /api/v1/auth/users/<user_id>/ — fetch a user's profile by UUID.
+    Used by lawyers to identify their clients, and by the case service.
+    Requires a valid JWT (any authenticated user may look up any profile).
+    """
+
+    def get(self, request, user_id):
+        try:
+            import uuid as uuid_lib
+            user = User.objects.get(id=uuid_lib.UUID(str(user_id)))
+        except (User.DoesNotExist, ValueError):
+            return Response({'detail': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({
+            'id':        str(user.id),
+            'full_name': user.full_name or '',
+            'email':     user.email,
+            'role':      user.role,
+            'avatar':    user.avatar or None,
+        })
+
+
 class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 

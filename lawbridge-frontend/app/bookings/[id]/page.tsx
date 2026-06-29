@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { api } from '../../../lib/api'
 import { acceptBooking, declineBooking, STATUS_LABELS, CaseItem as Booking, BookingMeta } from '../../../lib/casesApi'
 import { buildWorkflow, LAWYER_ACTIONS } from '../../../lib/workflow'
+import { ClientCard, LawyerCard } from '../../../components/IdentityCards'
 
 function formatDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) }
@@ -70,6 +71,11 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
         <p className="text-neutral-400 text-sm max-w-md mx-auto">{cfg.sub}</p>
         <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.color} border ${cfg.border}`}>{cfg.label}</span>
       </div>
+
+      {/* Lawyer identity card — always shown to client */}
+      {booking.assigned_lawyer_id && (
+        <LawyerCard lawyerUserId={booking.assigned_lawyer_id} fallbackName={meta.target_name} />
+      )}
 
       {/* Booking Details */}
       <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6 space-y-4">
@@ -343,6 +349,9 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
           <p className="text-neutral-400 text-sm mt-0.5">{statusBanner.sub}</p>
         </div>
       </div>
+
+      {/* Client identity card */}
+      <ClientCard clientId={booking.client_id} clientEmail={meta.client_email} />
 
       {/* Client's Request */}
       <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6 space-y-4">

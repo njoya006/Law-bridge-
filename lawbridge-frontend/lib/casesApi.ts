@@ -114,6 +114,49 @@ export const STATUS_ORDER = Object.keys(STATUS_LABELS)
 
 export const TERMINAL_STATUSES = new Set(['closed', 'dismissed', 'archived', 'settled', 'verdict'])
 
+// ── Identity / profile types ──────────────────────────────────────────────────
+
+export type UserProfile = {
+  id: string
+  full_name: string
+  email: string
+  role: string
+  avatar?: string | null
+}
+
+export type LawyerProfile = {
+  id: string
+  user_id: string
+  full_name: string
+  specialization: string
+  qualifications?: string
+  bio?: string
+  bar_number: string
+  years_of_experience: number
+  bijural_flag: string
+  consultation_fee: string
+  availability_status: string
+  practice_circuit?: string
+  accepted_case_types?: string
+  accepts_urgent_cases?: boolean
+  consultation_mode?: string
+  active_cases?: number
+  total_cases?: number
+  average_rating?: string
+  rating_count?: number
+  verified_at?: string | null
+}
+
+/** Fetch a user's basic profile by their UUID (requires auth). */
+export function getUserById(userId: string, token: string) {
+  return api.get<UserProfile>('auth', `/auth/users/${userId}/`, token)
+}
+
+/** Fetch a lawyer's full profile by their auth-service user UUID (public). */
+export function getLawyerProfile(userUuid: string) {
+  return api.get<LawyerProfile>('lawyer', `/lawyers/${userUuid}/`)
+}
+
 export function getOpenCases(token: string) {
   return api.get<{ count: number; results: CaseItem[] }>('case', '/cases/open/', token)
 }
