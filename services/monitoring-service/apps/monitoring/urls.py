@@ -1,10 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import CaseProgressViewSet, LawyerStatsViewSet, InternalCaseSyncView
+from .views import CaseProgressViewSet, LawyerStatsViewSet, InternalCaseSyncView, ReportRequestViewSet
 
 router = DefaultRouter()
 router.register(r'case-progress', CaseProgressViewSet, basename='case-progress')
 router.register(r'lawyer-stats', LawyerStatsViewSet, basename='lawyer-stats')
+router.register(r'report-requests', ReportRequestViewSet, basename='report-requests')
 
 urlpatterns = [
     path('', include(router.urls)),

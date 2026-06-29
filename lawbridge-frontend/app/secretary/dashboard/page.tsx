@@ -6,6 +6,7 @@ import { Card } from '../../../components/ui/Card'
 import { getIncomingBookings, assignCase, acceptBooking, declineBooking, type CaseItem } from '../../../lib/casesApi'
 import { listReportRequests, updateReportRequestStatus, REPORT_TYPE_LABELS, PERIOD_LABELS, type ReportRequest } from '../../../lib/reportRequestsApi'
 import { getMyFirmMemberships, getFirmLawyers, type FirmLawyer } from '../../../lib/firmsApi'
+import { ChartBarIcon, UsersIcon } from '../../../components/icons/Icons'
 
 function fmtDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) } catch { return iso }
@@ -188,8 +189,12 @@ export default function SecretaryDashboardPage() {
           <p className="mt-1 text-sm text-neutral-400">{firmId ? `Firm #${firmId} · ` : ''}Bookings, payments &amp; reports</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Link href="/secretary/reports" className="px-3 py-2 rounded-lg bg-gold-500/20 border border-gold-500/30 text-gold-300 text-sm font-medium hover:bg-gold-500/30 transition-colors">📊 Generate Reports</Link>
-          <Link href="/secretary/members" className="px-3 py-2 rounded-lg border border-neutral-700 text-neutral-300 hover:text-neutral-100 text-sm transition-colors">👥 Members</Link>
+          <Link href="/secretary/reports" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gold-500/20 border border-gold-500/30 text-gold-300 text-sm font-medium hover:bg-gold-500/30 transition-colors">
+            <ChartBarIcon className="w-4 h-4" width={16} height={16} />Generate Reports
+          </Link>
+          <Link href="/secretary/members" className="flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-700 text-neutral-300 hover:text-neutral-100 text-sm transition-colors">
+            <UsersIcon className="w-4 h-4" width={16} height={16} />Members
+          </Link>
         </div>
       </header>
 
@@ -375,7 +380,9 @@ export default function SecretaryDashboardPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-neutral-400">Report requests from firm admins and partners.</p>
-                <Link href="/secretary/reports" className="px-3 py-1.5 rounded-lg bg-gold-500/20 border border-gold-500/30 text-gold-300 text-xs font-medium hover:bg-gold-500/30 transition-colors">📊 Generate a Report →</Link>
+                <Link href="/secretary/reports" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-500/20 border border-gold-500/30 text-gold-300 text-xs font-medium hover:bg-gold-500/30 transition-colors">
+                  <ChartBarIcon className="w-3.5 h-3.5" width={14} height={14} />Generate a Report →
+                </Link>
               </div>
               {reportRequests.length === 0 ? (
                 <Card className="p-8 text-center">

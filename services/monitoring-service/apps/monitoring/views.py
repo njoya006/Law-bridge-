@@ -6,8 +6,9 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .models import CaseProgressSnapshot, LawyerStats
-from .serializers import CaseProgressSnapshotSerializer, LawyerStatsSerializer
+from rest_framework.decorators import action
+from .models import CaseProgressSnapshot, LawyerStats, ReportRequest
+from .serializers import CaseProgressSnapshotSerializer, LawyerStatsSerializer, ReportRequestSerializer
 
 
 def _get_user_id(request):
@@ -78,3 +79,26 @@ class InternalCaseSyncView(APIView):
             _refresh_lawyer_stats(lawyer_id)
 
         return Response({'created': created, 'case_id': case_id})
+
+
+class ReportRequestViewSet(viewsets.ModelViewSet):
+    serializer_class = ReportRequestSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'post', 'patch', 'head', 'options']
+
+    def get_queryset(self):
+        firm_id = self.request.query_params.get('firm_id')
+        if firm_id:
+            return ReportRequest.objects.filter(firm_id=firm_id)
+        return ReportRequest.objects.none()
+
+    @action(detail=True, methods=['patch'], url_path='update_status')
+    def update_status(self, request, pk=None):
+        obj = self.get_object()
+        new_status = request.data.get('status')
+        valid = ['pending', 'acknowledged', 'generated', 'delivered']
+        if new_status not in valid:
+            return Response({'error': f'Invalid status. Choose from: {valid}'}, status=400)
+        obj.status = new_status
+        obj.save(update_fields=['status', 'updated_at'])
+        return Response(self.get_serializer(obj).data)

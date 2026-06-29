@@ -8,6 +8,7 @@ import { getLawyerStats, type LawyerStats } from '../../../../lib/monitoringApi'
 import { listEventsForCases, type CalendarEvent } from '../../../../lib/calendarApi'
 import { getMyFirmMemberships, type FirmMembership } from '../../../../lib/firmsApi'
 import { createReportRequest, listReportRequests, updateReportRequestStatus, REPORT_TYPE_LABELS, PERIOD_LABELS, type ReportRequest } from '../../../../lib/reportRequestsApi'
+import { ChartBarIcon, SendIcon } from '../../../../components/icons/Icons'
 
 function formatRelative(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -110,7 +111,7 @@ function ReportRequestModal({
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-neutral-700 text-neutral-300 hover:text-neutral-100 text-sm transition-colors">Cancel</button>
             <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-lg bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-black font-semibold text-sm transition-colors">
-              {saving ? 'Sending…' : 'Send to Secretary'}
+              {saving ? 'Sending…' : <span className="flex items-center gap-1.5"><SendIcon className="w-3.5 h-3.5" width={14} height={14} />Send to Secretary</span>}
             </button>
           </div>
         </form>
@@ -211,9 +212,10 @@ export default function MyOfficePage() {
           {firmId && (
             <button
               onClick={() => setShowReportModal(true)}
-              className="px-3 py-2 rounded-lg border border-neutral-700/50 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-sm transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-700/50 text-neutral-300 hover:text-neutral-100 hover:border-neutral-500 text-sm transition-colors"
             >
-              📊 Request Report
+              <ChartBarIcon className="w-4 h-4" width={16} height={16} />
+              Request Report
             </button>
           )}
           <Link href="/lawyer/matters" className="px-4 py-2 rounded-lg bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors">

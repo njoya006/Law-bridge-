@@ -168,3 +168,34 @@ export const LawIcon = ({ className = 'w-5 h-5', width = 20, height = 20 }: Icon
     <path d="M10 14L12 16L16 10" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
+
+export const ChartBarIcon = ({ className = 'w-5 h-5', width = 20, height = 20 }: IconProps) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <rect x="3" y="12" width="4" height="9" />
+    <rect x="10" y="7" width="4" height="14" />
+    <rect x="17" y="3" width="4" height="18" />
+  </svg>
+)
+
+export const UsersIcon = ({ className = 'w-5 h-5', width = 20, height = 20 }: IconProps) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+)
+
+export const InboxIcon = ({ className = 'w-5 h-5', width = 20, height = 20 }: IconProps) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <polyline points="22 13 16 13 14 16 10 16 8 13 2 13" />
+    <path d="M5.45 5.11L2 13v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-7.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+  </svg>
+)
+
+export const SendIcon = ({ className = 'w-5 h-5', width = 20, height = 20 }: IconProps) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </svg>
+)
