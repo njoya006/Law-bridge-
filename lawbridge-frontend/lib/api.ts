@@ -8,7 +8,10 @@ type RequestOptions = RequestInit & {
 function buildUrl(service: ServiceName, path: string) {
   const base = SERVICE_URLS[service].replace(/\/$/, '')
   const suffix = path.startsWith('/') ? path : `/${path}`
-  return `${base}${suffix}`
+  // Strip trailing slash — Vercel's edge normalizer issues a 308 redirect for
+  // URLs ending in '/', which Safari/iOS fetch() mishandles for POST requests.
+  // The nginx gateway re-adds the trailing slash before forwarding to Django.
+  return `${base}${suffix}`.replace(/\/$/, '')
 }
 
 function clearStoredSession() {
