@@ -11,6 +11,7 @@ import {
   REASSIGNMENT_REASONS,
   type CaseItem, type ReassignmentRequest, type ConflictFlags, type WorkflowStatusMsg,
 } from '../../../lib/casesApi'
+import { buildWorkflow } from '../../../lib/workflow'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -97,8 +98,7 @@ function TimelineEntry({
 // ── Client: Case Progress stepper ─────────────────────────────────────────────
 
 function CaseProgressCard({ caseItem }: { caseItem: CaseItem }) {
-  const wf = caseItem.workflow
-  if (!wf) return null
+  const wf = caseItem.workflow ?? buildWorkflow(caseItem.case_type, caseItem.status)
 
   const stages = wf.stages
   const currentIdx = stages.indexOf(caseItem.status)
@@ -236,12 +236,12 @@ function CaseProgressCard({ caseItem }: { caseItem: CaseItem }) {
 // ── Lawyer: Smart status update panel ─────────────────────────────────────────
 
 function StatusUpdatePanel({ caseItem, onUpdated }: { caseItem: CaseItem; onUpdated: (updated: CaseItem) => void }) {
-  const wf = caseItem.workflow
-  const nextStatus      = wf?.next_status ?? null
-  const allowedList     = wf?.allowed_transitions?.length
+  const wf = caseItem.workflow ?? buildWorkflow(caseItem.case_type, caseItem.status)
+  const nextStatus      = wf.next_status ?? null
+  const allowedList     = wf.allowed_transitions?.length
     ? wf.allowed_transitions
     : STATUS_ORDER.filter(s => s !== caseItem.status)
-  const previews        = wf?.transition_previews ?? {}
+  const previews        = wf.transition_previews ?? {}
 
   const [chosenStatus, setChosenStatus] = useState<string>(nextStatus ?? allowedList[0] ?? '')
   const [showAdvanced, setShowAdvanced]  = useState(!nextStatus)
