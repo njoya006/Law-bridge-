@@ -148,7 +148,7 @@ export default function BookPage() {
       try {
         await createCalendarEvent({
           case_id: caseData.id,
-          event_type: 'consultation',
+          event_type: 'meeting',
           date: preferredDate,
           time: preferredTime,
           location: consultationType === 'in_person' ? location : 'Virtual',
