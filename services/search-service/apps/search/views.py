@@ -22,7 +22,7 @@ def search(request):
     
     try:
         language = detect(query)
-    except:
+    except Exception:
         language = 'en'
     
     cache_key = f"search:{hashlib.md5(query.encode()).hexdigest()}:{language}:{search_type}"

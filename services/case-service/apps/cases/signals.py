@@ -1,7 +1,10 @@
 import json
+import logging
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import Case
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(post_save, sender=Case)
@@ -28,7 +31,7 @@ def publish_case_update_event(sender, instance, created, **kwargs):
         r = redis.from_url(redis_url)
         r.publish('case.updated', json.dumps(event))
     except Exception as e:
-        print(f"Failed to publish case update event to Redis: {e}")
+        logger.error("Failed to publish case update event to Redis: %s", e)
 
     # Path 2: Direct HTTP push to monitoring-service (immediate, no consumer lag)
     try:
@@ -45,4 +48,4 @@ def publish_case_update_event(sender, instance, created, **kwargs):
         )
         urllib_req.urlopen(req, timeout=3)
     except Exception as e:
-        print(f"Failed to direct-push to monitoring service: {e}")
+        logger.error("Failed to direct-push to monitoring service: %s", e)

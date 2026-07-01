@@ -1,3 +1,4 @@
+import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
@@ -12,6 +13,16 @@ from .models import Case, CaseNote, CaseApplication, ReassignmentRequest, Intake
 from .serializers import CaseSerializer, CaseCreateSerializer, CaseNoteSerializer, ReassignmentRequestSerializer
 from apps.conflicts.models import ConflictCheck
 
+from rest_framework.pagination import PageNumberPagination
+
+logger = logging.getLogger(__name__)
+
+
+class StandardPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 200
+
 
 def extract_user_id_from_token(request):
     """Extract user_id UUID from JWT token"""
@@ -21,8 +32,8 @@ def extract_user_id_from_token(request):
             token = auth_header.split(' ')[1]
             payload = jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
             return payload.get('user_id')
-        except:
-            pass
+        except Exception as exc:
+            logger.warning("JWT decode failed in extract_user_id_from_token: %s", exc)
     return str(request.user.id)
 
 
@@ -148,18 +159,17 @@ class CaseListView(APIView):
             auth_header = get_auth_header(request)
             firm_uuids = get_firm_member_uuids(auth_header) if auth_header else set()
             if firm_uuids:
-                cases = Case.objects.filter(assigned_lawyer_id__in=firm_uuids)
+                cases = Case.objects.filter(assigned_lawyer_id__in=firm_uuids).prefetch_related('notes')
             else:
                 cases = Case.objects.none()
         elif role in STAFF_ROLES:
-            cases = Case.objects.filter(assigned_lawyer_id=user_id)
+            cases = Case.objects.filter(assigned_lawyer_id=user_id).prefetch_related('notes')
         else:
-            cases = Case.objects.filter(client_id=user_id)
-        serializer = CaseSerializer(cases, many=True)
-        return Response({
-            'count': cases.count(),
-            'results': serializer.data
-        })
+            cases = Case.objects.filter(client_id=user_id).prefetch_related('notes')
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(cases, request)
+        serializer = CaseSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
         """POST /api/v1/cases/ - File a new case"""
@@ -224,8 +234,10 @@ class CaseAssignView(APIView):
                 'conflicting_case_ids': [str(cid) for cid in conflict_ids],
             }, status=status.HTTP_400_BAD_REQUEST)
 
+        assigning_user = payload.get('user_id', 'unknown')
         case.assigned_lawyer_id = lawyer_id
         case.add_timeline_entry('assigned', f'Assigned to lawyer {lawyer_id}')
+        logger.info("Case %s assigned to lawyer %s by user %s", case_id, lawyer_id, assigning_user)
 
         # Record this assignment so future conflict checks can detect it
         ConflictCheck.objects.get_or_create(
@@ -259,6 +271,7 @@ class BookingAcceptView(APIView):
                 if not case.assigned_lawyer_id:
                     case.assigned_lawyer_id = user_id
                 case.add_timeline_entry('filed', 'Booking accepted by lawyer/firm')
+                logger.info("Case %s booking accepted by user %s", case_id, user_id)
         except Case.DoesNotExist:
             return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
 
@@ -279,8 +292,8 @@ class BookingAcceptView(APIView):
             req = _urllib.Request('http://notification-service/api/v1/notifications/internal/create/',
                 data=notif_data, headers={'X-Internal-Key': 'dev-internal-key', 'Content-Type': 'application/json'}, method='POST')
             _urllib.urlopen(req, timeout=5)
-        except Exception:
-            pass
+        except Exception as notif_err:
+            logger.error("Notification failed for booking accept on case %s: %s", case_id, notif_err)
 
         return Response(CaseSerializer(case).data)
 
@@ -300,10 +313,12 @@ class BookingDeclineView(APIView):
             return Response({'error': 'Only lawyers and firm admins can decline bookings'}, status=status.HTTP_403_FORBIDDEN)
 
         reason = (request.data.get('reason') or '').strip()
+        user_id = payload.get('user_id') or extract_user_id_from_token(request)
         case.booking_status = 'declined'
         case.booking_metadata['decline_reason'] = reason
         case.save(update_fields=['booking_metadata'])
         case.add_timeline_entry('dismissed', f'Booking declined: {reason or "No reason provided"}')
+        logger.info("Case %s booking declined by user %s. Reason: %s", case_id, user_id, reason or 'none')
 
         try:
             import json as _json, urllib.request as _urllib
@@ -322,8 +337,8 @@ class BookingDeclineView(APIView):
             req = _urllib.Request('http://notification-service/api/v1/notifications/internal/create/',
                 data=notif_data, headers={'X-Internal-Key': 'dev-internal-key', 'Content-Type': 'application/json'}, method='POST')
             _urllib.urlopen(req, timeout=5)
-        except Exception:
-            pass
+        except Exception as notif_err:
+            logger.error("Notification failed for booking decline on case %s: %s", case_id, notif_err)
 
         return Response(CaseSerializer(case).data)
 
@@ -352,7 +367,7 @@ class IncomingBookingsView(APIView):
         # Cases directly assigned to this lawyer with a pending booking status
         q |= Q(assigned_lawyer_id=user_id, booking_status='pending')
 
-        cases = Case.objects.filter(q).exclude(booking_status='').order_by('-created_at')
+        cases = Case.objects.filter(q).exclude(booking_status='').prefetch_related('notes').order_by('-created_at')
 
         status_filter = request.query_params.get('status')
         if status_filter:
@@ -392,6 +407,7 @@ class CaseStatusUpdateView(APIView):
         old_status = case.status
         user_id = payload.get('user_id') or extract_user_id_from_token(request)
         case.add_timeline_entry(new_status, notes=note, updated_by=user_id)
+        logger.info("Case %s status changed %s → %s by user %s", case_id, old_status, new_status, user_id)
 
         # Fire bilingual in-app notification to the client
         try:
@@ -437,7 +453,7 @@ class CaseStatusUpdateView(APIView):
             )
             urlopen(notif_req, timeout=3)
         except Exception as notif_err:
-            pass  # Never fail the status update because of a notification error
+            logger.error("Notification failed for status update on case %s: %s", case_id, notif_err)
 
         return Response(CaseSerializer(case).data)
 
@@ -480,7 +496,7 @@ class OpenCasesView(APIView):
         qs = Case.objects.filter(
             booking_status='declined',
             assigned_lawyer_id__isnull=True,
-        ).order_by('-created_at')
+        ).prefetch_related('notes').order_by('-created_at')
 
         data = CaseSerializer(qs, many=True).data
         return Response({'count': len(data), 'results': data})
@@ -812,12 +828,14 @@ class PaymentVerifyView(APIView):
         new_status = 'verified' if action == 'verify' else 'rejected'
         meta['payment_status'] = new_status
         case.booking_metadata = meta
+        verifier_id = payload.get('user_id', 'staff')
         case.add_timeline_entry(
             status=case.status,
             notes=f'Payment {new_status} by firm staff.',
-            updated_by=str(payload.get('user_id', 'staff')),
+            updated_by=str(verifier_id),
         )
         case.save()
+        logger.info("Payment %s for case %s by user %s", new_status, case_id, verifier_id)
 
         # Notify client
         try:
@@ -844,8 +862,8 @@ class PaymentVerifyView(APIView):
                 method='POST',
             )
             urlopen(notif_req, timeout=3)
-        except Exception:
-            pass
+        except Exception as notif_err:
+            logger.error("Notification failed for payment verify on case %s: %s", case_id, notif_err)
 
         return Response(CaseSerializer(case).data)
 

@@ -18,7 +18,7 @@ def extract_user_id_from_token(request):
             token = auth_header.split(' ')[1]
             payload = jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
             return payload.get('user_id')
-        except:
+        except Exception:
             pass
     return str(request.user.id)
 

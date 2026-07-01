@@ -24,6 +24,22 @@ export default function RegisterPage() {
     setLoading(true)
     setError('')
 
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('First and last name are required')
+      setLoading(false)
+      return
+    }
+    if (!emailRe.test(email)) {
+      setError('Enter a valid email address')
+      setLoading(false)
+      return
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
+      setLoading(false)
+      return
+    }
     if (password !== confirmPassword) {
       setError('Passwords do not match')
       setLoading(false)

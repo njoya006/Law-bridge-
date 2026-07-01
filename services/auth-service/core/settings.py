@@ -64,6 +64,8 @@ if DB_HOST:
             'PASSWORD': config('DB_PASSWORD'),
             'HOST': config('DB_HOST'),
             'PORT': config('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': config('CONN_MAX_AGE', default=600, cast=int),
+            'OPTIONS': {'connect_timeout': 10},
         }
     }
 else:

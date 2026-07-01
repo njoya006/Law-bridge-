@@ -9,6 +9,7 @@ const nav = [
   { label: 'Portal', href: '/dashboard', icon: DashboardIcon },
   { label: 'Discover', href: '/discover', icon: LawIcon },
   { label: 'Bookings', href: '/bookings', icon: CaseIcon },
+  { label: 'Notifications', href: '/notifications', icon: ChatIcon },
   { label: 'Upload', href: '/upload', icon: UploadIcon },
   { label: 'Updates', href: '/analyses', icon: AnalysisIcon },
   { label: 'Messages', href: '/chat', icon: ChatIcon },

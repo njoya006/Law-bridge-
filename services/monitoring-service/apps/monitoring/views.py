@@ -4,6 +4,8 @@ import json as _json
 from decouple import config
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
@@ -175,6 +177,7 @@ class InternalCaseSyncView(APIView):
         return Response({'created': created, 'case_id': case_id})
 
 
+@method_decorator(cache_page(60 * 5), name='get')
 class CaseRiskView(APIView):
     """GET /api/v1/monitoring/case-risks/ — ranked list of active cases by risk score (firm-scoped)."""
     permission_classes = [IsAuthenticated]
@@ -186,7 +189,8 @@ class CaseRiskView(APIView):
         qs = CaseProgressSnapshot.objects.filter(status__in=list(ACTIVE_STATUSES))
         if lawyer_uuids is not None:
             qs = qs.filter(assigned_lawyer_id__in=lawyer_uuids)
-        snapshots = qs.order_by('-updated_at')
+        # Limit at DB level (sorted by most recently updated) before computing scores
+        snapshots = qs.order_by('-updated_at')[:50]
 
         results = []
         for snap in snapshots:
@@ -210,6 +214,7 @@ class CaseRiskView(APIView):
         return Response({'cases': results, 'counts': counts})
 
 
+@method_decorator(cache_page(60 * 15), name='get')
 class FirmIntelligenceView(APIView):
     """GET /api/v1/monitoring/firm-intelligence/ — firm-scoped KPIs + AI narrative."""
     permission_classes = [IsAuthenticated]

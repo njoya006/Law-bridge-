@@ -66,6 +66,8 @@ if DB_HOST:
             'PASSWORD': config('DB_PASSWORD'),
             'HOST': config('DB_HOST'),
             'PORT': config('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': config('CONN_MAX_AGE', default=600, cast=int),
+            'OPTIONS': {'connect_timeout': 10},
         }
     }
 else:
@@ -134,3 +136,10 @@ SIMPLE_JWT = {
 
 # Redis cache
 REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
+# Django cache backend using Redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://localhost:6379/0'),
+    }
+}

@@ -1,6 +1,13 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+from rest_framework.pagination import PageNumberPagination
+
+
+class StandardPagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 200
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.http import HttpResponse
@@ -164,34 +171,34 @@ class FirmBrowseView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        query = Firm.objects.all().order_by('name')
+        from django.db.models import Count, Q
         name = request.query_params.get('q', '').strip()
+        query = Firm.objects.annotate(
+            member_count=Count('firmmembership', filter=Q(firmmembership__is_active=True))
+        ).order_by('name')
         if name:
             query = query.filter(name__icontains=name)
-        results = []
-        for firm in query:
-            results.append({
-                **FirmSerializer(firm).data,
-                'member_count': FirmMembership.objects.filter(firm=firm, is_active=True).count(),
-            })
-        return Response({'count': len(results), 'results': results})
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(query, request)
+        results = [{**FirmSerializer(firm).data, 'member_count': firm.member_count} for firm in page]
+        return paginator.get_paginated_response(results)
 
 
 class FirmSearchView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        query = Firm.objects.all().order_by('name')
+        from django.db.models import Count, Q
         name = request.query_params.get('q', '').strip()
+        query = Firm.objects.annotate(
+            member_count=Count('firmmembership', filter=Q(firmmembership__is_active=True))
+        ).order_by('name')
         if name:
             query = query.filter(name__icontains=name)
-        results = []
-        for firm in query:
-            results.append({
-                **FirmSerializer(firm).data,
-                'member_count': FirmMembership.objects.filter(firm=firm, is_active=True).count(),
-            })
-        return Response({'count': len(results), 'results': results})
+        paginator = StandardPagination()
+        page = paginator.paginate_queryset(query, request)
+        results = [{**FirmSerializer(firm).data, 'member_count': firm.member_count} for firm in page]
+        return paginator.get_paginated_response(results)
 
 
 class MyFirmMembershipsView(APIView):

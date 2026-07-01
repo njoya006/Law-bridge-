@@ -36,6 +36,7 @@ export default function SecretaryPaymentsPage() {
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [actionError, setActionError] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [actioning, setActioning] = useState<string | null>(null)
 
@@ -83,13 +84,14 @@ export default function SecretaryPaymentsPage() {
     const access = localStorage.getItem('access')
     if (!access) return
     setActioning(rowId + action)
+    setActionError('')
     try {
       await verifyPayment(rowId, action, access)
       setRows(prev => prev.map(r =>
         r.id === rowId ? { ...r, payment_status: action === 'verify' ? 'verified' : 'rejected' } : r
       ))
-    } catch {
-      // silently ignore — row status stays unchanged
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Verification failed — please retry')
     } finally {
       setActioning(null)
     }
@@ -142,6 +144,13 @@ export default function SecretaryPaymentsPage() {
       <div className="rounded-xl border border-emerald-500/20 bg-emerald-900/5 px-5 py-4 text-sm text-emerald-300">
         <strong>Professional Fees</strong> are negotiable and agreed directly between the lawyer and client after booking acceptance. They are not collected through this system.
       </div>
+
+      {actionError && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300 flex items-center justify-between">
+          <span>{actionError}</span>
+          <button onClick={() => setActionError('')} className="ml-4 text-red-400 hover:text-red-200 text-xs">✕</button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">

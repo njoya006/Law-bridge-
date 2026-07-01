@@ -73,7 +73,7 @@ class Case(models.Model):
         ('accepted', 'Accepted'),
         ('declined', 'Declined'),
     ]
-    booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS, blank=True, default='')
+    booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS, blank=True, default='', db_index=True)
     booking_metadata = models.JSONField(default=dict, blank=True,
         help_text="Stores consultation_type, booking_fee, payment_reference, payment_status, target info")
 

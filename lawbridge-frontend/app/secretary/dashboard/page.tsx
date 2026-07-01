@@ -6,8 +6,63 @@ import { Card } from '../../../components/ui/Card'
 import { getIncomingBookings, acceptBooking, declineBooking, type CaseItem } from '../../../lib/casesApi'
 import { listReportRequests, updateReportRequestStatus, REPORT_TYPE_LABELS, PERIOD_LABELS, type ReportRequest } from '../../../lib/reportRequestsApi'
 import { getMyFirmMemberships, getFirmLawyers, type FirmLawyer } from '../../../lib/firmsApi'
+import { getCaseRisks, type CaseRiskResponse } from '../../../lib/monitoringApi'
 import { ChartBarIcon, UsersIcon } from '../../../components/icons/Icons'
 import SmartAssignmentPanel from '../../../components/SmartAssignmentPanel'
+
+function CaseRiskWidget({ token }: { token: string }) {
+  const [data, setData] = React.useState<CaseRiskResponse | null>(null)
+  React.useEffect(() => {
+    getCaseRisks(token).then(setData).catch(() => {})
+  }, [token])
+  if (!data || data.cases.length === 0) return null
+  const { counts, cases } = data
+  const topCases = cases.filter(c => c.risk_level !== 'healthy').slice(0, 4)
+  return (
+    <Card className="p-6 border border-neutral-800 col-span-full">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="font-heading text-body-lg text-neutral-50">Case Risk Monitor</h3>
+          <p className="text-xs text-neutral-500 mt-0.5">AI-powered early warning for at-risk matters</p>
+        </div>
+        <div className="flex gap-2">
+          {counts.critical > 0 && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/15 text-red-400 border border-red-500/30">{counts.critical} Critical</span>}
+          {counts.watch > 0 && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-gold-500/15 text-gold-400 border border-gold-500/30">{counts.watch} Watch</span>}
+          {counts.healthy > 0 && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">{counts.healthy} Healthy</span>}
+        </div>
+      </div>
+      {topCases.length === 0 ? (
+        <p className="text-sm text-emerald-400">All active cases are healthy.</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {topCases.map(c => {
+            const barColor = c.risk_level === 'critical' ? 'bg-red-500' : 'bg-gold-400'
+            const textColor = c.risk_level === 'critical' ? 'text-red-400' : 'text-gold-400'
+            return (
+              <Link key={c.case_id} href={`/cases/${c.case_id}`} className="flex items-center gap-3 p-3 rounded-lg bg-neutral-800/40 hover:bg-neutral-800/70 transition-colors group">
+                <div className="flex-shrink-0 w-10 text-center">
+                  <div className={`text-sm font-bold ${textColor}`}>{c.risk_score}</div>
+                  <div className={`h-1 rounded-full ${barColor} mt-1`} style={{ width: `${c.risk_score}%`, minWidth: '4px' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-neutral-100 truncate group-hover:text-gold-300">{c.title}</div>
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {c.risk_factors.slice(0, 2).map(f => (
+                      <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-700/60 text-neutral-400">{f}</span>
+                    ))}
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+      <Link href="/secretary/intelligence" className="mt-3 flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300">
+        View Firm Intelligence Dashboard →
+      </Link>
+    </Card>
+  )
+}
 
 function fmtDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) } catch { return iso }
@@ -52,9 +107,11 @@ export default function SecretaryDashboardPage() {
   const [assignTarget, setAssignTarget] = useState<CaseItem | null>(null)
   const [acceptingId, setAcceptingId] = useState<string | null>(null)
   const [decliningId, setDecliningId] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const access = localStorage.getItem('access')
+    setToken(access)
     if (!access) { setError('Not authenticated.'); setLoading(false); return }
     const [bookingsRes, membershipsRes] = await Promise.allSettled([
       getIncomingBookings(access),
@@ -202,6 +259,7 @@ export default function SecretaryDashboardPage() {
           {/* Overview */}
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {firmId && token && <CaseRiskWidget token={token} />}
               <div className="space-y-3">
                 <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Recent Bookings</h3>
                 {bookings.length === 0 ? <Card className="p-4 text-center"><p className="text-neutral-500 text-sm">No bookings yet.</p></Card> : (

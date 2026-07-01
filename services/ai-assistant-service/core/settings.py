@@ -65,6 +65,8 @@ if DB_HOST:
             'PASSWORD': config('DB_PASSWORD', default='password'),
             'HOST': config('DB_HOST'),
             'PORT': config('DB_PORT', default='5432'),
+            'CONN_MAX_AGE': config('CONN_MAX_AGE', default=600, cast=int),
+            'OPTIONS': {'connect_timeout': 10},
         }
     }
 else:
@@ -116,6 +118,13 @@ CORS_ALLOWED_ORIGINS = config(
 ).split(',')
 
 REDIS_URL = config('REDIS_URL', default='redis://redis:6379/0')
+# Django cache backend using Redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://localhost:6379/0'),
+    }
+}
 RABBITMQ_URL = config('RABBITMQ_URL', default='amqp://lawbridge:password@rabbitmq:5672/')
 
 CASE_SERVICE_URL = config('CASE_SERVICE_URL', default='http://lawbridge-case:8004')
