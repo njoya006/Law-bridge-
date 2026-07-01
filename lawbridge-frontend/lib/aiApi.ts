@@ -500,6 +500,34 @@ export async function streamLegalResearch(
   callbacks.onDone({ answer: '', citations: [], confidence: 'low', disclaimer: '' })
 }
 
+// ── Intake generation ─────────────────────────────────────────────────────────
+
+export type IntakeField = {
+  label: string
+  type: 'text' | 'textarea' | 'select' | 'date' | 'email' | 'phone'
+  required: boolean
+  placeholder?: string
+  options?: string[]
+}
+
+export async function generateIntakeForm(
+  payload: { case_type: string; circuit: string; language?: string },
+  token: string,
+): Promise<IntakeField[]> {
+  const res = await fetch(`${aiBase()}/ai/intake/generate/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`AI intake generation failed (${res.status}): ${text.slice(0, 200)}`)
+  }
+  const data = await res.json() as { form_fields: IntakeField[] }
+  return data.form_fields
+}
+
+
 export async function streamDraft(
   payload: { draft_type: string; instructions: string; answers?: Record<string, string>; title?: string; case_id?: string | null },
   token: string,

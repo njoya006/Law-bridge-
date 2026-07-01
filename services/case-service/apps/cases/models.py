@@ -199,6 +199,26 @@ class ReassignmentRequest(models.Model):
         return f"ReassignmentRequest({self.case_id}) [{self.status}]"
 
 
+class IntakeForm(models.Model):
+    """AI-generated client intake questionnaire shared with clients via a unique link."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    case_id = models.UUIDField(null=True, blank=True, db_index=True)
+    case_type = models.CharField(max_length=100)
+    circuit = models.CharField(max_length=32, blank=True, default='')
+    form_fields = models.JSONField(help_text='[{label, type, required, placeholder, options?}]')
+    responses = models.JSONField(default=dict)
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    created_by = models.UUIDField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"IntakeForm({self.case_type}) token={self.token}"
+
+
 class CaseApplication(models.Model):
     """A lawyer or firm applying to take on a declined/open case."""
     STATUS_CHOICES = [

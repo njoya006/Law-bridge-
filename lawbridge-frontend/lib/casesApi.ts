@@ -265,3 +265,38 @@ export function respondToReassignment(caseId: string, response: string, token: s
     'case', `/cases/${caseId}/reassignment/respond/`, { response }, token,
   )
 }
+
+// ── Intake Forms ─────────────────────────────────────────────────────────────
+
+export type IntakeField = {
+  label: string
+  type: 'text' | 'textarea' | 'select' | 'date' | 'email' | 'phone'
+  required: boolean
+  placeholder?: string
+  options?: string[]
+}
+
+export type IntakeForm = {
+  id: string
+  token: string
+  case_type: string
+  circuit: string
+  form_fields: IntakeField[]
+  completed?: boolean
+  created_at?: string
+}
+
+export function saveIntakeForm(
+  payload: { case_type: string; circuit: string; form_fields: IntakeField[]; case_id?: string },
+  token: string,
+) {
+  return api.post<IntakeForm>('case', '/cases/intake/', payload, token)
+}
+
+export function getIntakeForm(intakeToken: string) {
+  return api.get<IntakeForm>('case', `/cases/intake/${intakeToken}/`)
+}
+
+export function submitIntakeForm(intakeToken: string, responses: Record<string, string>) {
+  return api.post<{ detail: string }>('case', `/cases/intake/${intakeToken}/`, { responses })
+}

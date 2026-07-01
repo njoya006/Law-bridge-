@@ -3,7 +3,7 @@ from .views import (
     ChatView, ChatSessionListView, ChatSessionDetailView,
     LegalDraftCreateView, LegalDraftListView, LegalDraftDetailView,
     DraftClarifyView, LegalDraftStreamView, DraftTranslateView,
-    LegalResearchView, FirmInsightsView, MeetingSummaryView,
+    LegalResearchView, FirmInsightsView, MeetingSummaryView, IntakeGenerateView,
 )
 
 urlpatterns = [
@@ -19,4 +19,5 @@ urlpatterns = [
     path('research/', LegalResearchView.as_view(), name='legal-research'),
     path('insights/', FirmInsightsView.as_view(), name='firm-insights'),
     path('meetings/summarize/', MeetingSummaryView.as_view(), name='meeting-summarize'),
+    path('intake/generate/', IntakeGenerateView.as_view(), name='intake-generate'),
 ]

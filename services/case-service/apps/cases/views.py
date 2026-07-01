@@ -8,7 +8,7 @@ from decouple import config
 import json
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
-from .models import Case, CaseNote, CaseApplication, ReassignmentRequest
+from .models import Case, CaseNote, CaseApplication, ReassignmentRequest, IntakeForm
 from .serializers import CaseSerializer, CaseCreateSerializer, CaseNoteSerializer, ReassignmentRequestSerializer
 from apps.conflicts.models import ConflictCheck
 
@@ -802,3 +802,76 @@ class PaymentVerifyView(APIView):
             pass
 
         return Response(CaseSerializer(case).data)
+
+
+# ── Intake Forms ───────────────────────────────────────────────────────────────
+
+class IntakeFormCreateView(APIView):
+    """POST /api/v1/cases/intake/ — secretary saves an AI-generated intake form."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        fields = request.data.get('form_fields')
+        case_type = (request.data.get('case_type') or '').strip()
+        circuit = (request.data.get('circuit') or '').strip()
+        case_id = request.data.get('case_id') or None
+
+        if not fields or not isinstance(fields, list):
+            return Response({'detail': 'form_fields must be a non-empty list'}, status=400)
+        if not case_type:
+            return Response({'detail': 'case_type is required'}, status=400)
+
+        uid = extract_user_id_from_token(request)
+        form = IntakeForm.objects.create(
+            case_id=case_id,
+            case_type=case_type,
+            circuit=circuit,
+            form_fields=fields,
+            created_by=uid,
+        )
+        return Response({
+            'id': str(form.id),
+            'token': str(form.token),
+            'case_type': form.case_type,
+            'circuit': form.circuit,
+            'form_fields': form.form_fields,
+            'created_at': form.created_at.isoformat(),
+        }, status=201)
+
+
+class IntakeFormPublicView(APIView):
+    """GET/POST /api/v1/cases/intake/<token>/ — public: retrieve + submit intake form."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, token):
+        try:
+            form = IntakeForm.objects.get(token=token)
+        except IntakeForm.DoesNotExist:
+            return Response({'detail': 'Intake form not found.'}, status=404)
+        return Response({
+            'id': str(form.id),
+            'token': str(form.token),
+            'case_type': form.case_type,
+            'circuit': form.circuit,
+            'form_fields': form.form_fields,
+            'completed': form.completed_at is not None,
+        })
+
+    def post(self, request, token):
+        try:
+            form = IntakeForm.objects.get(token=token)
+        except IntakeForm.DoesNotExist:
+            return Response({'detail': 'Intake form not found.'}, status=404)
+
+        if form.completed_at:
+            return Response({'detail': 'This form has already been submitted.'}, status=400)
+
+        responses = request.data.get('responses')
+        if not responses or not isinstance(responses, dict):
+            return Response({'detail': 'responses must be a non-empty object'}, status=400)
+
+        form.responses = responses
+        form.completed_at = timezone.now()
+        form.save(update_fields=['responses', 'completed_at'])
+
+        return Response({'detail': 'Thank you — your responses have been submitted successfully.'})

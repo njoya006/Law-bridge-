@@ -6,6 +6,7 @@ from .views import (
     ReassignmentView, ReassignmentConfirmView, ReassignmentCancelView,
     ReassignmentSelectLawyerView, ReassignmentRespondView,
     PaymentVerifyView,
+    IntakeFormCreateView, IntakeFormPublicView,
 )
 
 urlpatterns = [
@@ -25,4 +26,6 @@ urlpatterns = [
     path('<uuid:case_id>/reassignment/cancel/', ReassignmentCancelView.as_view(), name='case-reassignment-cancel'),
     path('<uuid:case_id>/reassignment/respond/', ReassignmentRespondView.as_view(), name='case-reassignment-respond'),
     path('<uuid:case_id>/reassignment/select-lawyer/', ReassignmentSelectLawyerView.as_view(), name='case-reassignment-select-lawyer'),
+    path('intake/', IntakeFormCreateView.as_view(), name='intake-create'),
+    path('intake/<uuid:token>/', IntakeFormPublicView.as_view(), name='intake-public'),
 ]

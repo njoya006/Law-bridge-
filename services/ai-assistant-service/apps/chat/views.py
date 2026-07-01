@@ -1167,3 +1167,69 @@ class FirmInsightsView(APIView):
             result = {'narrative': raw[:400], 'bullet_insights': []}
 
         return Response(result)
+
+
+INTAKE_SYSTEM_PROMPT = (
+    "You are a Cameroonian legal intake specialist. "
+    "Generate a client intake questionnaire tailored to the given case type and jurisdiction. "
+    "Each question should gather information the lawyer specifically needs for this type of case. "
+    "Respond ONLY with valid JSON — no markdown, no explanation."
+)
+
+
+class IntakeGenerateView(APIView):
+    """POST /api/v1/ai/intake/generate/ — generate a client intake questionnaire."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        case_type = (request.data.get('case_type') or '').strip()
+        circuit = (request.data.get('circuit') or 'Anglophone').strip()
+        language = (request.data.get('language') or 'en').strip()
+
+        if not case_type:
+            return Response({'error': 'case_type is required'}, status=400)
+
+        lang_note = 'in French' if language == 'fr' else 'in English'
+        prompt = (
+            f"Generate a client intake questionnaire for a **{case_type}** case "
+            f"in the **{circuit}** circuit of Cameroon.\n\n"
+            f"Write all question labels {lang_note}.\n\n"
+            f"Return ONLY a JSON array of 8-12 questions:\n"
+            f'[\n'
+            f'  {{\n'
+            f'    "label": "Question text",\n'
+            f'    "type": "text|textarea|select|date|email|phone",\n'
+            f'    "required": true|false,\n'
+            f'    "placeholder": "Helper text",\n'
+            f'    "options": ["Option A", "Option B"]  // only for type=select\n'
+            f'  }}\n'
+            f']\n\n'
+            f'Include questions specific to {case_type} cases: parties involved, key dates, '
+            f'prior legal action, evidence available, desired outcome, financial circumstances if relevant.'
+        )
+
+        try:
+            ai = get_ai_client(settings)
+            raw = ai.complete(prompt, system=INTAKE_SYSTEM_PROMPT, max_tokens=1200)
+        except Exception as exc:
+            return Response({'error': f'AI unavailable: {exc}'}, status=503)
+
+        import re as _re
+        cleaned = raw.strip()
+        if cleaned.startswith('```'):
+            cleaned = cleaned.split('```')[1]
+            if cleaned.startswith('json'):
+                cleaned = cleaned[4:]
+            cleaned = cleaned.strip()
+        m = _re.search(r'\[[\s\S]*\]', cleaned)
+        if m:
+            cleaned = m.group(0)
+
+        try:
+            fields = json.loads(cleaned)
+            if not isinstance(fields, list):
+                raise ValueError('Expected list')
+        except Exception:
+            return Response({'error': 'AI returned unexpected format. Please try again.'}, status=502)
+
+        return Response({'form_fields': fields, 'case_type': case_type, 'circuit': circuit})

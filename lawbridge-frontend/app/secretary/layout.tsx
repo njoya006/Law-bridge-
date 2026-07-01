@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { clearSession } from '../../lib/authSession'
-import { DashboardIcon, PaymentIcon, ChartBarIcon, UsersIcon, LogoutIcon } from '../../components/icons/Icons'
+import { DashboardIcon, PaymentIcon, ChartBarIcon, UsersIcon, LogoutIcon, DocumentIcon } from '../../components/icons/Icons'
 
 const ALLOWED_ROLES = new Set(['secretary', 'firm_admin'])
 
 const nav = [
   { label: 'Dashboard', href: '/secretary/dashboard', Icon: DashboardIcon },
   { label: 'Intelligence', href: '/secretary/intelligence', Icon: ChartBarIcon },
+  { label: 'Client Intake', href: '/secretary/intake', Icon: DocumentIcon },
   { label: 'Payments', href: '/secretary/payments', Icon: PaymentIcon },
   { label: 'Reports', href: '/secretary/reports', Icon: ChartBarIcon },
   { label: 'Members', href: '/secretary/members', Icon: UsersIcon },
