@@ -136,6 +136,7 @@ export type FirmLawyer = {
   is_stub?: boolean
   consultation_fee?: string | null
   availability_status?: string
+  accepted_case_types?: string
 }
 
 export function getFirmLawyers(firmId: number, token?: string | null) {
