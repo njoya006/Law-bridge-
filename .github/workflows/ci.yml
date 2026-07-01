@@ -7,7 +7,132 @@ on:
     branches: [ main, master ]
 
 jobs:
-  test:
+  # ── auth-service ──────────────────────────────────────────────────────────────
+  test-auth:
+    name: Test auth-service
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: auth_db
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: services/auth-service/requirements.txt
+      - name: Install deps
+        run: pip install -r services/auth-service/requirements.txt PyJWT
+      - name: Run tests
+        working-directory: services/auth-service
+        env:
+          SECRET_KEY: ci-test-secret-key
+          DEBUG: "True"
+          ALLOWED_HOSTS: "*"
+          DB_HOST: localhost
+          DB_NAME: auth_db
+          DB_USER: user
+          DB_PASSWORD: pass
+          DB_PORT: "5432"
+          REDIS_URL: redis://localhost:6379/0
+        run: pytest -q --tb=short
+
+  # ── case-service ──────────────────────────────────────────────────────────────
+  test-case:
+    name: Test case-service
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: case_db
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: services/case-service/requirements.txt
+      - name: Install deps
+        run: pip install -r services/case-service/requirements.txt PyJWT
+      - name: Run tests
+        working-directory: services/case-service
+        env:
+          SECRET_KEY: ci-test-secret-key
+          DEBUG: "True"
+          ALLOWED_HOSTS: "*"
+          DB_HOST: localhost
+          DB_NAME: case_db
+          DB_USER: user
+          DB_PASSWORD: pass
+          DB_PORT: "5432"
+          REDIS_URL: redis://localhost:6379/0
+        run: pytest -q --tb=short
+
+  # ── monitoring-service ────────────────────────────────────────────────────────
+  test-monitoring:
+    name: Test monitoring-service
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: monitoring_db
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: services/monitoring-service/requirements.txt
+      - name: Install deps
+        run: pip install -r services/monitoring-service/requirements.txt pytest-asyncio
+      - name: Run tests
+        working-directory: services/monitoring-service
+        env:
+          SECRET_KEY: ci-test-secret-key
+          DEBUG: "True"
+          ALLOWED_HOSTS: "*"
+          DB_HOST: localhost
+          DB_NAME: monitoring_db
+          DB_USER: user
+          DB_PASSWORD: pass
+          DB_PORT: "5432"
+          REDIS_URL: redis://localhost:6379/0
+        run: pytest -q --tb=short
+
+  # ── ai-assistant-service ──────────────────────────────────────────────────────
+  test-ai:
+    name: Test ai-assistant-service
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -18,18 +143,31 @@ jobs:
           POSTGRES_PASSWORD: pass
         ports:
           - 5432:5432
-        options: >
-          --health-cmd='pg_isready -U user -d ai_db' --health-interval=10s --health-timeout=5s --health-retries=5
+        options: >-
+          --health-cmd pg_isready
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: services/ai-assistant-service/requirements.txt
       - name: Install deps
-        run: |
-          pip install -r services/ai-assistant-service/requirements.txt
+        run: pip install -r services/ai-assistant-service/requirements.txt
       - name: Run tests
         working-directory: services/ai-assistant-service
-        run: |
-          pytest -q
+        env:
+          SECRET_KEY: ci-test-secret-key
+          DEBUG: "True"
+          ALLOWED_HOSTS: "*"
+          DB_HOST: localhost
+          DB_NAME: ai_db
+          DB_USER: user
+          DB_PASSWORD: pass
+          DB_PORT: "5432"
+          REDIS_URL: redis://localhost:6379/0
+          GROQ_API_KEY: ci-placeholder-not-used-in-tests
+        run: pytest -q --tb=short
