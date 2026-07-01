@@ -125,14 +125,17 @@ def _build_rich_case_context(d: dict) -> str:
     ]
 
     # Include recent timeline events
+    # Case-service stores timeline as: {'status': ..., 'notes': ..., 'updated_by': ..., 'timestamp': ...}
     timeline = d.get('timeline') or []
     if isinstance(timeline, list) and timeline:
         recent = timeline[-5:]
         lines.append('\nRECENT TIMELINE:')
         for ev in recent:
             if isinstance(ev, dict):
-                date = ev.get('date') or ev.get('created_at', '')
-                event = ev.get('event') or ev.get('status') or ev.get('updated_by', '')
+                date = ev.get('timestamp') or ev.get('date') or ev.get('created_at', '')
+                if date and 'T' in str(date):
+                    date = str(date)[:10]  # YYYY-MM-DD only
+                event = ev.get('status') or ev.get('event') or ''
                 notes = str(ev.get('notes') or ev.get('description') or '')[:120]
                 lines.append(f'  • {date} — {event}{(": " + notes) if notes else ""}')
 
@@ -205,34 +208,27 @@ def _extract_and_store_facts(case_id: str, user_id: str, user_message: str, ai_r
         pass  # extraction failure is always silent
 
 
-def _fetch_case_context(case_id: str, case_service_url: str, internal_key: str) -> str:
-    """Fetch full case data and return a rich context string. Returns '' on any failure."""
+def _fetch_case_context(case_id: str, case_service_url: str, internal_key: str, auth_header: str = '') -> str:
+    """Fetch full case data and return a rich context string. Returns '' on any failure.
+
+    Forwards the user's JWT (auth_header) so the case-service can authenticate
+    the request — internal API key alone is not sufficient for case endpoints.
+    """
     try:
         import requests as req
+        headers = {'X-Internal-Api-Key': internal_key}
+        if auth_header:
+            headers['Authorization'] = auth_header
         r = req.get(
             f"{case_service_url}/api/v1/cases/{case_id}/",
-            headers={'X-Internal-Api-Key': internal_key},
+            headers=headers,
             timeout=5,
         )
         if r.status_code == 200:
             return _build_rich_case_context(r.json())
-        # Fallback to summary endpoint
-        r2 = req.get(
-            f"{case_service_url}/api/v1/cases/{case_id}/summary/",
-            headers={'X-Internal-Api-Key': internal_key},
-            timeout=4,
-        )
-        if r2.status_code == 200:
-            d = r2.json()
-            return (
-                f"CASE CONTEXT:\nType: {d.get('case_type')} | "
-                f"Circuit: {d.get('circuit')} ({d.get('legal_tradition')}) | "
-                f"Status: {d.get('status')}\n"
-                f"Description: {str(d.get('description', ''))[:400]}"
-                + _get_case_type_guide(d.get('case_type', ''))
-            )
-    except Exception:
-        pass
+        logger.warning("Case-service returned %s for case %s", r.status_code, case_id)
+    except Exception as exc:
+        logger.warning("Failed to fetch case context for %s: %s", case_id, exc)
     return ''
 
 
@@ -296,12 +292,14 @@ class ChatView(APIView):
 
         # Build rich case context: full case data + accumulated knowledge
         internal_key = getattr(settings, 'INTERNAL_API_KEY', 'dev-internal-key')
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
         case_context = ''
         if session.case_id:
             case_context = _fetch_case_context(
                 session.case_id,
                 settings.CASE_SERVICE_URL,
                 internal_key,
+                auth_header,
             )
             # Append accumulated facts from prior conversations
             try:
