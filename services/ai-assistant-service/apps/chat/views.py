@@ -9,11 +9,231 @@ from rest_framework.renderers import JSONRenderer, BaseRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import ChatSession, LegalDraft
+from .models import ChatSession, LegalDraft, CaseKnowledge
 from .serializers import ChatSessionSerializer
 from apps.utils.ai_client import get_ai_client, LEGAL_SYSTEM_PROMPT, DRAFT_LEGAL_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
+
+# ── Per-case-type question guidance injected into the system prompt ────────────
+
+CASE_TYPE_GUIDES = {
+    'criminal': (
+        "\n\nFor this CRIMINAL case, proactively explore:\n"
+        "- The specific charges or accusation (theft, assault, fraud, manslaughter, etc.)\n"
+        "- Date, time, and exact location of the alleged incident\n"
+        "- Whether the client has been arrested, detained, or is only under investigation\n"
+        "- The client's account of events and any alibi\n"
+        "- Known witnesses (defence and prosecution), and what they saw\n"
+        "- Physical or documentary evidence (CCTV, phone records, receipts, medical reports)\n"
+        "- Whether there are co-accused persons\n"
+        "- Bail/detention status and any prior convictions\n"
+        "Ask ONE focused question at a time. Start with the most fundamental unknown."
+    ),
+    'property': (
+        "\n\nFor this PROPERTY / LAND case, proactively explore:\n"
+        "- Exact location of the land (GPS, plot/lot number, quarter/village)\n"
+        "- Whether a Land Certificate (Titre Foncier) exists and who holds it\n"
+        "- How and when the client acquired their interest (purchase, inheritance, gift, occupation)\n"
+        "- Nature of the dispute: boundary, title conflict, eviction, co-ownership share, illegal occupation\n"
+        "- The opposing party's claim and the basis they assert\n"
+        "- Documents the client holds (receipts, survey plans, family agreement, court decision)\n"
+        "- Whether prior proceedings or customary land allocations exist\n"
+        "Ask ONE focused question at a time."
+    ),
+    'civil': (
+        "\n\nFor this CIVIL / CONTRACT case, proactively explore:\n"
+        "- Full names and roles of all parties\n"
+        "- The contractual or legal relationship between them\n"
+        "- Whether the agreement was written or oral, and its key terms\n"
+        "- The specific obligation that was breached and by whom\n"
+        "- Exact financial loss or damage suffered by the client\n"
+        "- Evidence available (contracts, invoices, emails, photographs, witnesses)\n"
+        "- Whether any demand or notice was previously sent\n"
+        "- Any partial payments or partial performance already made\n"
+        "Ask ONE focused question at a time."
+    ),
+    'family': (
+        "\n\nFor this FAMILY LAW case, proactively explore:\n"
+        "- The specific matter: divorce, custody, maintenance, succession, or adoption\n"
+        "- Duration of the marriage or relationship\n"
+        "- Children involved — ages and current living arrangements\n"
+        "- Matrimonial property (joint or separate)\n"
+        "- Grounds for divorce if applicable\n"
+        "- Monthly income of both parties (needed for maintenance calculations)\n"
+        "- Whether any prenuptial or cohabitation agreement exists\n"
+        "- Any prior court proceedings or protection orders between the parties\n"
+        "Ask ONE focused question at a time."
+    ),
+    'commercial': (
+        "\n\nFor this COMMERCIAL / BUSINESS case, proactively explore:\n"
+        "- Type of business entity involved (SARL, SA, GIE, sole trader)\n"
+        "- RCCM (commercial register) details of all parties\n"
+        "- Nature of the dispute: unpaid invoice, contract breach, company dispute, debt recovery\n"
+        "- The total amount in dispute\n"
+        "- Key documents (invoices, delivery notes, articles of association, resolutions)\n"
+        "- Whether OHADA AUPSRVE (injonction de payer / summary recovery) is appropriate\n"
+        "- Any prior demand letters or payment attempts\n"
+        "Ask ONE focused question at a time."
+    ),
+    'labour': (
+        "\n\nFor this LABOUR / EMPLOYMENT case, proactively explore:\n"
+        "- Client's role: employee or employer\n"
+        "- Contract type (CDI indefinite vs CDD fixed-term) and start/end dates\n"
+        "- Nature of the dispute: unfair dismissal, unpaid wages, harassment, workplace injury\n"
+        "- Whether a written dismissal letter (lettre de licenciement) was issued\n"
+        "- Whether the Labour Inspection (Inspection du Travail) has been notified\n"
+        "- Amounts owed (back pay, severance, notice pay, leave entitlement under Labour Code Art. 82)\n"
+        "- Union membership and any collective agreement (convention collective) that applies\n"
+        "- Evidence: payslips, employment contract, disciplinary notices, witness statements\n"
+        "Ask ONE focused question at a time."
+    ),
+}
+
+_CASE_TYPE_GUIDE_KEYS = {
+    'criminal': 'criminal', 'penal': 'criminal',
+    'property': 'property', 'land': 'property', 'real estate': 'property', 'immovable': 'property',
+    'civil': 'civil', 'contract': 'civil', 'debt': 'civil', 'tort': 'civil',
+    'family': 'family', 'divorce': 'family', 'custody': 'family', 'succession': 'family',
+    'commercial': 'commercial', 'business': 'commercial', 'company': 'commercial', 'trade': 'commercial',
+    'labour': 'labour', 'employment': 'labour', 'labor': 'labour', 'dismissal': 'labour',
+}
+
+
+def _get_case_type_guide(case_type: str) -> str:
+    ct = (case_type or '').lower()
+    for keyword, guide_key in _CASE_TYPE_GUIDE_KEYS.items():
+        if keyword in ct:
+            return CASE_TYPE_GUIDES[guide_key]
+    return ''
+
+
+def _build_rich_case_context(d: dict) -> str:
+    """Build a comprehensive case context string from full case data."""
+    case_type = d.get('case_type', 'Unknown')
+    circuit = d.get('circuit', '')
+    legal_tradition = d.get('legal_tradition', '')
+    status = d.get('status', '')
+    title = d.get('title', '') or d.get('description', '')[:80]
+    description = str(d.get('description', ''))[:600]
+
+    lines = [
+        '═══ ACTIVE CASE CONTEXT ═══',
+        f'Case: {title}',
+        f'Type: {case_type} | Circuit: {circuit} ({legal_tradition}) | Status: {status}',
+        f'Description: {description}',
+    ]
+
+    # Include recent timeline events
+    timeline = d.get('timeline') or []
+    if isinstance(timeline, list) and timeline:
+        recent = timeline[-5:]
+        lines.append('\nRECENT TIMELINE:')
+        for ev in recent:
+            if isinstance(ev, dict):
+                date = ev.get('date') or ev.get('created_at', '')
+                event = ev.get('event') or ev.get('status') or ev.get('updated_by', '')
+                notes = str(ev.get('notes') or ev.get('description') or '')[:120]
+                lines.append(f'  • {date} — {event}{(": " + notes) if notes else ""}')
+
+    # Include case notes
+    notes = d.get('notes') or d.get('case_notes') or []
+    if isinstance(notes, list) and notes:
+        lines.append('\nCASE NOTES:')
+        for n in notes[-3:]:
+            if isinstance(n, dict):
+                content = str(n.get('content', ''))[:200]
+                lines.append(f'  • {content}')
+
+    # Add case-type-specific question guide
+    guide = _get_case_type_guide(case_type)
+    if guide:
+        lines.append(guide)
+
+    return '\n'.join(lines)
+
+
+def _extract_and_store_facts(case_id: str, user_id: str, user_message: str, ai_response: str, ai_client) -> None:
+    """Extract concrete facts from a conversation turn and accumulate in CaseKnowledge."""
+    import re as _re
+    import json as _json
+    from datetime import datetime as _dt
+
+    try:
+        extract_prompt = (
+            "Extract concrete legal facts from this case conversation exchange.\n"
+            "Return ONLY valid JSON, no markdown:\n"
+            "{\n"
+            '  "new_facts": ["specific fact 1", "specific fact 2"],\n'
+            '  "key_parties": {"client": "full name if mentioned", "opposing_party": "name if mentioned"},\n'
+            '  "key_dates": ["event and date if mentioned"],\n'
+            '  "evidence_mentioned": ["specific document or evidence mentioned"]\n'
+            "}\n\n"
+            f"User message: {user_message[:400]}\n"
+            f"AI response context: {ai_response[:300]}\n\n"
+            "Only extract facts explicitly stated — not inferences. "
+            "If nothing concrete was revealed, return empty arrays/objects."
+        )
+        raw = ''
+        for chunk in ai_client.stream(user_message=extract_prompt, history=[], case_context=''):
+            raw += chunk
+        m = _re.search(r'\{[\s\S]*\}', raw)
+        if not m:
+            return
+        data = _json.loads(m.group(0))
+
+        now = _dt.utcnow().isoformat()
+        all_new = (
+            [{"fact": f, "extracted_at": now} for f in data.get("new_facts", []) if str(f).strip()]
+            + [{"fact": f"Date/event: {d}", "extracted_at": now} for d in data.get("key_dates", []) if str(d).strip()]
+            + [{"fact": f"Evidence: {e}", "extracted_at": now} for e in data.get("evidence_mentioned", []) if str(e).strip()]
+        )
+        key_parties = {k: v for k, v in (data.get("key_parties") or {}).items() if v and str(v).strip()}
+
+        if not all_new and not key_parties:
+            return
+
+        ck, _ = CaseKnowledge.objects.get_or_create(case_id=case_id, user_id=user_id)
+        ck.facts = (ck.facts or []) + all_new
+        ck.facts = ck.facts[-50:]  # keep last 50 facts to prevent unbounded growth
+        if key_parties:
+            parties = dict(ck.key_parties or {})
+            parties.update(key_parties)
+            ck.key_parties = parties
+        ck.save()
+    except Exception:
+        pass  # extraction failure is always silent
+
+
+def _fetch_case_context(case_id: str, case_service_url: str, internal_key: str) -> str:
+    """Fetch full case data and return a rich context string. Returns '' on any failure."""
+    try:
+        import requests as req
+        r = req.get(
+            f"{case_service_url}/api/v1/cases/{case_id}/",
+            headers={'X-Internal-Api-Key': internal_key},
+            timeout=5,
+        )
+        if r.status_code == 200:
+            return _build_rich_case_context(r.json())
+        # Fallback to summary endpoint
+        r2 = req.get(
+            f"{case_service_url}/api/v1/cases/{case_id}/summary/",
+            headers={'X-Internal-Api-Key': internal_key},
+            timeout=4,
+        )
+        if r2.status_code == 200:
+            d = r2.json()
+            return (
+                f"CASE CONTEXT:\nType: {d.get('case_type')} | "
+                f"Circuit: {d.get('circuit')} ({d.get('legal_tradition')}) | "
+                f"Status: {d.get('status')}\n"
+                f"Description: {str(d.get('description', ''))[:400]}"
+                + _get_case_type_guide(d.get('case_type', ''))
+            )
+    except Exception:
+        pass
+    return ''
 
 
 class ServerSentEventRenderer(BaseRenderer):
@@ -74,26 +294,36 @@ class ChatView(APIView):
         })
         session.save()
 
-        # Optional case context from case-service
+        # Build rich case context: full case data + accumulated knowledge
+        internal_key = getattr(settings, 'INTERNAL_API_KEY', 'dev-internal-key')
         case_context = ''
         if session.case_id:
+            case_context = _fetch_case_context(
+                session.case_id,
+                settings.CASE_SERVICE_URL,
+                internal_key,
+            )
+            # Append accumulated facts from prior conversations
             try:
-                import requests as req
-                r = req.get(
-                    f"{settings.CASE_SERVICE_URL}/api/v1/cases/{session.case_id}/summary/",
-                    headers={'X-Internal-Api-Key': getattr(settings, 'INTERNAL_API_KEY', '')},
-                    timeout=4,
-                )
-                if r.status_code == 200:
-                    d = r.json()
-                    case_context = (
-                        f"CASE CONTEXT:\nType: {d.get('case_type')} | "
-                        f"Circuit: {d.get('circuit')} ({d.get('legal_tradition')}) | "
-                        f"Status: {d.get('status')}\n"
-                        f"Description: {str(d.get('description', ''))[:400]}"
-                    )
+                ck = CaseKnowledge.objects.filter(
+                    case_id=session.case_id,
+                    user_id=str(request.user.id),
+                ).first()
+                if ck and (ck.facts or ck.key_parties):
+                    lines = ['\n═══ KNOWLEDGE FROM PRIOR CONVERSATIONS ═══']
+                    if ck.key_parties:
+                        lines.append('Identified parties:')
+                        for role, name in ck.key_parties.items():
+                            lines.append(f'  • {role}: {name}')
+                    if ck.facts:
+                        lines.append('Known facts:')
+                        for entry in ck.facts[-20:]:
+                            lines.append(f"  • {entry.get('fact', '')}")
+                    case_context += '\n'.join(lines)
             except Exception:
                 pass
+
+        user_id_str = str(request.user.id)
 
         def stream_response():
             yield f"data: {json.dumps({'session_id': str(session.id)})}\n\n"
@@ -116,6 +346,16 @@ class ChatView(APIView):
                     'timestamp': datetime.utcnow().isoformat(),
                 })
                 session.save()
+
+                # Asynchronously extract and store new facts without blocking the stream
+                if session.case_id and full_response:
+                    import threading
+                    threading.Thread(
+                        target=_extract_and_store_facts,
+                        args=(session.case_id, user_id_str, user_message, full_response, ai),
+                        daemon=True,
+                    ).start()
+
                 yield f"data: {json.dumps({'done': True})}\n\n"
 
             except Exception as exc:

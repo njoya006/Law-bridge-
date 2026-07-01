@@ -1,5 +1,6 @@
 'use client'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import {
@@ -119,15 +120,35 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming?: b
   )
 }
 
+// ─── Case context banner ──────────────────────────────────────────────────────
+
+function CaseBanner({ caseTitle, caseId }: { caseTitle: string; caseId: string }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gold-500/30 bg-gold-500/10 text-xs text-gold-300 max-w-full">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-3.5 w-3.5 flex-shrink-0">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      </svg>
+      <span className="font-medium truncate">Case context: {caseTitle || caseId}</span>
+    </div>
+  )
+}
+
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
-function EmptyState({ onPrompt }: { onPrompt: (text: string) => void }) {
-  const suggestions = [
+function EmptyState({ onPrompt, caseTitle }: { onPrompt: (text: string) => void; caseTitle?: string }) {
+  const genericSuggestions = [
     'Summarise Cameroon civil procedure rules',
     'What are the deadlines for filing an appeal?',
     'Explain OHADA arbitration procedures',
     'Draft a motion to dismiss for lack of jurisdiction',
   ]
+  const caseSuggestions = caseTitle ? [
+    `What are the next steps for the ${caseTitle} case?`,
+    `What evidence do I need for this case?`,
+    `What legal options does my client have?`,
+    `What are the likely risks and outcomes?`,
+  ] : genericSuggestions
+
   return (
     <div className="flex flex-col items-center justify-center h-full gap-6 py-12 px-4">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900">
@@ -136,11 +157,13 @@ function EmptyState({ onPrompt }: { onPrompt: (text: string) => void }) {
       <div className="text-center space-y-2">
         <h3 className="font-display text-xl text-neutral-50 font-semibold">LexAI Assistant</h3>
         <p className="text-sm text-neutral-400 max-w-sm">
-          Your AI legal research partner. Ask about cases, procedure, statutes, or drafting.
+          {caseTitle
+            ? `Discussing: "${caseTitle}". I know the case details and will ask focused questions.`
+            : 'Your AI legal research partner. Ask about cases, procedure, statutes, or drafting.'}
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
-        {suggestions.map(s => (
+        {caseSuggestions.map(s => (
           <button
             key={s}
             onClick={() => onPrompt(s)}
@@ -159,8 +182,13 @@ function EmptyState({ onPrompt }: { onPrompt: (text: string) => void }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ChatPage() {
+  const searchParams = useSearchParams()
+  const urlCaseId = searchParams.get('case_id') ?? undefined
+  const urlCaseTitle = searchParams.get('case_title') ?? undefined
+
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
+  const [activeCaseId, setActiveCaseId] = useState<string | undefined>(urlCaseId)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
@@ -171,6 +199,11 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const getToken = () => (typeof window !== 'undefined' ? localStorage.getItem('access') : null)
+
+  // When case_id comes from URL, update state
+  useEffect(() => {
+    if (urlCaseId) setActiveCaseId(urlCaseId)
+  }, [urlCaseId])
 
   // Load sessions
   const loadSessions = useCallback(async () => {
@@ -196,6 +229,7 @@ export default function ChatPage() {
     try {
       const session = await getChatSession(id, t)
       setActiveSessionId(id)
+      setActiveCaseId(session.case_id ?? undefined)
       setMessages(session.messages ?? [])
       setError('')
     } catch (e) {
@@ -216,11 +250,12 @@ export default function ChatPage() {
   // New chat
   const newChat = useCallback(() => {
     setActiveSessionId(null)
+    setActiveCaseId(urlCaseId)  // keep case context for new chats if coming from a case
     setMessages([])
     setInput('')
     setError('')
     textareaRef.current?.focus()
-  }, [])
+  }, [urlCaseId])
 
   // Send message
   const send = useCallback(async (overrideText?: string) => {
@@ -262,8 +297,8 @@ export default function ChatPage() {
           return updated
         })
       },
-    }, resolvedSession ?? undefined)
-  }, [input, isStreaming, activeSessionId, loadSessions])
+    }, resolvedSession ?? undefined, activeCaseId)
+  }, [input, isStreaming, activeSessionId, activeCaseId, loadSessions])
 
   // Enter to send
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -336,9 +371,14 @@ export default function ChatPage() {
             </div>
             <div>
               <p className="text-sm font-semibold text-neutral-100">LexAI</p>
-              <p className="text-[10px] text-neutral-500">Powered by Ollama · Mistral</p>
+              <p className="text-[10px] text-neutral-500">Case-aware legal AI</p>
             </div>
           </div>
+          {activeCaseId && (
+            <div className="ml-2 hidden sm:block">
+              <CaseBanner caseId={activeCaseId} caseTitle={urlCaseTitle ?? activeCaseId} />
+            </div>
+          )}
           {activeSessionId && (
             <Button size="xs" variant="ghost" onClick={newChat} className="ml-auto" leftIcon={<PlusIcon />}>
               New chat
@@ -349,7 +389,7 @@ export default function ChatPage() {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-5">
           {messages.length === 0 && !isStreaming ? (
-            <EmptyState onPrompt={(t) => { setInput(t); textareaRef.current?.focus() }} />
+            <EmptyState onPrompt={(t) => { setInput(t); textareaRef.current?.focus() }} caseTitle={urlCaseTitle} />
           ) : (
             messages.map((msg, i) => (
               <MessageBubble

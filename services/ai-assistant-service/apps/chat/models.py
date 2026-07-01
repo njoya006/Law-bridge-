@@ -2,6 +2,21 @@ import uuid
 from django.db import models
 
 
+class CaseKnowledge(models.Model):
+    """Accumulated facts about a case, built up across all conversations."""
+    case_id = models.CharField(max_length=64, db_index=True)
+    user_id = models.CharField(max_length=64, db_index=True)
+    # Growing list of {"fact": "...", "extracted_at": "ISO timestamp"}
+    facts = models.JSONField(default=list)
+    # {"client": "...", "opposing_party": "...", "judge": "..."}
+    key_parties = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'case_knowledge'
+        unique_together = [('case_id', 'user_id')]
+
+
 class ChatSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user_id = models.CharField(max_length=64, db_index=True)

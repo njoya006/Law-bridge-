@@ -6,6 +6,17 @@ import { useRouter } from 'next/navigation'
 import { getMyCases, type CaseItem } from '../../lib/casesApi'
 import { getCaseProgress } from '../../lib/monitoringApi'
 
+function BotIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-3.5 w-3.5">
+      <rect x="3" y="11" width="18" height="11" rx="2" />
+      <path strokeLinecap="round" d="M12 2v4M9 11V8a3 3 0 016 0v3" />
+      <circle cx="9" cy="16" r="1" fill="currentColor" />
+      <circle cx="15" cy="16" r="1" fill="currentColor" />
+    </svg>
+  )
+}
+
 function isStaffPortal(): boolean {
   try { return localStorage.getItem('portalRole') === 'lawyer' } catch { return false }
 }
@@ -80,8 +91,13 @@ function MatterCard({ item, monitoring, monitoringUpdatedAt }: {
   const lastTimeline = item.timeline?.[item.timeline.length - 1]
   const caseRef = item.id.slice(0, 8).toUpperCase()
 
+  const router = useRouter()
+  const caseTitle = encodeURIComponent(item.title || `${item.case_type} case`)
   return (
-    <Link href={`/cases/${item.id}`} className="group block focus:outline-none">
+    <div
+      className="group block focus:outline-none cursor-pointer"
+      onClick={() => router.push(`/cases/${item.id}`)}
+    >
       <div className="relative rounded-2xl border border-neutral-700/40 bg-gradient-to-b from-primary-800/60 to-primary-800/30 overflow-hidden transition-all duration-300 group-hover:border-gold-500/30 group-hover:shadow-[0_0_32px_rgba(201,146,58,0.07)] group-hover:-translate-y-0.5">
 
         {/* Subtle top accent bar */}
@@ -199,13 +215,23 @@ function MatterCard({ item, monitoring, monitoringUpdatedAt }: {
 
         {/* Footer */}
         <div className="px-5 py-3 bg-primary-900/20 border-t border-neutral-700/20 flex items-center justify-between">
-          <span className="text-xs text-neutral-500">View full matter</span>
-          <svg className="w-4 h-4 text-gold-500/60 group-hover:text-gold-400 transition-colors group-hover:translate-x-0.5 duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-          </svg>
+          <Link
+            href={`/chat?case_id=${item.id}&case_title=${caseTitle}`}
+            onClick={e => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 text-xs text-gold-400/70 hover:text-gold-300 transition-colors border border-gold-500/20 hover:border-gold-500/40 rounded-lg px-2.5 py-1 hover:bg-gold-500/5"
+          >
+            <BotIcon />
+            Ask AI
+          </Link>
+          <div className="flex items-center gap-1 text-xs text-neutral-500 group-hover:text-neutral-300 transition-colors">
+            <span>View matter</span>
+            <svg className="w-4 h-4 text-gold-500/60 group-hover:text-gold-400 transition-colors group-hover:translate-x-0.5 duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
+            </svg>
+          </div>
         </div>
       </div>
-    </Link>
+    </div>
   )
 }
 
