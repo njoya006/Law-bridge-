@@ -127,7 +127,7 @@ export default function SecretaryBookingsPage() {
                 }`}>
                   <div className="flex items-start justify-between gap-2">
                     <p className="font-semibold text-neutral-100 text-sm leading-tight truncate flex-1">{booking.title}</p>
-                    <StatusBadge status={booking.booking_status} />
+                    <StatusBadge status={booking.booking_status ?? ''} />
                   </div>
 
                   <p className="text-xs text-neutral-500">{booking.case_type} · {formatDate(booking.created_at)}</p>
