@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { getMyCases, getIncomingBookings, type CaseItem } from '../../../lib/casesApi'
 import { getMyFirmMemberships, getFirmMembers, getFirmLawyers, type FirmMembership, type FirmLawyer } from '../../../lib/firmsApi'
+import { getReportRequests, acknowledgeReportRequest, type ReportRequestItem } from '../../../lib/monitoringApi'
 
 function fmtXAF(n: number) { return n > 0 ? `${n.toLocaleString()} XAF` : '0 XAF' }
 function fmtDate(iso: string) {
@@ -331,24 +332,57 @@ function ReportContent({ data, type }: { data: ReportData; type: ReportType }) {
   )
 }
 
+const REPORT_TYPE_MAP: Record<string, ReportType> = {
+  case_summary: 'general', financial: 'financial', clients: 'clients',
+  lawyers: 'lawyers', activity: 'activity', all: 'full',
+}
+
 export default function LawyerReportsPage() {
   const [reportType, setReportType] = useState<ReportType>('general')
   const [period, setPeriod]         = useState<Period>('current_month')
   const [data, setData]             = useState<ReportData | null>(null)
   const [loading, setLoading]       = useState(false)
   const [firmName, setFirmName]     = useState('Your Firm')
+  const [firmId, setFirmId]         = useState<number | null>(null)
+  const [requests, setRequests]     = useState<ReportRequestItem[]>([])
+  const [ackingId, setAckingId]     = useState<string | null>(null)
   const reportRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const access = localStorage.getItem('access')
     if (!access) return
     getMyFirmMemberships(access)
-      .then(ms => {
+      .then(async ms => {
         const active = ms.find(m => m.is_active !== false)
-        if (active) setFirmName(`Firm #${active.firm}`)
+        if (!active) return
+        setFirmId(active.firm)
+        setFirmName(`Firm #${active.firm}`)
+        try {
+          const raw = await getReportRequests(active.firm, access)
+          const items = Array.isArray(raw) ? raw : (raw as { results?: ReportRequestItem[] }).results ?? []
+          setRequests(items.filter(r => r.status === 'delivered' || r.status === 'pending'))
+        } catch { /* non-fatal */ }
       })
       .catch(() => {})
   }, [])
+
+  async function acknowledge(id: string) {
+    const access = localStorage.getItem('access')
+    if (!access) return
+    setAckingId(id)
+    try {
+      await acknowledgeReportRequest(id, access)
+      setRequests(prev => prev.filter(r => r.id !== id))
+    } finally {
+      setAckingId(null)
+    }
+  }
+
+  function loadFromRequest(req: ReportRequestItem) {
+    const mapped = REPORT_TYPE_MAP[req.report_type] ?? 'general'
+    setReportType(mapped)
+    setPeriod(req.period as Period)
+  }
 
   async function generate() {
     const access = localStorage.getItem('access')
@@ -398,9 +432,61 @@ export default function LawyerReportsPage() {
       <header className="no-print">
         <h1 className="font-display text-display-md text-neutral-50">Reports</h1>
         <p className="mt-1 text-sm text-neutral-400">
-          Generate firm reports. Your secretary can also generate and ship reports to you from the Secretary Portal.
+          Generate firm reports. Your secretary can ship reports to you from the Secretary Portal — they appear below.
         </p>
       </header>
+
+      {/* Secretary inbox */}
+      {requests.length > 0 && (
+        <div className="no-print rounded-xl border border-blue-500/20 bg-blue-900/10 p-5 space-y-3">
+          <h2 className="font-heading text-body-lg text-neutral-50 flex items-center gap-2">
+            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-5v5"/>
+            </svg>
+            From Secretary
+            <span className="rounded-full bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 ml-1">{requests.length} new</span>
+          </h2>
+          <div className="space-y-2">
+            {requests.map(req => {
+              const typeLabel = REPORT_TYPES.find(r => r.id === (REPORT_TYPE_MAP[req.report_type] ?? req.report_type))?.label ?? req.report_type
+              const periodLabel = PERIODS.find(p => p.id === req.period)?.label ?? req.period
+              const ago = (() => {
+                const diff = Date.now() - new Date(req.created_at).getTime()
+                const h = Math.floor(diff / 3600000)
+                if (h < 1) return 'just now'
+                if (h < 24) return `${h}h ago`
+                return `${Math.floor(h / 24)}d ago`
+              })()
+              return (
+                <div key={req.id} className="flex items-center gap-4 rounded-lg border border-blue-500/10 bg-blue-900/20 px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-100">
+                      {req.requester_name || 'Secretary'} shipped a <span className="text-blue-300">{typeLabel}</span>
+                    </p>
+                    <p className="text-xs text-neutral-500 mt-0.5">{periodLabel} · {ago}</p>
+                    {req.notes && <p className="text-xs text-neutral-400 mt-1 truncate">{req.notes}</p>}
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => { loadFromRequest(req); window.scrollTo({ top: 999, behavior: 'smooth' }) }}
+                      className="rounded-lg border border-gold-500/30 bg-gold-500/10 px-3 py-1.5 text-xs font-semibold text-gold-300 hover:bg-gold-500/20 transition-colors"
+                    >
+                      Generate
+                    </button>
+                    <button
+                      onClick={() => acknowledge(req.id)}
+                      disabled={ackingId === req.id}
+                      className="rounded-lg border border-neutral-600/40 px-3 py-1.5 text-xs text-neutral-400 hover:text-neutral-200 hover:border-neutral-500 transition-colors disabled:opacity-40"
+                    >
+                      {ackingId === req.id ? '…' : 'Dismiss'}
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="no-print grid grid-cols-1 sm:grid-cols-2 gap-6">
         {/* Report type selector */}

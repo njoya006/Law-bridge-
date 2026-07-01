@@ -73,3 +73,35 @@ export type FirmIntelligence = {
 export function getFirmIntelligence(token: string) {
   return api.get<FirmIntelligence>('monitoring', '/monitoring/firm-intelligence/', token)
 }
+
+// ── Report Requests (secretary → owner notifications) ─────────────────────────
+
+export type ReportRequestItem = {
+  id: string
+  firm_id: number
+  requester_id: string
+  requester_name: string
+  report_type: string
+  period: string
+  notes: string
+  status: 'pending' | 'acknowledged' | 'generated' | 'delivered'
+  created_at: string
+  updated_at: string
+}
+
+export function getReportRequests(firmId: number, token: string) {
+  return api.get<ReportRequestItem[] | { results: ReportRequestItem[] }>(
+    'monitoring', `/monitoring/report-requests/?firm_id=${firmId}`, token
+  )
+}
+
+export function createReportRequest(
+  payload: { firm_id: number; requester_id: string; requester_name: string; report_type: string; period: string; notes?: string; status?: string },
+  token: string,
+) {
+  return api.post<ReportRequestItem>('monitoring', '/monitoring/report-requests/', payload, token)
+}
+
+export function acknowledgeReportRequest(id: string, token: string) {
+  return api.patch<ReportRequestItem>('monitoring', `/monitoring/report-requests/${id}/`, { status: 'acknowledged' }, token)
+}

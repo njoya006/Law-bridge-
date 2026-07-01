@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { getMyCases, type CaseItem } from '../../../lib/casesApi'
 import { getIncomingBookings } from '../../../lib/casesApi'
 import { getMyFirmMemberships, getFirmMembers, getFirmLawyers, type FirmMembership, type FirmLawyer } from '../../../lib/firmsApi'
+import { createReportRequest } from '../../../lib/monitoringApi'
 
 function fmtXAF(n: number) { return n > 0 ? `${n.toLocaleString()} XAF` : '0 XAF' }
 function fmtDate(iso: string) {
@@ -313,29 +314,23 @@ function ReportContent({ data, type }: { data: ReportData; type: ReportType }) {
   )
 }
 
-async function sendToOwners(firmId: number, reportType: string, period: string, token: string) {
-  try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_FIRMS_URL || 'https://api.lawbridge.app/firms'}/api/v1/firms/${firmId}/members/`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!res.ok) return
-    const members: Array<{ user_uuid?: string; role: string }> = await res.json()
-    const owners = members.filter(m => ['owner', 'managing_partner', 'partner'].includes(m.role))
-    await Promise.allSettled(owners.map(o => {
-      if (!o.user_uuid) return Promise.resolve()
-      return fetch('/api/internal/notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          recipient_id: o.user_uuid,
-          title: 'Report Ready',
-          message: `The ${reportType} report (${period}) has been generated and is ready for your review.`,
-          event_type: 'report_ready',
-          channel: 'in_app',
-        }),
-      })
-    }))
-  } catch { /* non-fatal */ }
+async function sendToOwners(firmId: number, reportTypeLabel: string, periodLabel: string, reportTypeId: string, periodId: string, token: string) {
+  const name = localStorage.getItem('fullName') || localStorage.getItem('userEmail') || 'Secretary'
+  const uid  = localStorage.getItem('authUserId') || ''
+  // Map frontend type IDs to backend choices
+  const typeMap: Record<string, string> = {
+    general: 'case_summary', financial: 'financial', clients: 'clients',
+    lawyers: 'lawyers', activity: 'activity', full: 'all',
+  }
+  await createReportRequest({
+    firm_id: firmId,
+    requester_id: uid,
+    requester_name: name,
+    report_type: typeMap[reportTypeId] ?? reportTypeId,
+    period: periodId,
+    notes: `${reportTypeLabel} report (${periodLabel}) generated and ready for your review.`,
+    status: 'delivered',
+  }, token)
 }
 
 function ReportsPageInner() {
@@ -397,7 +392,14 @@ function ReportsPageInner() {
     if (!access) return
     setShipping(true)
     try {
-      await sendToOwners(firmId, REPORT_TYPES.find(r => r.id === reportType)?.label || reportType, PERIODS.find(p => p.id === period)?.label || period, access)
+      await sendToOwners(
+        firmId,
+        REPORT_TYPES.find(r => r.id === reportType)?.label || reportType,
+        PERIODS.find(p => p.id === period)?.label || period,
+        reportType,
+        period,
+        access,
+      )
       setShipped(true)
     } finally { setShipping(false) }
   }

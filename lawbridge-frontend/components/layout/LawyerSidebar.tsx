@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { DashboardIcon, CaseIcon, BriefcaseIcon, DocumentIcon, CalendarIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon } from '../icons/Icons'
 import { getFirmMembers, getMyFirmMemberships, type FirmMembership } from '../../lib/firmsApi'
+import { getReportRequests } from '../../lib/monitoringApi'
 import { clearSession } from '../../lib/authSession'
 
 const nav = [
@@ -40,6 +41,7 @@ export default function LawyerSidebar() {
   const [isFirmAdmin, setIsFirmAdmin] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarInitials, setAvatarInitials] = useState('L')
+  const [pendingReports, setPendingReports] = useState(0)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 1023px)')
@@ -111,6 +113,14 @@ export default function LawyerSidebar() {
         } else {
           setAssociates([])
         }
+
+        // Load pending report requests for badge
+        try {
+          const raw = await getReportRequests(currentMembership.firm, accessToken)
+          const items = Array.isArray(raw) ? raw : (raw as { results?: unknown[] }).results ?? []
+          const unread = (items as { status: string }[]).filter(r => r.status === 'delivered' || r.status === 'pending').length
+          if (!cancelled) setPendingReports(unread)
+        } catch { /* non-fatal */ }
       } catch {
         if (!cancelled) {
           setAssociates([])
@@ -202,6 +212,8 @@ export default function LawyerSidebar() {
         {nav.map(item => {
           const IconComponent = item.icon
           const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+          const isReports = item.href === '/lawyer/reports'
+          const badge = isReports && pendingReports > 0 ? pendingReports : 0
           return (
             <Link
               key={item.href}
@@ -218,9 +230,19 @@ export default function LawyerSidebar() {
                 <span className={`relative transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110 ${isActive ? 'text-gold-300' : 'text-neutral-400 group-hover:text-gold-300'}`}>
                   <IconComponent width={18} height={18} />
                 </span>
+                {badge > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center shadow-lg">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
+                )}
               </span>
               {!collapsed && <span className="relative z-10 font-medium">{item.label}</span>}
-              {isActive && !collapsed && <span className="ml-auto h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_12px_rgba(201,146,58,0.7)] animate-pulse-subtle" />}
+              {!collapsed && badge > 0 && (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
+              {isActive && !collapsed && badge === 0 && <span className="ml-auto h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_12px_rgba(201,146,58,0.7)] animate-pulse-subtle" />}
             </Link>
           )
         })}
