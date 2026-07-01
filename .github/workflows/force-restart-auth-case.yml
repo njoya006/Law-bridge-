@@ -1,0 +1,52 @@
+name: Force Restart Auth and Case Pods
+
+on:
+  workflow_dispatch:
+
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Set up kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+
+      - name: Force delete all auth-service and case-service pods
+        run: |
+          echo "=== Current pods ==="
+          kubectl get pods -n lawbridge -l "app in (auth-service, case-service)" -o wide
+
+          echo "=== Deleting auth-service pods ==="
+          kubectl delete pods -n lawbridge -l app=auth-service --grace-period=0 --force 2>/dev/null || true
+
+          echo "=== Deleting case-service pods ==="
+          kubectl delete pods -n lawbridge -l app=case-service --grace-period=0 --force 2>/dev/null || true
+
+          echo "=== Waiting for new pods ==="
+          kubectl rollout status deployment/auth-service -n lawbridge --timeout=120s
+          kubectl rollout status deployment/case-service -n lawbridge --timeout=120s
+
+          echo "=== Verifying JWT_SECRET_KEY in new pods ==="
+          sleep 5
+          for svc in auth-service case-service; do
+            POD=$(kubectl get pod -n lawbridge -l app=$svc --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+            if [ -n "$POD" ]; then
+              KEY=$(kubectl exec -n lawbridge "$POD" -- python3 -c "import os; print(os.environ.get('JWT_SECRET_KEY','MISSING')[:12])" 2>/dev/null)
+              echo "$svc ($POD): JWT_SECRET_KEY prefix = [$KEY]"
+            fi
+          done
