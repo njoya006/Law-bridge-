@@ -25,16 +25,15 @@ class LawyerBrowseView(APIView):
           - circuit: anglophone/francophone/both
           - page: pagination
         """
-        queryset = LawyerProfile.objects.filter(
-            availability_status='available',
-            verified_at__isnull=False
+        queryset = LawyerProfile.objects.exclude(
+            availability_status='inactive'
         ).order_by('-average_rating')
-        
+
         # Filter by specialization if provided
         specialization = request.query_params.get('specialization')
         if specialization:
             queryset = queryset.filter(specialization__icontains=specialization)
-        
+
         # Filter by circuit if provided
         circuit = request.query_params.get('circuit')
         if circuit:
@@ -46,7 +45,7 @@ class LawyerBrowseView(APIView):
                 queryset = queryset.filter(
                     Q(bijural_flag='civil_law') | Q(bijural_flag='both')
                 )
-        
+
         try:
             serializer = LawyerDiscoverySerializer(queryset, many=True)
             return Response({'count': queryset.count(), 'results': serializer.data})
@@ -74,8 +73,7 @@ class LawyerSearchView(APIView):
             Q(full_name__icontains=query) |
             Q(specialization__icontains=query) |
             Q(bio__icontains=query),
-            availability_status='available'
-        ).order_by('-average_rating')
+        ).exclude(availability_status='inactive').order_by('-average_rating')
 
         try:
             serializer = LawyerDiscoverySerializer(queryset, many=True)
@@ -113,7 +111,6 @@ class LawyerMatchingView(APIView):
         # Get all available lawyers
         lawyers = LawyerProfile.objects.filter(
             availability_status='available',
-            verified_at__isnull=False
         )
         
         # Filter by circuit
