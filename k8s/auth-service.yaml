@@ -30,6 +30,9 @@ spec:
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef: { name: lawbridge-db-secrets, key: DB_PASSWORD }
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef: { name: lawbridge-secrets, key: JWT_SECRET_KEY }
         envFrom:
         - secretRef:
             name: lawbridge-secrets
