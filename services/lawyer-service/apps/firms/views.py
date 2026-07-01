@@ -73,6 +73,10 @@ class FirmMembersView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request, firm_id):
+        # Require either a valid JWT (authenticated user) or internal service key
+        has_jwt = bool(getattr(request, 'auth_payload', None))
+        if not has_jwt and not is_internal_request(request):
+            return Response({'detail': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
         firm = get_object_or_404(Firm, id=firm_id)
         members = FirmMembership.objects.filter(firm=firm, is_active=True).select_related('user')
         serializer = FirmMembershipSerializer(members, many=True)

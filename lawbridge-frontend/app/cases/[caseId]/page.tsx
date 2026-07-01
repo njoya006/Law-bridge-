@@ -11,6 +11,7 @@ import {
   REASSIGNMENT_REASONS,
   type CaseItem, type ReassignmentRequest, type ConflictFlags, type WorkflowStatusMsg,
 } from '../../../lib/casesApi'
+import { sendChatMessage, type ChatMessage } from '../../../lib/aiApi'
 import { buildWorkflow, LAWYER_ACTIONS } from '../../../lib/workflow'
 import { ClientCard, LawyerCard } from '../../../components/IdentityCards'
 import { useCaseWebSocket } from '../../../lib/useCaseWebSocket'
@@ -1808,6 +1809,135 @@ function AICaseIntelligenceCard({ caseItem }: { caseItem: CaseItem }) {
   )
 }
 
+// ── Client Case Bot (AI-5) ────────────────────────────────────────────────────
+
+function ClientCaseBot({ caseId, caseTitle }: { caseId: string; caseTitle: string }) {
+  const [open, setOpen] = useState(false)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [input, setInput] = useState('')
+  const [streaming, setStreaming] = useState(false)
+  const [streamingText, setStreamingText] = useState('')
+  const [sessionId, setSessionId] = useState<string | undefined>()
+  const bottomRef = React.useRef<HTMLDivElement>(null)
+
+  React.useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, streamingText])
+
+  const send = async () => {
+    const msg = input.trim()
+    if (!msg || streaming) return
+    const access = localStorage.getItem('access')
+    if (!access) return
+    setInput('')
+    setMessages(prev => [...prev, { role: 'user', content: msg, timestamp: new Date().toISOString() }])
+    setStreaming(true)
+    setStreamingText('')
+    let full = ''
+    await sendChatMessage(msg, access, {
+      onSessionId: id => setSessionId(id),
+      onToken: t => { full += t; setStreamingText(full) },
+      onDone: () => {
+        setMessages(prev => [...prev, { role: 'assistant', content: full, timestamp: new Date().toISOString() }])
+        setStreamingText('')
+        setStreaming(false)
+      },
+      onError: err => {
+        setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err}`, timestamp: new Date().toISOString() }])
+        setStreamingText('')
+        setStreaming(false)
+      },
+    }, sessionId, caseId)
+  }
+
+  return (
+    <>
+      {/* Floating button */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-gold-500 to-gold-400 text-primary-900 font-bold text-sm shadow-xl shadow-gold-900/30 hover:scale-105 active:scale-95 transition-all"
+        title="Ask AI about this case"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+        Ask AI
+      </button>
+
+      {/* Chat panel */}
+      {open && (
+        <div className="fixed bottom-20 right-6 z-50 w-80 sm:w-96 rounded-2xl border border-gold-400/20 bg-primary-900 shadow-2xl shadow-black/40 flex flex-col overflow-hidden" style={{ maxHeight: '70vh' }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-gold-500/10 to-transparent border-b border-gold-400/10">
+            <div>
+              <p className="text-sm font-semibold text-gold-300">Case AI Assistant</p>
+              <p className="text-[10px] text-neutral-500 truncate max-w-[220px]">{caseTitle}</p>
+            </div>
+            <button onClick={() => setOpen(false)} className="text-neutral-500 hover:text-neutral-200 text-lg leading-none">×</button>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+            {messages.length === 0 && !streaming && (
+              <div className="text-center py-6 space-y-2">
+                <p className="text-xs text-neutral-400">Ask anything about your case</p>
+                {[
+                  "What's the current status?",
+                  "What happens next?",
+                  "How long will this take?",
+                ].map(q => (
+                  <button key={q} onClick={() => { setInput(q); setTimeout(() => send(), 0) }}
+                    className="block w-full text-left text-xs text-gold-400 bg-gold-500/5 border border-gold-500/15 rounded-lg px-3 py-2 hover:bg-gold-500/10 transition-colors">
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+            {messages.map((m, i) => (
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${m.role === 'user' ? 'bg-gold-500/20 text-gold-100 border border-gold-400/20' : 'bg-primary-800/60 text-neutral-200 border border-neutral-700/40'}`}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {streaming && streamingText && (
+              <div className="flex justify-start">
+                <div className="max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed bg-primary-800/60 text-neutral-200 border border-neutral-700/40">
+                  {streamingText}
+                  <span className="inline-block w-1 h-3 bg-gold-400 ml-0.5 animate-pulse" />
+                </div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input */}
+          <div className="p-3 border-t border-neutral-700/30 flex gap-2">
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
+              placeholder="Ask about your case..."
+              disabled={streaming}
+              className="flex-1 bg-white/5 border border-neutral-700/40 rounded-xl px-3 py-2 text-xs text-neutral-50 placeholder-neutral-600 focus:outline-none focus:border-gold-400/40 disabled:opacity-50"
+            />
+            <button
+              onClick={send}
+              disabled={streaming || !input.trim()}
+              className="flex-shrink-0 h-9 w-9 rounded-xl bg-gold-500/20 border border-gold-400/30 text-gold-300 hover:bg-gold-500/30 disabled:opacity-40 flex items-center justify-center transition-all"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function CaseDetailPage() {
@@ -2086,6 +2216,11 @@ export default function CaseDetailPage() {
           </p>
         )}
       </div>
+
+      {/* AI Case Bot — shown for clients to ask about their case in natural language */}
+      {!isLawyer && (
+        <ClientCaseBot caseId={item.id} caseTitle={item.title} />
+      )}
     </div>
   )
 }

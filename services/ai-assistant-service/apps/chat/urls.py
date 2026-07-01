@@ -4,6 +4,7 @@ from .views import (
     LegalDraftCreateView, LegalDraftListView, LegalDraftDetailView,
     DraftClarifyView, LegalDraftStreamView, DraftTranslateView,
     LegalResearchView, FirmInsightsView, MeetingSummaryView, IntakeGenerateView,
+    CaseTriageView,
 )
 
 urlpatterns = [
@@ -20,4 +21,5 @@ urlpatterns = [
     path('insights/', FirmInsightsView.as_view(), name='firm-insights'),
     path('meetings/summarize/', MeetingSummaryView.as_view(), name='meeting-summarize'),
     path('intake/generate/', IntakeGenerateView.as_view(), name='intake-generate'),
+    path('triage/', CaseTriageView.as_view(), name='case-triage'),
 ]

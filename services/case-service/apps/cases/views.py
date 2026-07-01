@@ -52,8 +52,9 @@ def get_firm_member_uuids(auth_header):
     firm_id = memberships[0].get('firm')
     if not firm_id:
         return set()
+    internal_key = config('INTERNAL_API_KEY', default='dev-internal-key')
     try:
-        members = fetch_json(f'{base_url}/{firm_id}/members/')
+        members = fetch_json(f'{base_url}/{firm_id}/members/', headers={'X-Internal-Api-Key': internal_key})
     except (HTTPError, URLError, ValueError):
         return set()
     return {str(m['user_uuid']) for m in members if m.get('user_uuid')}
@@ -88,17 +89,15 @@ STAFF_ROLES = {'lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'se
 
 
 def extract_token_payload(request):
-    """Decode JWT trying all possible signing keys."""
+    """Decode JWT using the configured signing key."""
     auth_header = request.META.get('HTTP_AUTHORIZATION', '')
     if not auth_header.startswith('Bearer '):
         return {}
     token = auth_header.split(' ')[1]
-    for key in [config('JWT_SECRET_KEY', default='dev-secret'), config('SECRET_KEY', default='dev-secret'), 'dev-secret']:
-        try:
-            return jwt.decode(token, key, algorithms=['HS256'])
-        except Exception:
-            continue
-    return {}
+    try:
+        return jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
+    except Exception:
+        return {}
 
 
 def user_can_access_case(request, case):
@@ -195,16 +194,23 @@ class CaseDetailView(APIView):
             return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
 
 
+_ASSIGN_ROLES = {'firm_admin', 'owner', 'managing_partner', 'partner'}
+
+
 class CaseAssignView(APIView):
     """Assign a lawyer to a case (admin only)"""
-    
+
     def post(self, request, case_id):
         """POST /api/v1/cases/{case_id}/assign/ - Assign lawyer"""
+        payload = extract_token_payload(request)
+        if payload.get('role') not in _ASSIGN_ROLES:
+            return Response({'error': 'Only firm admins and owners can assign cases'}, status=status.HTTP_403_FORBIDDEN)
+
         try:
             case = Case.objects.get(id=case_id)
         except Case.DoesNotExist:
             return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
-        
+
         lawyer_id = request.data.get('lawyer_id')
         if not lawyer_id:
             return Response({'error': 'lawyer_id required'}, status=status.HTTP_400_BAD_REQUEST)
@@ -236,22 +242,25 @@ class BookingAcceptView(APIView):
     """POST /api/v1/cases/{case_id}/accept/ — Lawyer or firm admin accepts a booking."""
 
     def post(self, request, case_id):
-        try:
-            case = Case.objects.get(id=case_id)
-        except Case.DoesNotExist:
-            return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
-
         payload = extract_token_payload(request)
         role = payload.get('role', 'client')
         if role not in STAFF_ROLES:
             return Response({'error': 'Only lawyers and firm admins can accept bookings'}, status=status.HTTP_403_FORBIDDEN)
 
-        case.booking_status = 'accepted'
-        # Assign accepting lawyer so case appears in their list
-        user_id = payload.get('user_id') or extract_user_id_from_token(request)
-        if not case.assigned_lawyer_id:
-            case.assigned_lawyer_id = user_id
-        case.add_timeline_entry('filed', 'Booking accepted by lawyer/firm')
+        from django.db import transaction
+        try:
+            with transaction.atomic():
+                case = Case.objects.select_for_update().get(id=case_id)
+                if case.booking_status == 'accepted':
+                    return Response({'error': 'This booking has already been accepted by another lawyer'}, status=status.HTTP_409_CONFLICT)
+
+                user_id = payload.get('user_id') or extract_user_id_from_token(request)
+                case.booking_status = 'accepted'
+                if not case.assigned_lawyer_id:
+                    case.assigned_lawyer_id = user_id
+                case.add_timeline_entry('filed', 'Booking accepted by lawyer/firm')
+        except Case.DoesNotExist:
+            return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
 
         try:
             import json as _json, urllib.request as _urllib
@@ -790,6 +799,14 @@ class PaymentVerifyView(APIView):
             case = Case.objects.get(id=case_id)
         except Case.DoesNotExist:
             return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Firm scope check: requestor must belong to the same firm as the assigned lawyer
+        if case.assigned_lawyer_id:
+            auth_header = get_auth_header(request)
+            if auth_header:
+                firm_members = get_firm_member_uuids(auth_header)
+                if firm_members and str(case.assigned_lawyer_id) not in firm_members:
+                    return Response({'error': 'You can only verify payments for cases in your firm'}, status=status.HTTP_403_FORBIDDEN)
 
         meta = dict(case.booking_metadata or {})
         new_status = 'verified' if action == 'verify' else 'rejected'

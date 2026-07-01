@@ -1169,6 +1169,106 @@ class FirmInsightsView(APIView):
         return Response(result)
 
 
+TRIAGE_SYSTEM_PROMPT = (
+    "You are an AI case-routing system for a Cameroonian law firm. "
+    "Given a new client case description and a list of available lawyers with their profiles, "
+    "rank the lawyers by fit and return a JSON array. "
+    "For each lawyer include: a match_score (0-100), a one-sentence why_matched explanation, "
+    "and an urgency_flag if the case appears time-sensitive. "
+    "Respond ONLY with valid JSON."
+)
+
+
+class CaseTriageView(APIView):
+    """POST /api/v1/ai/triage/ — rank available lawyers for a new case."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        case_description = (request.data.get('case_description') or '').strip()
+        case_type = (request.data.get('case_type') or '').strip()
+        circuit = (request.data.get('circuit') or '').strip()
+        lawyers = request.data.get('lawyers') or []
+
+        if not case_description:
+            return Response({'error': 'case_description is required'}, status=400)
+        if not lawyers:
+            return Response({'error': 'lawyers list is required'}, status=400)
+
+        lawyer_summaries = []
+        for l in lawyers[:20]:
+            lawyer_summaries.append({
+                'id': l.get('id', ''),
+                'name': l.get('name', 'Unnamed'),
+                'specialization': l.get('specialization', 'General'),
+                'circuits': l.get('circuits') or l.get('preferred_circuits', []),
+                'availability': l.get('availability_status', 'unknown'),
+                'active_cases': l.get('active_cases', 0),
+                'years_experience': l.get('years_of_experience', 0),
+                'case_types': l.get('accepted_case_types', ''),
+            })
+
+        prompt = (
+            f"New case received:\n"
+            f"Type: {case_type or 'Not specified'}\n"
+            f"Circuit: {circuit or 'Not specified'}\n"
+            f"Description: {case_description[:800]}\n\n"
+            f"Available lawyers:\n{json.dumps(lawyer_summaries, indent=2)}\n\n"
+            "Rank these lawyers by fitness for this case. Return a JSON array:\n"
+            "[\n"
+            "  {\n"
+            '    "lawyer_id": "...",\n'
+            '    "match_score": 85,\n'
+            '    "why_matched": "One concise sentence explaining the match",\n'
+            '    "urgency_flag": false\n'
+            "  }\n"
+            "]\n\n"
+            "Rank from highest to lowest match_score. Include all lawyers."
+        )
+
+        try:
+            ai = get_ai_client(settings)
+            raw = ai.complete(prompt, system=TRIAGE_SYSTEM_PROMPT, max_tokens=800)
+        except Exception as exc:
+            return Response({'error': f'AI unavailable: {exc}'}, status=503)
+
+        import re as _re
+        cleaned = raw.strip()
+        if cleaned.startswith('```'):
+            cleaned = cleaned.split('```')[1]
+            if cleaned.startswith('json'):
+                cleaned = cleaned[4:]
+            cleaned = cleaned.strip()
+        if cleaned.endswith('```'):
+            cleaned = cleaned[:-3].strip()
+        m = _re.search(r'\[[\s\S]*\]', cleaned)
+        if m:
+            cleaned = m.group(0)
+
+        try:
+            ranked = json.loads(cleaned)
+            if not isinstance(ranked, list):
+                raise ValueError('Expected list')
+        except Exception:
+            return Response({'error': 'AI returned unexpected format. Please try again.'}, status=502)
+
+        lawyer_map = {str(l.get('id', '')): l for l in lawyers}
+        enriched = []
+        for item in ranked:
+            lid = str(item.get('lawyer_id', ''))
+            meta = lawyer_map.get(lid, {})
+            enriched.append({
+                'lawyer_id': lid,
+                'name': meta.get('name', 'Unknown'),
+                'specialization': meta.get('specialization', ''),
+                'availability_status': meta.get('availability_status', ''),
+                'match_score': item.get('match_score', 0),
+                'why_matched': item.get('why_matched', ''),
+                'urgency_flag': bool(item.get('urgency_flag', False)),
+            })
+
+        return Response({'ranked_lawyers': enriched, 'case_type': case_type, 'circuit': circuit})
+
+
 INTAKE_SYSTEM_PROMPT = (
     "You are a Cameroonian legal intake specialist. "
     "Generate a client intake questionnaire tailored to the given case type and jurisdiction. "

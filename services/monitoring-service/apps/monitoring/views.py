@@ -44,9 +44,10 @@ def _get_firm_scope(auth_header):
     except Exception:
         pass
 
-    # 3. All members → their auth-service UUIDs
+    # 3. All members → their auth-service UUIDs (internal key required since endpoint is now auth-gated)
     try:
-        req = _ureq.Request(f'{lawyer_svc}/{firm_id}/members/')
+        internal_key = config('INTERNAL_API_KEY', default='dev-internal-key')
+        req = _ureq.Request(f'{lawyer_svc}/{firm_id}/members/', headers={'X-Internal-Api-Key': internal_key})
         with _ureq.urlopen(req, timeout=5) as resp:
             members = _json.loads(resp.read())
     except Exception:

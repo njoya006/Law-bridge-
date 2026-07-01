@@ -528,6 +528,52 @@ export async function generateIntakeForm(
 }
 
 
+// ── Smart Case Triage ─────────────────────────────────────────────────────────
+
+export type TriagedLawyer = {
+  lawyer_id: string
+  name: string
+  specialization: string
+  availability_status: string
+  match_score: number
+  why_matched: string
+  urgency_flag: boolean
+}
+
+export type TriageResult = {
+  ranked_lawyers: TriagedLawyer[]
+  case_type: string
+  circuit: string
+}
+
+export type LawyerForTriage = {
+  id: string
+  name: string
+  specialization?: string
+  circuits?: string[]
+  availability_status?: string
+  active_cases?: number
+  years_of_experience?: number
+  accepted_case_types?: string
+}
+
+export async function triageCase(
+  payload: { case_description: string; case_type: string; circuit: string; lawyers: LawyerForTriage[] },
+  token: string,
+): Promise<TriageResult> {
+  const res = await fetch(`${aiBase()}/ai/triage/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Triage failed (${res.status}): ${text.slice(0, 200)}`)
+  }
+  return res.json() as Promise<TriageResult>
+}
+
+
 export async function streamDraft(
   payload: { draft_type: string; instructions: string; answers?: Record<string, string>; title?: string; case_id?: string | null },
   token: string,

@@ -18,6 +18,7 @@ const nav = [
   { label: 'Team', href: '/lawyer/team', icon: UserIcon },
   { label: 'Documents', href: '/lawyer/documents', icon: DocumentIcon },
   { label: 'AI Assistant', href: '/lawyer/ai', icon: LawIcon },
+  { label: 'Case Triage', href: '/lawyer/triage', icon: LawIcon },
   { label: 'Calendar', href: '/lawyer/calendar', icon: CalendarIcon },
   { label: 'Billing', href: '/lawyer/billing', icon: PaymentIcon },
   { label: 'Reports', href: '/lawyer/reports', icon: DocumentIcon },
