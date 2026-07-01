@@ -35,8 +35,12 @@ jobs:
           for svc in auth-service case-service ai-assistant-service; do
             POD=$(kubectl get pod -n lawbridge -l app=$svc -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
             if [ -n "$POD" ]; then
-              KEY_PREFIX=$(kubectl exec -n lawbridge "$POD" -- sh -c 'echo -n $JWT_SECRET_KEY' 2>/dev/null | cut -c1-12)
-              echo "$svc ($POD): JWT_SECRET_KEY prefix = [$KEY_PREFIX]"
+              # Try env command first, then sh, then python
+              KEY_RAW=$(kubectl exec -n lawbridge "$POD" -- env 2>/dev/null | grep "^JWT_SECRET_KEY=" | cut -d= -f2 | cut -c1-12)
+              if [ -z "$KEY_RAW" ]; then
+                KEY_RAW=$(kubectl exec -n lawbridge "$POD" -- python3 -c "import os; print(os.environ.get('JWT_SECRET_KEY','MISSING')[:12])" 2>/dev/null)
+              fi
+              echo "$svc ($POD): JWT_SECRET_KEY prefix = [$KEY_RAW]"
             else
               echo "$svc: no pod found"
             fi
