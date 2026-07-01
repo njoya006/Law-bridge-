@@ -1667,7 +1667,7 @@ function AICaseIntelligenceCard({ caseItem }: { caseItem: CaseItem }) {
     }
 
     try {
-      const res = await fetch(`${aiBase}/ai/chat/stream/`, {
+      const res = await fetch(`${aiBase}/ai/chat/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access}`, Accept: 'text/event-stream' },
         body: JSON.stringify(payload),
