@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation'
 import { clearSession } from '../../lib/authSession'
 import { DashboardIcon, PaymentIcon, ChartBarIcon, UsersIcon, LogoutIcon } from '../../components/icons/Icons'
 
-const ALLOWED_ROLES = new Set(['secretary', 'firm_admin', 'partner', 'associate', 'owner', 'managing_partner'])
+const ALLOWED_ROLES = new Set(['secretary', 'firm_admin'])
 
 const nav = [
   { label: 'Dashboard', href: '/secretary/dashboard', Icon: DashboardIcon },
@@ -65,11 +65,11 @@ function SecretarySidebar() {
 
       {/* Footer */}
       <div className="px-3 py-4 border-t border-neutral-700/30 space-y-1">
-        <Link href="/lawyer/office/me"
-          className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs text-neutral-500 hover:text-neutral-300 hover:bg-primary-800/40 transition-colors">
-          ← Lawyer Office
-        </Link>
-        <button onClick={() => { clearSession(); router.push('/auth/login') }}
+        <div className="px-3 py-2 rounded-lg bg-gold-500/5 border border-gold-500/10 mb-2">
+          <p className="text-[10px] font-semibold text-gold-500/70 uppercase tracking-widest">Secretary Portal</p>
+          <p className="text-[11px] text-neutral-600 mt-0.5">Firm administration only</p>
+        </div>
+        <button onClick={() => { clearSession(); router.push('/auth/lawyer-login') }}
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-neutral-400 hover:text-red-300 hover:bg-red-900/20 transition-colors w-full">
           <LogoutIcon className="w-4 h-4 flex-shrink-0" width={16} height={16} />
           Sign out
@@ -93,7 +93,7 @@ export default function SecretaryLayout({ children }: { children: React.ReactNod
         setReady(true)
       }
     } catch {
-      router.replace('/auth/login')
+      router.replace('/auth/lawyer-login')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

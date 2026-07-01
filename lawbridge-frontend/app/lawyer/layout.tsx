@@ -10,15 +10,20 @@ export default function LawyerLayout({ children }: { children: React.ReactNode }
   useEffect(() => {
     let access: string | null = null
     let portalRole: string | null = null
+    let userRole: string | null = null
     try {
       access = localStorage.getItem('access')
       portalRole = localStorage.getItem('portalRole')
+      userRole = localStorage.getItem('userRole')
     } catch {
       // localStorage unavailable (private browsing restriction)
     }
 
     if (!access || portalRole !== 'lawyer') {
       router.replace('/auth/lawyer-login')
+    } else if (userRole === 'secretary' || userRole === 'firm_admin') {
+      // Secretaries log in as 'lawyer' portal role but belong in the secretary portal
+      router.replace('/secretary/dashboard')
     } else {
       setReady(true)
     }
