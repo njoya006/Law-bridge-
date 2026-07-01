@@ -174,7 +174,7 @@ class FirmBrowseView(APIView):
         from django.db.models import Count, Q
         name = request.query_params.get('q', '').strip()
         query = Firm.objects.annotate(
-            member_count=Count('firmmembership', filter=Q(firmmembership__is_active=True))
+            member_count=Count('members', filter=Q(members__is_active=True))
         ).order_by('name')
         if name:
             query = query.filter(name__icontains=name)
@@ -191,7 +191,7 @@ class FirmSearchView(APIView):
         from django.db.models import Count, Q
         name = request.query_params.get('q', '').strip()
         query = Firm.objects.annotate(
-            member_count=Count('firmmembership', filter=Q(firmmembership__is_active=True))
+            member_count=Count('members', filter=Q(members__is_active=True))
         ).order_by('name')
         if name:
             query = query.filter(name__icontains=name)
