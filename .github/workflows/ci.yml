@@ -79,6 +79,7 @@ jobs:
         working-directory: services/case-service
         env:
           SECRET_KEY: ci-test-secret-key
+          JWT_SECRET_KEY: dev-secret
           DEBUG: "True"
           ALLOWED_HOSTS: "*"
           DB_HOST: localhost
