@@ -245,20 +245,45 @@ class FirmIntelligenceView(APIView):
         stalled.sort(key=lambda x: x['days_stale'], reverse=True)
 
         # Lawyer load distribution (scoped to firm's lawyers when available)
+        from django.db.models import Count
         stats_qs = LawyerStats.objects
         if lawyer_uuids is not None:
             stats_qs = stats_qs.filter(lawyer_id__in=lawyer_uuids)
-        all_stats = stats_qs.order_by('-active_cases')[:20]
-        lawyer_loads = [
-            {
-                'lawyer_id': s.lawyer_id,
-                'active_cases': s.active_cases,
-                'closed_cases_count': s.closed_cases_count,
-                'avg_resolution_days': round(s.avg_resolution_days, 1),
-                'cases_this_month': s.cases_this_month,
+        all_stats = list(stats_qs.order_by('-active_cases')[:20])
+
+        if all_stats:
+            lawyer_loads = [
+                {
+                    'lawyer_id': s.lawyer_id,
+                    'active_cases': s.active_cases,
+                    'closed_cases_count': s.closed_cases_count,
+                    'avg_resolution_days': round(s.avg_resolution_days, 1),
+                    'cases_this_month': s.cases_this_month,
+                }
+                for s in all_stats
+            ]
+        else:
+            # LawyerStats not yet populated — derive directly from snapshots
+            active_by = {
+                row['assigned_lawyer_id']: row['c']
+                for row in active_snaps.exclude(assigned_lawyer_id__isnull=True)
+                    .values('assigned_lawyer_id').annotate(c=Count('id'))
             }
-            for s in all_stats
-        ]
+            all_by = {
+                row['assigned_lawyer_id']: row['c']
+                for row in all_snaps.exclude(assigned_lawyer_id__isnull=True)
+                    .values('assigned_lawyer_id').annotate(c=Count('id'))
+            }
+            lawyer_loads = sorted([
+                {
+                    'lawyer_id': lid,
+                    'active_cases': active_by.get(lid, 0),
+                    'closed_cases_count': max(all_by.get(lid, 0) - active_by.get(lid, 0), 0),
+                    'avg_resolution_days': 0.0,
+                    'cases_this_month': 0,
+                }
+                for lid in all_by
+            ], key=lambda x: x['active_cases'], reverse=True)[:20]
 
         total_active = active_snaps.count()
         total_all = all_snaps.count()
