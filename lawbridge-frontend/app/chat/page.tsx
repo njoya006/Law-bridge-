@@ -1,5 +1,5 @@
 'use client'
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -181,7 +181,7 @@ function EmptyState({ onPrompt, caseTitle }: { onPrompt: (text: string) => void;
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ChatPage() {
+function ChatPageInner() {
   const searchParams = useSearchParams()
   const urlCaseId = searchParams.get('case_id') ?? undefined
   const urlCaseTitle = searchParams.get('case_title') ?? undefined
@@ -437,5 +437,20 @@ export default function ChatPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+        <div className="flex items-center gap-3 text-neutral-400">
+          <div className="h-5 w-5 rounded-full border-2 border-gold-400 border-t-transparent animate-spin" />
+          <span className="text-sm">Loading LexAI…</span>
+        </div>
+      </div>
+    }>
+      <ChatPageInner />
+    </Suspense>
   )
 }
