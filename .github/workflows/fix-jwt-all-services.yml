@@ -1,0 +1,64 @@
+name: Fix JWT Key — All Service Pods
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Set up kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+
+      - name: Propagate JWT_SECRET_KEY to all service pods
+        run: |
+          ACTUAL_KEY=$(kubectl get secret lawbridge-secrets -n lawbridge \
+            -o jsonpath='{.data.JWT_SECRET_KEY}' | base64 -d)
+          echo "Key prefix: ${ACTUAL_KEY:0:12}"
+
+          for svc in auth-service case-service lawyer-service monitoring-service \
+                     payment-service document-service notification-service \
+                     search-service calendar-service client-service; do
+            echo "Setting JWT_SECRET_KEY on $svc..."
+            kubectl set env deployment/$svc -n lawbridge JWT_SECRET_KEY="$ACTUAL_KEY" 2>/dev/null || echo "  $svc: skipped (deployment may not exist)"
+          done
+
+      - name: Wait for key rollouts
+        run: |
+          for svc in lawyer-service monitoring-service payment-service document-service; do
+            echo "Waiting for $svc rollout..."
+            kubectl rollout status deployment/$svc -n lawbridge --timeout=120s 2>/dev/null || echo "$svc rollout timed out or not found"
+          done
+
+      - name: Verify JWT_SECRET_KEY in all pods
+        run: |
+          sleep 5
+          echo "=== JWT_SECRET_KEY per service ==="
+          for svc in auth-service case-service lawyer-service monitoring-service \
+                     payment-service document-service ai-assistant-service; do
+            POD=$(kubectl get pod -n lawbridge -l app=$svc --field-selector=status.phase=Running \
+              -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+            if [ -n "$POD" ]; then
+              KEY=$(kubectl exec -n lawbridge "$POD" -- python3 -c \
+                "import os; print(os.environ.get('JWT_SECRET_KEY','MISSING')[:12])" 2>/dev/null)
+              echo "$svc ($POD): [$KEY]"
+            else
+              echo "$svc: no running pod found"
+            fi
+          done
