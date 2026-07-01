@@ -15,6 +15,9 @@ def test_analyze_document_task_happy_path(monkeypatch):
         status=DocumentAnalysis.Status.PENDING,
     )
 
+    # Patch document fetch to avoid network call to document-service
+    monkeypatch.setattr('apps.analyzer.tasks.fetch_document_from_minio', lambda doc_id: b'%PDF-1.4 fake pdf bytes')
+
     # Patch extractor to avoid pdf processing
     monkeypatch.setattr('apps.analyzer.tasks.extract_text_from_pdf', lambda b: "This is a contract between A and B.")
 

@@ -19,9 +19,9 @@ def make_token():
     The signing key is read from Django's resolved settings so it always
     matches what CustomJWTAuthentication expects, regardless of .env files.
     """
-    from django.conf import settings
-    signing_key = settings.SIMPLE_JWT.get('SIGNING_KEY', settings.SECRET_KEY)
-    algorithm = settings.SIMPLE_JWT.get('ALGORITHM', 'HS256')
+    from decouple import config
+    signing_key = config('JWT_SECRET_KEY', default='dev-secret')
+    algorithm = 'HS256'
 
     def _factory(user_id=None, role='client', email=None):
         uid = str(user_id or uuid.uuid4())

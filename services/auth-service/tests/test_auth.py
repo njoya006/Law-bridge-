@@ -108,7 +108,7 @@ def test_password_reset_confirm(api_client):
     token_obj = PasswordResetToken.objects.create(user=user)
     resp = api_client.post("/api/v1/auth/password-reset/confirm/", {
         "token": str(token_obj.token),
-        "password": "NewSecurePass1!",
+        "new_password": "NewSecurePass1!",
     }, format='json')
     assert resp.status_code in (200, 201, 204)
     # Verify new password works
@@ -121,7 +121,7 @@ def test_password_reset_token_single_use(api_client):
     user = User.objects.create_user(email="reset3@test.com", password="oldpass123")
     token_obj = PasswordResetToken.objects.create(user=user)
     token_str = str(token_obj.token)
-    api_client.post("/api/v1/auth/password-reset/confirm/", {"token": token_str, "password": "NewPass1!"}, format='json')
+    api_client.post("/api/v1/auth/password-reset/confirm/", {"token": token_str, "new_password": "NewPass1!"}, format='json')
     # Second use of same token must fail
-    resp2 = api_client.post("/api/v1/auth/password-reset/confirm/", {"token": token_str, "password": "AnotherPass1!"}, format='json')
+    resp2 = api_client.post("/api/v1/auth/password-reset/confirm/", {"token": token_str, "new_password": "AnotherPass1!"}, format='json')
     assert resp2.status_code in (400, 404)
