@@ -1,4 +1,6 @@
 import jwt
+import urllib.request as _ureq
+import json as _json
 from decouple import config
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -9,6 +11,51 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import CaseProgressSnapshot, LawyerStats, ReportRequest
 from .serializers import CaseProgressSnapshotSerializer, LawyerStatsSerializer, ReportRequestSerializer
+
+
+def _get_firm_scope(auth_header):
+    """Return (firm_id, firm_name, frozenset_of_lawyer_uuids) for the authenticated user.
+    Calls lawyer-service via /me/ then /firms/{id}/members/.
+    Falls back to (None, '', None) on any error — callers treat None as 'no filter'."""
+    lawyer_svc = config('LAWYER_SERVICE_URL', default='http://lawyer-service:80').rstrip('/') + '/api/v1/firms'
+
+    # 1. User's own memberships
+    try:
+        req = _ureq.Request(f'{lawyer_svc}/me/', headers={'Authorization': auth_header})
+        with _ureq.urlopen(req, timeout=5) as resp:
+            memberships = _json.loads(resp.read())
+    except Exception:
+        return None, '', None
+
+    if not memberships:
+        return None, '', None
+
+    firm_id = memberships[0].get('firm')
+    if not firm_id:
+        return None, '', None
+
+    # 2. Firm name
+    firm_name = ''
+    try:
+        req = _ureq.Request(f'{lawyer_svc}/{firm_id}/')
+        with _ureq.urlopen(req, timeout=3) as resp:
+            firm_data = _json.loads(resp.read())
+            firm_name = firm_data.get('name', '')
+    except Exception:
+        pass
+
+    # 3. All members → their auth-service UUIDs
+    try:
+        req = _ureq.Request(f'{lawyer_svc}/{firm_id}/members/')
+        with _ureq.urlopen(req, timeout=5) as resp:
+            members = _json.loads(resp.read())
+    except Exception:
+        members = []
+
+    uuids = frozenset(
+        str(m['user_uuid']) for m in members if m.get('user_uuid')
+    )
+    return firm_id, firm_name, uuids
 
 ACTIVE_STATUSES = {
     'draft', 'filed', 'assigned', 'under_review', 'evidence_collection',
@@ -128,13 +175,17 @@ class InternalCaseSyncView(APIView):
 
 
 class CaseRiskView(APIView):
-    """GET /api/v1/monitoring/case-risks/ — ranked list of active cases by risk score."""
+    """GET /api/v1/monitoring/case-risks/ — ranked list of active cases by risk score (firm-scoped)."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        snapshots = CaseProgressSnapshot.objects.filter(
-            status__in=list(ACTIVE_STATUSES)
-        ).order_by('-updated_at')
+        auth = request.META.get('HTTP_AUTHORIZATION', '')
+        _, _, lawyer_uuids = _get_firm_scope(auth) if auth else (None, '', None)
+
+        qs = CaseProgressSnapshot.objects.filter(status__in=list(ACTIVE_STATUSES))
+        if lawyer_uuids is not None:
+            qs = qs.filter(assigned_lawyer_id__in=lawyer_uuids)
+        snapshots = qs.order_by('-updated_at')
 
         results = []
         for snap in snapshots:
@@ -159,26 +210,20 @@ class CaseRiskView(APIView):
 
 
 class FirmIntelligenceView(APIView):
-    """GET /api/v1/monitoring/firm-intelligence/ — aggregated firm KPIs + AI narrative."""
+    """GET /api/v1/monitoring/firm-intelligence/ — firm-scoped KPIs + AI narrative."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         auth = request.META.get('HTTP_AUTHORIZATION', '')
-        firm_id = None
-        lawyer_ids = []
-        if auth.startswith('Bearer '):
-            try:
-                token = auth.split(' ')[1]
-                payload = jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
-                firm_id = payload.get('firmId')
-                # Collect all lawyer IDs from the monitoring snapshot for this firm
-                # (we approximate by looking at all snapshots, filtered later by lawyer stats)
-            except Exception:
-                pass
+        firm_id, firm_name, lawyer_uuids = _get_firm_scope(auth) if auth else (None, '', None)
 
-        # All active case snapshots
-        active_snaps = CaseProgressSnapshot.objects.filter(status__in=list(ACTIVE_STATUSES))
-        all_snaps = CaseProgressSnapshot.objects.all()
+        # Scope snapshots to this firm's lawyers (lawyer_uuids=None → no filter, fallback)
+        base_qs = CaseProgressSnapshot.objects
+        if lawyer_uuids is not None:
+            base_qs = base_qs.filter(assigned_lawyer_id__in=lawyer_uuids)
+
+        active_snaps = base_qs.filter(status__in=list(ACTIVE_STATUSES))
+        all_snaps = base_qs.all()
 
         # Status distribution
         status_dist = {}
@@ -199,8 +244,11 @@ class FirmIntelligenceView(APIView):
                 })
         stalled.sort(key=lambda x: x['days_stale'], reverse=True)
 
-        # Lawyer load distribution
-        all_stats = LawyerStats.objects.all().order_by('-active_cases')[:20]
+        # Lawyer load distribution (scoped to firm's lawyers when available)
+        stats_qs = LawyerStats.objects
+        if lawyer_uuids is not None:
+            stats_qs = stats_qs.filter(lawyer_id__in=lawyer_uuids)
+        all_stats = stats_qs.order_by('-active_cases')[:20]
         lawyer_loads = [
             {
                 'lawyer_id': s.lawyer_id,
@@ -255,6 +303,8 @@ class FirmIntelligenceView(APIView):
             pass
 
         return Response({
+            'firm_id': firm_id,
+            'firm_name': firm_name,
             'total_active_cases': total_active,
             'total_cases_all_time': total_all,
             'stalled_cases': stalled[:10],

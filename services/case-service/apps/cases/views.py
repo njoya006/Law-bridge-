@@ -38,6 +38,27 @@ def fetch_json(url, headers=None, timeout=5):
         return json.loads(payload) if payload else []
 
 
+def get_firm_member_uuids(auth_header):
+    """Return set of auth-service UUIDs for all active members in the user's first firm.
+    Used so secretaries can see all cases assigned to lawyers in their firm."""
+    base_url = getattr(settings, 'LAWYER_SERVICE_URL', 'http://lawyer-service:8003/api/v1/firms').rstrip('/')
+    headers = {'Authorization': auth_header}
+    try:
+        memberships = fetch_json(f'{base_url}/me/', headers=headers)
+    except (HTTPError, URLError, ValueError):
+        return set()
+    if not memberships:
+        return set()
+    firm_id = memberships[0].get('firm')
+    if not firm_id:
+        return set()
+    try:
+        members = fetch_json(f'{base_url}/{firm_id}/members/')
+    except (HTTPError, URLError, ValueError):
+        return set()
+    return {str(m['user_uuid']) for m in members if m.get('user_uuid')}
+
+
 def get_user_firm_ids_from_lawyer_service(user_id, internal=False, auth_header=None):
     base_url = getattr(settings, 'LAWYER_SERVICE_URL', 'http://lawyer-service:8003/api/v1/firms').rstrip('/')
     headers = {}
@@ -123,7 +144,15 @@ class CaseListView(APIView):
         payload = extract_token_payload(request)
         user_id = payload.get('user_id') or extract_user_id_from_token(request)
         role = payload.get('role', 'client')
-        if role in STAFF_ROLES:
+        if role == 'secretary':
+            # Secretaries see all cases assigned to any lawyer in their firm
+            auth_header = get_auth_header(request)
+            firm_uuids = get_firm_member_uuids(auth_header) if auth_header else set()
+            if firm_uuids:
+                cases = Case.objects.filter(assigned_lawyer_id__in=firm_uuids)
+            else:
+                cases = Case.objects.none()
+        elif role in STAFF_ROLES:
             cases = Case.objects.filter(assigned_lawyer_id=user_id)
         else:
             cases = Case.objects.filter(client_id=user_id)

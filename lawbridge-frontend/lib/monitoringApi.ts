@@ -55,10 +55,14 @@ export type LawyerLoad = {
   cases_this_month: number
 }
 
+export type StalledCase = { case_id: string; title: string; status: string; days_stale: number }
+
 export type FirmIntelligence = {
+  firm_id: number | null
+  firm_name: string
   total_active_cases: number
   total_cases_all_time: number
-  stalled_cases: { case_id: string; title: string; status: string; days_stale: number }[]
+  stalled_cases: StalledCase[]
   lawyer_loads: LawyerLoad[]
   status_distribution: Record<string, number>
   avg_resolution_days: number

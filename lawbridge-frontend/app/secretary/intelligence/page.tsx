@@ -1,9 +1,65 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { getFirmIntelligence, type FirmIntelligence } from '../../../lib/monitoringApi'
+import { getFirmIntelligence, type FirmIntelligence, type StalledCase } from '../../../lib/monitoringApi'
 
+// ── Expandable Stalled Case Card ───────────────────────────────────────────────
+function StalledCard({ c }: { c: StalledCase }) {
+  const [open, setOpen] = useState(false)
+  const urgency = c.days_stale > 30 ? 'critical' : c.days_stale > 21 ? 'high' : 'medium'
+  const urgencyColor = urgency === 'critical' ? 'text-red-400' : urgency === 'high' ? 'text-amber-400' : 'text-amber-300'
+
+  return (
+    <div className="rounded-lg bg-amber-900/20 border border-amber-500/10 overflow-hidden transition-all">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-amber-900/30 transition-colors group"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-neutral-100 truncate group-hover:text-amber-300 transition-colors">
+            {c.title}
+          </div>
+          <div className="text-xs text-neutral-500 mt-0.5 capitalize">{c.status.replace(/_/g, ' ')}</div>
+        </div>
+        <span className={`text-xs font-semibold flex-shrink-0 ${urgencyColor}`}>{c.days_stale}d stalled</span>
+        <svg
+          className={`w-4 h-4 text-neutral-500 flex-shrink-0 transition-transform ${open ? 'rotate-90' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="border-t border-amber-500/10 px-4 py-3 bg-amber-900/10 space-y-2">
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <span className="text-neutral-500">Case ID</span>
+              <p className="text-neutral-300 font-mono mt-0.5">{c.case_id.slice(0, 16)}…</p>
+            </div>
+            <div>
+              <span className="text-neutral-500">Days without update</span>
+              <p className={`font-semibold mt-0.5 ${urgencyColor}`}>{c.days_stale} days</p>
+            </div>
+            <div>
+              <span className="text-neutral-500">Current status</span>
+              <p className="text-neutral-300 capitalize mt-0.5">{c.status.replace(/_/g, ' ')}</p>
+            </div>
+            <div>
+              <span className="text-neutral-500">Urgency</span>
+              <p className={`capitalize font-medium mt-0.5 ${urgencyColor}`}>{urgency}</p>
+            </div>
+          </div>
+          <p className="text-xs text-amber-600 mt-2">
+            Action required: contact the assigned lawyer to get a case update.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main Page ──────────────────────────────────────────────────────────────────
 export default function FirmIntelligencePage() {
   const [data, setData] = useState<FirmIntelligence | null>(null)
   const [loading, setLoading] = useState(true)
@@ -41,11 +97,20 @@ export default function FirmIntelligencePage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header — shows firm name */}
       <div>
-        <h1 className="font-display text-display-md text-neutral-50">Firm Intelligence</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="font-display text-display-md text-neutral-50">Firm Intelligence</h1>
+          {data.firm_name && (
+            <span className="rounded-full border border-gold-500/30 bg-gold-500/10 px-3 py-0.5 text-xs font-semibold text-gold-400">
+              {data.firm_name}
+            </span>
+          )}
+        </div>
         <p className="text-neutral-400 text-sm mt-1">
-          AI-powered operational overview — case loads, bottlenecks, and performance insights.
+          {data.firm_name
+            ? `Operational overview for ${data.firm_name} — case loads, bottlenecks, and AI insights.`
+            : 'AI-powered operational overview — case loads, bottlenecks, and performance insights.'}
         </p>
       </div>
 
@@ -87,10 +152,7 @@ export default function FirmIntelligencePage() {
                       <span>{lawyer.active_cases} active · {lawyer.closed_cases_count} closed</span>
                     </div>
                     <div className="h-2 bg-neutral-700/40 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${barColor}`}
-                        style={{ width: `${pct}%` }}
-                      />
+                      <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 )
@@ -126,7 +188,7 @@ export default function FirmIntelligencePage() {
         </div>
       </div>
 
-      {/* Stalled Cases */}
+      {/* Bottleneck Detector — expandable, no broken routing */}
       {data.stalled_cases.length > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-900/10 p-5 space-y-3">
           <h2 className="font-heading text-body-lg text-neutral-50 flex items-center gap-2">
@@ -134,22 +196,10 @@ export default function FirmIntelligencePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             Bottleneck Detector
-            <span className="text-xs font-normal text-amber-500 ml-1">cases stalled &gt;14 days</span>
+            <span className="text-xs font-normal text-amber-500 ml-1">cases stalled &gt;14 days — click to expand</span>
           </h2>
           <div className="space-y-2">
-            {data.stalled_cases.map((c) => (
-              <Link key={c.case_id} href={`/cases/${c.case_id}`}
-                className="flex items-center gap-3 p-3 rounded-lg bg-amber-900/20 hover:bg-amber-900/30 border border-amber-500/10 hover:border-amber-500/30 transition-colors group">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-neutral-100 truncate group-hover:text-amber-300">{c.title}</div>
-                  <div className="text-xs text-neutral-500 mt-0.5 capitalize">{c.status.replace(/_/g, ' ')}</div>
-                </div>
-                <span className="text-xs font-semibold text-amber-400 flex-shrink-0">{c.days_stale}d stalled</span>
-                <svg className="w-4 h-4 text-neutral-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            ))}
+            {data.stalled_cases.map((c) => <StalledCard key={c.case_id} c={c} />)}
           </div>
         </div>
       )}
