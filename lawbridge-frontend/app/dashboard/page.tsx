@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Card } from '../../components/ui/Card'
 import { getMyCases, type CaseItem } from '../../lib/casesApi'
@@ -39,6 +40,7 @@ function notifIcon(type: string) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [cases, setCases] = useState<CaseItem[]>([])
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [unread, setUnread] = useState<number | null>(null)
@@ -47,12 +49,17 @@ export default function DashboardPage() {
   const [name, setName] = useState('')
 
   useEffect(() => {
+    const access = localStorage.getItem('access')
+    const portalRole = localStorage.getItem('portalRole')
+    if (!access || portalRole !== 'client') {
+      router.replace('/auth/login')
+      return
+    }
+
     const stored = localStorage.getItem('fullName') || localStorage.getItem('userEmail') || ''
     setName(stored.split('@')[0] || stored)
 
     const run = async () => {
-      const access = localStorage.getItem('access')
-      if (!access) { setLoading(false); return }
 
       const [casesRes, unreadRes, notifsRes] = await Promise.allSettled([
         getMyCases(access),

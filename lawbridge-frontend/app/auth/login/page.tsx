@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Button from '../../../components/ui/Button'
 import Input from '../../../components/ui/Input'
 import { ArrowRightIcon, BalanceIcon, CheckIcon, LawIcon } from '../../../components/icons/Icons'
-import { applyRoleToSession, loginWithEmail } from '../../../lib/authSession'
+import { applyRoleToSession, clearSession, loginWithEmail } from '../../../lib/authSession'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -21,6 +21,11 @@ export default function LoginPage() {
 
     try {
       const result = await loginWithEmail(email, password)
+      if ((result.me.role || '').toLowerCase() !== 'client') {
+        clearSession()
+        setError('This portal is for clients only. Please use the firm staff login instead.')
+        return
+      }
       applyRoleToSession(result.me, 'client')
       router.push('/dashboard')
     } catch (cause) {

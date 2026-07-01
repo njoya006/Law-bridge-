@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Button from '../../../components/ui/Button'
 import Input from '../../../components/ui/Input'
 import { ArrowRightIcon, BalanceIcon, CheckIcon, LawIcon, UserIcon } from '../../../components/icons/Icons'
-import { applyRoleToSession, loginWithEmail } from '../../../lib/authSession'
+import { applyRoleToSession, clearSession, loginWithEmail } from '../../../lib/authSession'
 
 export default function LawyerLoginPage() {
   const router = useRouter()
@@ -22,8 +22,13 @@ export default function LawyerLoginPage() {
 
     try {
       const result = await loginWithEmail(email, password)
-      applyRoleToSession(result.me, 'lawyer')
       const role = (result.me.role || '').toLowerCase()
+      if (role === 'client') {
+        clearSession()
+        setError('This login is for firm staff only. Please use the client login instead.')
+        return
+      }
+      applyRoleToSession(result.me, 'lawyer')
       router.push(role === 'secretary' ? '/secretary/dashboard' : '/lawyer/dashboard')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to sign in')
