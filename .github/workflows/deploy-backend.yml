@@ -89,8 +89,13 @@ jobs:
           curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
           chmod +x kubectl && sudo mv kubectl /usr/local/bin/
 
-          # Always apply all K8s manifests so env var and config changes take effect
-          kubectl apply -f k8s/ -n lawbridge 2>/dev/null || true
+          # Apply non-secret manifests so env var and config changes take effect.
+          # Deliberately exclude secrets.yaml — production secrets are managed
+          # outside git and must never be overwritten by placeholder values.
+          for f in k8s/*.yaml; do
+            [[ "$f" == *"secrets.yaml" ]] && continue
+            kubectl apply -f "$f" -n lawbridge 2>/dev/null || true
+          done
 
           # Restart only pods whose service code changed
           if [ "$SERVICES" != "none" ]; then
