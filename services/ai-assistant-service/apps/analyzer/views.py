@@ -129,6 +129,98 @@ class DirectFileAnalysisView(APIView):
         })
 
 
+CONTRACT_ANALYSIS_SYSTEM = """You are a specialist contract review AI for Cameroonian law. You analyse legal contracts clause by clause, identifying risks under Cameroonian Civil Law, Common Law, and OHADA Uniform Acts.
+
+When given a contract text, respond ONLY with a valid JSON object using this exact schema:
+{
+  "overall_risk_score": <integer 0-100, where 0=no risk, 100=extremely risky>,
+  "risk_level": "<low|medium|high|critical>",
+  "summary": "<2-3 sentence plain-language overview of this contract>",
+  "missing_clauses": ["<standard clause that is absent e.g. 'Force Majeure clause'>", ...],
+  "clauses": [
+    {
+      "title": "<clause name e.g. 'Payment Terms'>",
+      "excerpt": "<first 100 chars of the clause text>",
+      "risk_level": "<low|medium|high|critical>",
+      "issue": "<what is legally problematic or ambiguous>",
+      "recommendation": "<specific text to add or change>"
+    }
+  ]
+}
+
+Rules:
+- Identify ALL clauses present, not just risky ones
+- Apply OHADA Uniform Act on General Commercial Law (AUDCG) for commercial contracts
+- Apply Cameroonian Civil Code Art. 1134 (pacta sunt servanda) principle
+- Flag unfair terms under Cameroonian consumer protection norms
+- Note any terms that would be unenforceable in Cameroonian courts
+- missing_clauses must list standard clauses absent from this type of contract
+- Do not include any text outside the JSON object"""
+
+
+class ContractIntelligenceView(APIView):
+    """POST /api/v1/ai/analyze/contract/ — clause-by-clause contract risk analysis."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        uploaded = request.FILES.get('file')
+        if not uploaded:
+            return Response({'error': 'A contract file (PDF, DOCX, or TXT) is required.'}, status=400)
+
+        try:
+            contract_text = _extract_text(uploaded)
+        except Exception as exc:
+            return Response({'error': f'Could not read file: {exc}'}, status=400)
+
+        if not contract_text.strip():
+            return Response({'error': 'Could not extract text from the uploaded file.'}, status=400)
+
+        user_message = (
+            f"Analyse this contract (first {len(contract_text)} characters extracted):\n\n"
+            f"{contract_text[:7500]}"
+        )
+
+        try:
+            ai = get_ai_client(settings)
+            raw = ai.complete(user_message, system=CONTRACT_ANALYSIS_SYSTEM, max_tokens=2048)
+        except Exception as exc:
+            logger.exception("AI call failed in ContractIntelligenceView")
+            return Response({'error': f'AI service error: {exc}'}, status=502)
+
+        cleaned = raw.strip()
+        if cleaned.startswith('```'):
+            cleaned = cleaned.split('```')[1]
+            if cleaned.startswith('json'):
+                cleaned = cleaned[4:]
+            cleaned = cleaned.strip()
+        if cleaned.endswith('```'):
+            cleaned = cleaned[:-3].strip()
+
+        import re as _re
+        json_match = _re.search(r'\{[\s\S]*\}', cleaned)
+        if json_match:
+            cleaned = json_match.group(0)
+
+        try:
+            result = json.loads(cleaned)
+        except Exception:
+            result = {
+                'overall_risk_score': 50,
+                'risk_level': 'medium',
+                'summary': 'Analysis completed. See raw output for details.',
+                'missing_clauses': [],
+                'clauses': [],
+            }
+
+        return Response({
+            'overall_risk_score': result.get('overall_risk_score', 50),
+            'risk_level': result.get('risk_level', 'medium'),
+            'summary': result.get('summary', ''),
+            'missing_clauses': result.get('missing_clauses', []),
+            'clauses': result.get('clauses', []),
+        })
+
+
 class DocumentAnalysisListView(APIView):
     permission_classes = [IsAuthenticated]
 

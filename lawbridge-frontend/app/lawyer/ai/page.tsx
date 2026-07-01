@@ -14,12 +14,18 @@ import {
   clarifyDraft,
   streamDraft,
   streamTranslate,
+  streamLegalResearch,
+  analyzeContract,
   type LegalDraft,
   type LegalDraftSummary,
   type ClarifyQuestion,
+  type ContractReviewResult,
+  type ContractClause,
+  type ResearchCitation,
+  type ResearchResult,
 } from '../../../lib/aiApi'
 
-type Tab = 'chat' | 'drafts' | 'analysis'
+type Tab = 'chat' | 'drafts' | 'analysis' | 'contract' | 'research'
 
 function SparkIcon() {
   return (
@@ -1137,6 +1143,410 @@ function AnalysisPanel({ token }: { token: string }) {
   )
 }
 
+// ── Contract Review Panel ─────────────────────────────────────────────────────
+
+const RISK_COLORS: Record<string, string> = {
+  low: 'border-emerald-500/40 bg-emerald-900/10',
+  medium: 'border-gold-500/40 bg-gold-900/10',
+  high: 'border-orange-500/40 bg-orange-900/10',
+  critical: 'border-red-500/40 bg-red-900/10',
+}
+
+const RISK_BADGE: Record<string, string> = {
+  low: 'bg-emerald-500/15 text-emerald-400',
+  medium: 'bg-gold-500/15 text-gold-400',
+  high: 'bg-orange-500/15 text-orange-400',
+  critical: 'bg-red-500/15 text-red-400',
+}
+
+const RISK_SCORE_COLOR = (score: number) =>
+  score >= 75 ? '#ef4444' : score >= 45 ? '#f59e0b' : '#10b981'
+
+function RiskScoreRing({ score }: { score: number }) {
+  const color = RISK_SCORE_COLOR(score)
+  const deg = score * 3.6
+  return (
+    <div className="relative w-24 h-24 rounded-full flex items-center justify-center flex-shrink-0"
+      style={{ background: `conic-gradient(${color} ${deg}deg, #1f2937 ${deg}deg)` }}>
+      <div className="w-20 h-20 rounded-full bg-primary-900 flex flex-col items-center justify-center">
+        <span className="text-2xl font-bold text-neutral-50" style={{ color }}>{score}</span>
+        <span className="text-[10px] text-neutral-400">/ 100</span>
+      </div>
+    </div>
+  )
+}
+
+function ClauseCard({ clause }: { clause: ContractClause }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className={`rounded-lg border-l-4 ${RISK_COLORS[clause.risk_level]} p-4 space-y-2`}
+      style={{ borderLeftColor: clause.risk_level === 'critical' ? '#ef4444' : clause.risk_level === 'high' ? '#f97316' : clause.risk_level === 'medium' ? '#f59e0b' : '#10b981' }}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${RISK_BADGE[clause.risk_level]}`}>
+            {clause.risk_level.toUpperCase()}
+          </span>
+          <span className="text-sm font-medium text-neutral-100">{clause.title}</span>
+        </div>
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="text-neutral-500 hover:text-neutral-300 text-xs flex-shrink-0"
+        >
+          {open ? 'hide ▲' : 'details ▼'}
+        </button>
+      </div>
+      <p className="text-xs text-neutral-400 font-mono truncate">{clause.excerpt}</p>
+      {open && (
+        <div className="space-y-2 pt-2 border-t border-white/5">
+          <div>
+            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide">Issue</p>
+            <p className="text-xs text-neutral-300 mt-0.5">{clause.issue}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wide">Recommendation</p>
+            <p className="text-xs text-neutral-200 mt-0.5">{clause.recommendation}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ContractReviewPanel({ token }: { token: string }) {
+  const [file, setFile] = useState<File | null>(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [result, setResult] = useState<ContractReviewResult | null>(null)
+  const [error, setError] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function runAnalysis() {
+    if (!file) { setError('Please upload a contract file.'); return }
+    setAnalyzing(true)
+    setError('')
+    setResult(null)
+    try {
+      const data = await analyzeContract(file, token)
+      setResult(data)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Analysis failed')
+    }
+    setAnalyzing(false)
+  }
+
+  function exportReport() {
+    if (!result) return
+    const lines = [
+      `CONTRACT RISK REPORT`,
+      `Overall Risk Score: ${result.overall_risk_score}/100 (${result.risk_level.toUpperCase()})`,
+      ``,
+      `SUMMARY`,
+      result.summary,
+      ``,
+    ]
+    if (result.missing_clauses.length > 0) {
+      lines.push('MISSING CLAUSES')
+      result.missing_clauses.forEach(c => lines.push(`• ${c}`))
+      lines.push('')
+    }
+    lines.push('CLAUSE ANALYSIS')
+    result.clauses.forEach(c => {
+      lines.push(`[${c.risk_level.toUpperCase()}] ${c.title}`)
+      lines.push(`Issue: ${c.issue}`)
+      lines.push(`Recommendation: ${c.recommendation}`)
+      lines.push('')
+    })
+    navigator.clipboard.writeText(lines.join('\n')).catch(() => {})
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-6 space-y-4">
+        <div>
+          <h3 className="font-heading text-body-lg text-neutral-50">AI Contract Intelligence</h3>
+          <p className="text-neutral-500 text-sm mt-1">
+            Upload a contract for clause-by-clause risk analysis under Cameroonian law and OHADA Uniform Acts.
+          </p>
+        </div>
+
+        <div
+          className="border-2 border-dashed border-neutral-700/40 rounded-xl p-8 text-center cursor-pointer hover:border-gold-500/30 hover:bg-primary-800/20 transition-colors"
+          onClick={() => inputRef.current?.click()}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.docx,.doc,.txt"
+            onChange={e => { setFile(e.target.files?.[0] ?? null); setResult(null) }}
+          />
+          {file ? (
+            <div className="space-y-1">
+              <p className="text-gold-400 text-sm font-medium">{file.name}</p>
+              <p className="text-neutral-500 text-xs">{(file.size / 1024).toFixed(0)} KB · Click to change</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex justify-center">
+                <svg className="w-10 h-10 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <p className="text-neutral-400 text-sm">Click to upload a contract</p>
+              <p className="text-neutral-600 text-xs">PDF, DOCX, TXT — up to 10 MB</p>
+            </div>
+          )}
+        </div>
+
+        {error && <p className="text-crimson-400 text-xs">{error}</p>}
+
+        <button
+          onClick={() => void runAnalysis()}
+          disabled={analyzing || !file}
+          className="px-5 py-2.5 rounded-lg bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 disabled:opacity-50 transition-colors flex items-center gap-2"
+        >
+          {analyzing ? (
+            <>
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              Analyzing contract…
+            </>
+          ) : 'Analyze Contract'}
+        </button>
+      </div>
+
+      {result && (
+        <div className="space-y-4">
+          {/* Risk Overview */}
+          <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-5">
+            <div className="flex items-start gap-5">
+              <RiskScoreRing score={result.overall_risk_score} />
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center gap-3">
+                  <h4 className="font-heading text-body-md text-neutral-50">Overall Risk Assessment</h4>
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${RISK_BADGE[result.risk_level]}`}>
+                    {result.risk_level.toUpperCase()}
+                  </span>
+                </div>
+                <p className="text-neutral-300 text-sm">{result.summary}</p>
+                <button
+                  onClick={exportReport}
+                  className="text-xs text-neutral-500 hover:text-gold-400 flex items-center gap-1 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Copy Report
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Missing Clauses */}
+          {result.missing_clauses.length > 0 && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-900/10 p-5">
+              <h4 className="font-heading text-body-md text-neutral-50 mb-3 flex items-center gap-2">
+                <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Missing Standard Clauses
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {result.missing_clauses.map((c, i) => (
+                  <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Clause Cards */}
+          {result.clauses.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="font-heading text-body-md text-neutral-50">
+                Clause Analysis <span className="text-neutral-500 font-normal text-sm">({result.clauses.length} clauses)</span>
+              </h4>
+              {result.clauses.map((clause, i) => (
+                <ClauseCard key={i} clause={clause} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Legal Research Panel ──────────────────────────────────────────────────────
+
+function ResearchPanel({ token }: { token: string }) {
+  const [query, setQuery] = useState('')
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined)
+  const [streaming, setStreaming] = useState(false)
+  const [streamText, setStreamText] = useState('')
+  const [result, setResult] = useState<ResearchResult | null>(null)
+  const [history, setHistory] = useState<string[]>([])
+  const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  async function search(q?: string) {
+    const searchQuery = (q ?? query).trim()
+    if (!searchQuery || streaming) return
+    setStreaming(true)
+    setStreamText('')
+    setResult(null)
+    setError('')
+
+    await streamLegalResearch(
+      { query: searchQuery, session_id: sessionId },
+      token,
+      {
+        onToken: t => setStreamText(prev => prev + t),
+        onDone: (res) => {
+          setResult(res)
+          if (res.session_id) setSessionId(res.session_id)
+          setHistory(prev => [searchQuery, ...prev.filter(h => h !== searchQuery)].slice(0, 5))
+          setStreaming(false)
+          setStreamText('')
+        },
+        onError: msg => { setError(msg); setStreaming(false) },
+      },
+    )
+  }
+
+  function copyCitation(citation: ResearchCitation) {
+    const text = `${citation.title} — ${citation.reference}\n(${citation.relevance_note})`
+    navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
+  }
+
+  const confidenceStyle: Record<string, string> = {
+    high: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    medium: 'text-gold-400 bg-gold-500/10 border-gold-500/20',
+    low: 'text-red-400 bg-red-500/10 border-red-500/20',
+  }
+
+  return (
+    <div className="flex gap-5">
+      {/* Left sidebar — recent searches */}
+      {history.length > 0 && (
+        <aside className="w-48 flex-shrink-0">
+          <p className="text-neutral-500 text-xs uppercase tracking-widest mb-2 px-1">Recent</p>
+          <div className="space-y-1">
+            {history.map((h, i) => (
+              <button
+                key={i}
+                onClick={() => { setQuery(h); void search(h) }}
+                className="w-full text-left px-3 py-2 rounded-lg text-xs text-neutral-400 hover:text-neutral-200 hover:bg-white/5 truncate transition-colors"
+              >
+                {h}
+              </button>
+            ))}
+          </div>
+        </aside>
+      )}
+
+      <div className="flex-1 space-y-5">
+        {/* Search box */}
+        <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-5 space-y-3">
+          <div>
+            <h3 className="font-heading text-body-lg text-neutral-50">Legal Research Mode</h3>
+            <p className="text-neutral-500 text-sm mt-0.5">
+              Search Cameroonian Civil Code, Common Law, OHADA Uniform Acts, and CEMAC regulations with cited statutes.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') void search() }}
+              placeholder="e.g. OHADA obligations for commercial leases, or force majeure under Cameroonian civil code…"
+              className="flex-1 rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2.5 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50"
+            />
+            <button
+              onClick={() => void search()}
+              disabled={streaming || !query.trim()}
+              className="px-4 py-2 rounded-lg bg-gold-500 text-black font-semibold text-sm hover:bg-gold-400 disabled:opacity-50 transition-colors flex items-center gap-2 flex-shrink-0"
+            >
+              {streaming ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              )}
+              Search
+            </button>
+          </div>
+        </div>
+
+        {/* Streaming answer */}
+        {streaming && streamText && (
+          <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-5">
+            <p className="text-sm text-neutral-200 whitespace-pre-wrap">{streamText}<span className="animate-pulse">▍</span></p>
+          </div>
+        )}
+
+        {error && <p className="text-crimson-400 text-xs">{error}</p>}
+
+        {/* Result */}
+        {result && !streaming && (
+          <div className="space-y-4">
+            {/* Answer + confidence */}
+            <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-5 space-y-3">
+              <div className="flex items-center gap-3">
+                <h4 className="font-heading text-body-md text-neutral-50">Research Answer</h4>
+                <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${confidenceStyle[result.confidence]}`}>
+                  {result.confidence === 'high' ? 'High Confidence' : result.confidence === 'medium' ? 'Medium Confidence' : 'Low — verify independently'}
+                </span>
+              </div>
+              <p className="text-sm text-neutral-200 whitespace-pre-wrap leading-relaxed">{result.answer}</p>
+              {result.disclaimer && (
+                <p className="text-xs text-neutral-500 border-t border-neutral-700/30 pt-2">{result.disclaimer}</p>
+              )}
+            </div>
+
+            {/* Citations */}
+            {result.citations.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="font-heading text-body-md text-neutral-50">Legal Citations</h4>
+                {result.citations.map((c, i) => (
+                  <div key={i} className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-4 flex items-start gap-3">
+                    <div className="flex-1 space-y-1 min-w-0">
+                      <p className="text-sm font-medium text-neutral-100">{c.title}</p>
+                      <p className="text-xs font-mono text-gold-400">{c.reference}</p>
+                      <p className="text-xs text-neutral-500">{c.relevance_note}</p>
+                    </div>
+                    <button
+                      onClick={() => copyCitation(c)}
+                      className="flex-shrink-0 px-2.5 py-1 rounded-lg border border-neutral-700/40 text-neutral-400 text-xs hover:text-gold-400 hover:border-gold-500/30 transition-colors"
+                    >
+                      {copied ? '✓' : 'Copy'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!streaming && !result && !error && (
+          <div className="rounded-xl border border-dashed border-neutral-700/30 p-10 text-center">
+            <div className="text-4xl mb-3">📚</div>
+            <p className="font-medium text-neutral-300 mb-1">Search Cameroonian Law</p>
+            <p className="text-neutral-500 text-sm">Ask a legal question and receive a cited answer backed by specific statutes, articles, and OHADA regulations.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function LawyerAIPage() {
@@ -1151,6 +1561,16 @@ export default function LawyerAIPage() {
     { key: 'chat',     label: 'LexAI Chat',        icon: <ChatBubbleIcon /> },
     { key: 'drafts',   label: 'Legal Drafts',       icon: <DocIcon /> },
     { key: 'analysis', label: 'Document Analysis',  icon: <SparkIcon /> },
+    { key: 'contract', label: 'Contract Review',    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+      </svg>
+    )},
+    { key: 'research', label: 'Legal Research',     icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    )},
   ]
 
   return (
@@ -1199,6 +1619,8 @@ export default function LawyerAIPage() {
           {tab === 'chat'     && <ChatPanel token={token} />}
           {tab === 'drafts'   && <DraftsPanel token={token} />}
           {tab === 'analysis' && <AnalysisPanel token={token} />}
+          {tab === 'contract' && <ContractReviewPanel token={token} />}
+          {tab === 'research' && <ResearchPanel token={token} />}
         </>
       )}
     </div>

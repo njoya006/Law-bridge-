@@ -283,6 +283,223 @@ export async function streamTranslate(
   callbacks.onDone()
 }
 
+// ── Contract Intelligence ─────────────────────────────────────────────────────
+
+export type ContractClause = {
+  title: string
+  excerpt: string
+  risk_level: 'low' | 'medium' | 'high' | 'critical'
+  issue: string
+  recommendation: string
+}
+
+export type ContractReviewResult = {
+  overall_risk_score: number
+  risk_level: 'low' | 'medium' | 'high' | 'critical'
+  summary: string
+  missing_clauses: string[]
+  clauses: ContractClause[]
+}
+
+export async function analyzeContract(file: File, token: string): Promise<ContractReviewResult> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const res = await fetch(`${aiBase()}/ai/analyze/contract/`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Contract analysis failed (${res.status}): ${text.slice(0, 200)}`)
+  }
+
+  return res.json() as Promise<ContractReviewResult>
+}
+
+// ── Legal Research ────────────────────────────────────────────────────────────
+
+export type ResearchCitation = {
+  title: string
+  reference: string
+  relevance_note: string
+}
+
+export type ResearchResult = {
+  answer: string
+  citations: ResearchCitation[]
+  confidence: 'high' | 'medium' | 'low'
+  disclaimer: string
+  session_id?: string
+}
+
+export type ResearchCallbacks = {
+  onToken: (t: string) => void
+  onDone: (result: ResearchResult) => void
+  onError: (msg: string) => void
+}
+
+// ── Meeting Notes → Action Items ─────────────────────────────────────────────
+
+export type ActionItem = {
+  item: string
+  assignee: 'lawyer' | 'client' | 'third_party'
+  suggested_due_date: string | null
+}
+
+export type MeetingResult = {
+  summary: string
+  action_items: ActionItem[]
+  draft_client_email: string
+  case_note_text: string
+}
+
+export type MeetingCallbacks = {
+  onToken: (t: string) => void
+  onDone: (result: MeetingResult) => void
+  onError: (msg: string) => void
+}
+
+export async function streamMeetingSummary(
+  payload: { raw_notes: string; case_id: string; case_type: string; client_name: string },
+  token: string,
+  callbacks: MeetingCallbacks,
+): Promise<void> {
+  const res = await fetch(`${aiBase()}/ai/meetings/summarize/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    callbacks.onError(`Meeting summary failed (${res.status}): ${text.slice(0, 200)}`)
+    return
+  }
+
+  const reader = res.body?.getReader()
+  if (!reader) { callbacks.onError('No response body'); return }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const raw = line.slice(6).trim()
+        if (!raw) continue
+        try {
+          const parsed = JSON.parse(raw) as {
+            token?: string
+            done?: boolean
+            error?: string
+            summary?: string
+            action_items?: ActionItem[]
+            draft_client_email?: string
+            case_note_text?: string
+          }
+          if (parsed.error) { callbacks.onError(parsed.error); return }
+          if (parsed.token) callbacks.onToken(parsed.token)
+          if (parsed.done) {
+            callbacks.onDone({
+              summary: parsed.summary ?? '',
+              action_items: parsed.action_items ?? [],
+              draft_client_email: parsed.draft_client_email ?? '',
+              case_note_text: parsed.case_note_text ?? '',
+            })
+            return
+          }
+        } catch { /* skip */ }
+      }
+    }
+  } finally {
+    reader.cancel().catch(() => undefined)
+  }
+  callbacks.onDone({ summary: '', action_items: [], draft_client_email: '', case_note_text: '' })
+}
+
+export async function streamLegalResearch(
+  payload: { query: string; session_id?: string },
+  token: string,
+  callbacks: ResearchCallbacks,
+): Promise<void> {
+  const res = await fetch(`${aiBase()}/ai/research/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      Accept: 'text/event-stream',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    callbacks.onError(`Research failed (${res.status}): ${text.slice(0, 200)}`)
+    return
+  }
+
+  const reader = res.body?.getReader()
+  if (!reader) { callbacks.onError('No response body'); return }
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        const raw = line.slice(6).trim()
+        if (!raw) continue
+        try {
+          const parsed = JSON.parse(raw) as {
+            token?: string
+            done?: boolean
+            error?: string
+            answer?: string
+            citations?: ResearchCitation[]
+            confidence?: string
+            disclaimer?: string
+            session_id?: string
+          }
+          if (parsed.error) { callbacks.onError(parsed.error); return }
+          if (parsed.token) callbacks.onToken(parsed.token)
+          if (parsed.done) {
+            callbacks.onDone({
+              answer: parsed.answer ?? '',
+              citations: parsed.citations ?? [],
+              confidence: (parsed.confidence ?? 'medium') as ResearchResult['confidence'],
+              disclaimer: parsed.disclaimer ?? '',
+              session_id: parsed.session_id,
+            })
+            return
+          }
+        } catch { /* skip */ }
+      }
+    }
+  } finally {
+    reader.cancel().catch(() => undefined)
+  }
+  callbacks.onDone({ answer: '', citations: [], confidence: 'low', disclaimer: '' })
+}
+
 export async function streamDraft(
   payload: { draft_type: string; instructions: string; answers?: Record<string, string>; title?: string; case_id?: string | null },
   token: string,

@@ -11,6 +11,7 @@ const ALLOWED_ROLES = new Set(['secretary', 'firm_admin'])
 
 const nav = [
   { label: 'Dashboard', href: '/secretary/dashboard', Icon: DashboardIcon },
+  { label: 'Intelligence', href: '/secretary/intelligence', Icon: ChartBarIcon },
   { label: 'Payments', href: '/secretary/payments', Icon: PaymentIcon },
   { label: 'Reports', href: '/secretary/reports', Icon: ChartBarIcon },
   { label: 'Members', href: '/secretary/members', Icon: UsersIcon },

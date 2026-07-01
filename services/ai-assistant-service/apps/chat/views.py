@@ -895,3 +895,275 @@ class LegalDraftDetailView(APIView):
             return Response(status=204)
         except LegalDraft.DoesNotExist:
             return Response({'error': 'Not found'}, status=404)
+
+
+MEETING_SUMMARY_SYSTEM_PROMPT = """You are a legal secretary AI for a Cameroonian law firm.
+Given raw meeting notes between a lawyer and client (or between lawyers), produce a structured JSON object.
+
+Respond ONLY with valid JSON using this exact schema:
+{
+  "summary": "2-3 sentence structured summary of what was discussed and agreed",
+  "action_items": [
+    {
+      "item": "Specific action to take",
+      "assignee": "lawyer|client|third_party",
+      "suggested_due_date": "YYYY-MM-DD or null"
+    }
+  ],
+  "draft_client_email": "Full professional email from the lawyer to the client summarising the meeting and next steps. Use formal Cameroonian legal correspondence style. Do not use placeholders.",
+  "case_note_text": "Formal internal case note entry suitable for the case record. Start with date and parties present."
+}
+
+Rules:
+- Language: match the language of the raw notes (English or French)
+- Cite applicable Cameroonian law in the case note where relevant
+- draft_client_email must be complete and ready to send — no [PLACEHOLDER] text
+- action_items must be specific, assignable, and actionable"""
+
+
+class MeetingSummaryView(APIView):
+    """POST /api/v1/ai/meetings/summarize/ — stream meeting notes analysis."""
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [ServerSentEventRenderer, JSONRenderer]
+
+    def post(self, request):
+        raw_notes = (request.data.get('raw_notes') or '').strip()
+        case_id = request.data.get('case_id', '')
+        case_type = request.data.get('case_type', '')
+        client_name = request.data.get('client_name', 'the client')
+
+        if not raw_notes:
+            return Response({'error': 'raw_notes is required'}, status=400)
+
+        user_message = (
+            f"Case type: {case_type}\n"
+            f"Client name: {client_name}\n"
+            f"Meeting notes:\n\n{raw_notes[:5000]}"
+        )
+
+        def generate():
+            full_text = ''
+            try:
+                ai = get_ai_client(settings)
+                for chunk in ai.stream(user_message=user_message, history=[], case_context=MEETING_SUMMARY_SYSTEM_PROMPT, max_tokens=2048):
+                    full_text += chunk
+                    yield f"data: {json.dumps({'token': chunk})}\n\n"
+            except Exception as exc:
+                logger.exception("Meeting summary stream error")
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+                return
+
+            import re as _re
+            cleaned = full_text.strip()
+            if cleaned.startswith('```'):
+                cleaned = cleaned.split('```')[1]
+                if cleaned.startswith('json'):
+                    cleaned = cleaned[4:]
+                cleaned = cleaned.strip()
+            if cleaned.endswith('```'):
+                cleaned = cleaned[:-3].strip()
+            m = _re.search(r'\{[\s\S]*\}', cleaned)
+            if m:
+                cleaned = m.group(0)
+
+            try:
+                result = json.loads(cleaned)
+            except Exception:
+                result = {
+                    'summary': full_text[:500],
+                    'action_items': [],
+                    'draft_client_email': '',
+                    'case_note_text': full_text[:300],
+                }
+
+            # Auto-save case note (best-effort)
+            if case_id and result.get('case_note_text'):
+                try:
+                    import requests as req
+                    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+                    req.post(
+                        f"{settings.CASE_SERVICE_URL}/api/v1/cases/{case_id}/notes/",
+                        json={'content': result['case_note_text'], 'is_private': True},
+                        headers={
+                            'Authorization': auth_header,
+                            'X-Internal-Api-Key': getattr(settings, 'INTERNAL_API_KEY', 'dev-internal-key'),
+                        },
+                        timeout=5,
+                    )
+                except Exception:
+                    pass
+
+            yield f"data: {json.dumps({'done': True, **result})}\n\n"
+
+        response = StreamingHttpResponse(generate(), content_type='text/event-stream')
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'
+        return response
+
+
+RESEARCH_SYSTEM_PROMPT = """You are LexAI Research Mode — a specialist legal research engine for Cameroonian law.
+
+For every query, provide a cited, precise answer. You MUST:
+1. Cite specific statutes in format: [Citation: Law No. XXX/YYY of DATE — Art. Z]
+2. Apply OHADA Uniform Acts where commercial law is relevant
+3. Reference both Civil Law (francophone regions) and Common Law (anglophone NW/SW regions) where applicable
+4. Return ONLY valid JSON with this exact schema:
+{
+  "answer": "Full answer text. Inline citations formatted as [Citation: ...]",
+  "citations": [
+    {
+      "title": "Short name of the statute or uniform act",
+      "reference": "Full formal reference e.g. Art. 1134 of the Civil Code",
+      "relevance_note": "One sentence on why this applies to the query"
+    }
+  ],
+  "confidence": "high|medium|low",
+  "disclaimer": "This is AI-assisted legal research. Verify all citations before reliance in court proceedings."
+}
+
+IMPORTANT: If you cannot locate a specific Cameroonian provision, say so clearly — never fabricate citations.
+Confidence: high = you cited a specific article; medium = general principle applies; low = uncertain or no specific statute found."""
+
+
+class LegalResearchView(APIView):
+    """POST /api/v1/ai/research/ — stream a legal research answer with citations."""
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [ServerSentEventRenderer, JSONRenderer]
+
+    def post(self, request):
+        query = (request.data.get('query') or '').strip()
+        session_id = request.data.get('session_id')
+
+        if not query:
+            return Response({'error': 'query is required'}, status=400)
+
+        # Reuse ChatSession for history (portal='research')
+        session = None
+        if session_id:
+            try:
+                session = ChatSession.objects.get(id=session_id, user_id=str(request.user.id), portal='research')
+            except ChatSession.DoesNotExist:
+                pass
+
+        if not session:
+            session = ChatSession.objects.create(
+                user_id=str(request.user.id),
+                portal='research',
+                title=query[:60],
+                language='en',
+                messages=[],
+            )
+
+        session.messages.append({'role': 'user', 'content': query, 'timestamp': datetime.utcnow().isoformat()})
+        session.save()
+
+        full_system = (
+            RESEARCH_SYSTEM_PROMPT
+            + "\n\n"
+            + "CAMEROONIAN LAW REFERENCE (use for citations):\n"
+            + "Civil Code Art. 1134 (pacta sunt servanda), Art. 1147 (non-performance liability), Art. 1382 (tort).\n"
+            + "Penal Code: Law No. 2016/007 of 12 July 2016.\n"
+            + "Criminal Procedure Code: Law No. 2005/007 of 27 July 2005.\n"
+            + "Labour Code: Law No. 92/007 of 14 August 1992.\n"
+            + "OHADA AUDCG (commercial law), AUSC (companies), AUPC (insolvency), AUPSRVE (enforcement), AUS (securities).\n"
+            + "Land Law: Ordinance No. 74/1 of 6 July 1974.\n"
+            + "Constitution: Law No. 96/06 of 18 January 1996.\n"
+        )
+
+        def generate():
+            full_text = ''
+            try:
+                ai = get_ai_client(settings)
+                for chunk in ai.stream(user_message=query, history=session.messages[:-1], case_context=full_system, max_tokens=2048):
+                    full_text += chunk
+                    yield f"data: {json.dumps({'token': chunk})}\n\n"
+            except Exception as exc:
+                logger.exception("Research stream error")
+                yield f"data: {json.dumps({'error': str(exc)})}\n\n"
+                return
+
+            # Parse JSON from accumulated response
+            import re as _re
+            cleaned = full_text.strip()
+            if cleaned.startswith('```'):
+                cleaned = cleaned.split('```')[1]
+                if cleaned.startswith('json'):
+                    cleaned = cleaned[4:]
+            if cleaned.endswith('```'):
+                cleaned = cleaned[:-3].strip()
+            match = _re.search(r'\{[\s\S]*\}', cleaned)
+            if match:
+                cleaned = match.group(0)
+
+            try:
+                result = json.loads(cleaned)
+            except Exception:
+                result = {
+                    'answer': full_text,
+                    'citations': [],
+                    'confidence': 'low',
+                    'disclaimer': 'Could not parse structured response. See raw text above.',
+                }
+
+            session.messages.append({'role': 'assistant', 'content': result.get('answer', full_text), 'timestamp': datetime.utcnow().isoformat()})
+            session.save()
+
+            yield f"data: {json.dumps({'done': True, 'session_id': str(session.id), **result})}\n\n"
+
+        response = StreamingHttpResponse(generate(), content_type='text/event-stream')
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'
+        return response
+
+
+class FirmInsightsView(APIView):
+    """POST /api/v1/ai/insights/ — internal endpoint called by monitoring-service for AI narrative."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        key = request.headers.get('X-Internal-Api-Key', '')
+        from decouple import config
+        if key != config('INTERNAL_API_KEY', default='dev-internal-key'):
+            return Response({'error': 'Forbidden'}, status=403)
+
+        firm_data = request.data.get('firm_data', {})
+        prompt = (
+            f"You are a senior law firm management consultant. "
+            f"Analyse this firm's operational data and provide actionable insights.\n\n"
+            f"FIRM DATA:\n"
+            f"- Active cases: {firm_data.get('total_active_cases', 0)}\n"
+            f"- Total cases all time: {firm_data.get('total_cases_all_time', 0)}\n"
+            f"- Stalled cases (no update >14 days): {firm_data.get('stalled_cases_count', 0)}\n"
+            f"- Number of lawyers: {firm_data.get('lawyer_count', 0)}\n"
+            f"- Average resolution days: {firm_data.get('avg_resolution_days', 0)}\n"
+            f"- Status distribution: {json.dumps(firm_data.get('status_distribution', {}))}\n"
+            f"- Top stalled cases: {json.dumps(firm_data.get('top_stalled', []))}\n"
+            f"- Top lawyer loads: {json.dumps(firm_data.get('lawyer_loads', []))}\n\n"
+            f"Provide a brief management narrative (2-3 sentences) and 3-5 bullet point action items.\n"
+            f"Respond with JSON: "
+            f'{{ "narrative": "...", "bullet_insights": ["...", "..."] }}'
+        )
+
+        try:
+            ai = get_ai_client(settings)
+            raw = ai.complete(prompt, system=LEGAL_SYSTEM_PROMPT, max_tokens=600)
+        except Exception as exc:
+            return Response({'narrative': '', 'bullet_insights': [], 'error': str(exc)})
+
+        import re as _re
+        cleaned = raw.strip()
+        if cleaned.startswith('```'):
+            cleaned = cleaned.split('```')[1]
+            if cleaned.startswith('json'):
+                cleaned = cleaned[4:]
+            cleaned = cleaned.strip()
+        m = _re.search(r'\{[\s\S]*\}', cleaned)
+        if m:
+            cleaned = m.group(0)
+
+        try:
+            result = json.loads(cleaned)
+        except Exception:
+            result = {'narrative': raw[:400], 'bullet_insights': []}
+
+        return Response(result)

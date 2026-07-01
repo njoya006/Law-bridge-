@@ -441,6 +441,214 @@ function StatusUpdatePanel({ caseItem, onUpdated }: { caseItem: CaseItem; onUpda
   )
 }
 
+// ── Meeting Notes → Action Items (lawyers only) ───────────────────────────────
+
+import {
+  streamMeetingSummary,
+  type MeetingResult,
+} from '../../../lib/aiApi'
+
+function MeetingNotesPanel({ caseId, caseType, clientName, onNoteSaved }: {
+  caseId: string
+  caseType: string
+  clientName: string
+  onNoteSaved: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [rawNotes, setRawNotes] = useState('')
+  const [streaming, setStreaming] = useState(false)
+  const [streamText, setStreamText] = useState('')
+  const [result, setResult] = useState<MeetingResult | null>(null)
+  const [error, setError] = useState('')
+  const [copied, setCopied] = useState<'email' | 'actions' | null>(null)
+
+  async function generate() {
+    if (!rawNotes.trim() || streaming) return
+    const token = localStorage.getItem('access') ?? ''
+    setStreaming(true)
+    setStreamText('')
+    setResult(null)
+    setError('')
+    await streamMeetingSummary(
+      { raw_notes: rawNotes, case_id: caseId, case_type: caseType, client_name: clientName },
+      token,
+      {
+        onToken: t => setStreamText(prev => prev + t),
+        onDone: res => { setResult(res); setStreaming(false); setStreamText('') },
+        onError: msg => { setError(msg); setStreaming(false) },
+      },
+    )
+  }
+
+  async function saveNote() {
+    if (!result?.case_note_text) return
+    const token = localStorage.getItem('access') ?? ''
+    try {
+      await fetch(`/api/v1/cases/${caseId}/notes/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ content: result.case_note_text, is_private: true }),
+      })
+      onNoteSaved()
+      setOpen(false)
+    } catch {
+      setError('Failed to save note.')
+    }
+  }
+
+  function copyEmail() {
+    navigator.clipboard.writeText(result?.draft_client_email ?? '').then(() => {
+      setCopied('email'); setTimeout(() => setCopied(null), 2000)
+    }).catch(() => {})
+  }
+
+  function copyActions() {
+    const text = (result?.action_items ?? [])
+      .map(a => `[ ] ${a.item} (${a.assignee}${a.suggested_due_date ? ` — by ${a.suggested_due_date}` : ''})`)
+      .join('\n')
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied('actions'); setTimeout(() => setCopied(null), 2000)
+    }).catch(() => {})
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gold-500/30 bg-gold-500/10 text-gold-400 text-sm font-medium hover:bg-gold-500/15 hover:border-gold-500/50 transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+        Summarize Meeting
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-neutral-700/40 bg-primary-900 shadow-2xl flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-700/30">
+              <div>
+                <h3 className="font-heading text-body-lg text-neutral-50">AI Meeting Notes</h3>
+                <p className="text-xs text-neutral-500 mt-0.5">Summarise + extract action items + draft client email</p>
+              </div>
+              <button onClick={() => setOpen(false)} className="text-neutral-500 hover:text-neutral-300 p-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 p-6 space-y-4">
+              {!result && (
+                <>
+                  <div>
+                    <label className="block text-neutral-400 text-xs mb-1">
+                      Paste raw meeting notes <span className="text-crimson-400">*</span>
+                    </label>
+                    <textarea
+                      value={rawNotes}
+                      onChange={e => setRawNotes(e.target.value)}
+                      placeholder="Write or paste your meeting notes here — dates discussed, what was agreed, who is responsible for what…"
+                      rows={8}
+                      className="w-full rounded-lg bg-primary-800/50 border border-neutral-700/40 px-3 py-2.5 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50 resize-none"
+                    />
+                  </div>
+                  {error && <p className="text-crimson-400 text-xs">{error}</p>}
+                  <button
+                    onClick={() => void generate()}
+                    disabled={streaming || !rawNotes.trim()}
+                    className="px-5 py-2.5 rounded-lg bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 disabled:opacity-50 transition-colors flex items-center gap-2"
+                  >
+                    {streaming ? (
+                      <>
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                        Generating…
+                      </>
+                    ) : 'Generate Summary'}
+                  </button>
+                  {streaming && streamText && (
+                    <div className="rounded-lg bg-primary-800/40 border border-neutral-700/30 p-4">
+                      <p className="text-sm text-neutral-200 whitespace-pre-wrap">{streamText}<span className="animate-pulse">▍</span></p>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {result && (
+                <div className="space-y-4">
+                  {/* Summary */}
+                  <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-4">
+                    <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">Summary</p>
+                    <p className="text-sm text-neutral-200">{result.summary}</p>
+                  </div>
+
+                  {/* Action Items */}
+                  {result.action_items.length > 0 && (
+                    <div className="rounded-xl border border-gold-500/20 bg-gold-900/10 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Action Items</p>
+                        <button onClick={copyActions} className="text-xs text-neutral-500 hover:text-gold-400 transition-colors">
+                          {copied === 'actions' ? '✓ Copied' : 'Copy all'}
+                        </button>
+                      </div>
+                      {result.action_items.map((a, i) => (
+                        <div key={i} className="flex items-start gap-2 text-sm">
+                          <span className="text-gold-500 mt-0.5 flex-shrink-0">→</span>
+                          <div>
+                            <span className="text-neutral-200">{a.item}</span>
+                            <span className="ml-2 text-xs text-neutral-500 capitalize">({a.assignee})</span>
+                            {a.suggested_due_date && (
+                              <span className="ml-2 text-xs text-neutral-600">by {a.suggested_due_date}</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Draft Email */}
+                  {result.draft_client_email && (
+                    <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Draft Client Email</p>
+                        <button onClick={copyEmail} className="text-xs text-neutral-500 hover:text-gold-400 transition-colors">
+                          {copied === 'email' ? '✓ Copied' : 'Copy email'}
+                        </button>
+                      </div>
+                      <p className="text-sm text-neutral-200 whitespace-pre-wrap font-mono text-xs leading-relaxed">{result.draft_client_email}</p>
+                    </div>
+                  )}
+
+                  {error && <p className="text-crimson-400 text-xs">{error}</p>}
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => void saveNote()}
+                      className="px-4 py-2 rounded-lg bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 transition-colors"
+                    >
+                      Save as Case Note
+                    </button>
+                    <button
+                      onClick={() => { setResult(null); setRawNotes('') }}
+                      className="px-4 py-2 rounded-lg border border-neutral-700/40 text-neutral-400 text-sm hover:text-neutral-200 transition-colors"
+                    >
+                      New Notes
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 // ── Add note panel (lawyers only) ─────────────────────────────────────────────
 
 function AddNotePanel({ caseId, onAdded }: { caseId: string; onAdded: () => void }) {
@@ -1839,7 +2047,15 @@ export default function CaseDetailPage() {
         </div>
 
         {isLawyer && (
-          <AddNotePanel caseId={item.id} onAdded={load} />
+          <div className="space-y-3">
+            <AddNotePanel caseId={item.id} onAdded={load} />
+            <MeetingNotesPanel
+              caseId={item.id}
+              caseType={item.case_type}
+              clientName={item.booking_metadata?.target_name ?? item.client_id ?? 'Client'}
+              onNoteSaved={load}
+            />
+          </div>
         )}
 
         {(item.notes ?? []).length > 0 ? (
