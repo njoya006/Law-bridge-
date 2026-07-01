@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 import jwt
 from decouple import config
+from django.conf import settings
 from .models import Payment
 from .serializers import PaymentSerializer, PaymentWebhookSerializer
 from .tasks import verify_payment
@@ -16,7 +17,8 @@ def extract_user_id_from_token(request):
     if auth_header.startswith('Bearer '):
         try:
             token = auth_header.split(' ')[1]
-            payload = jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
+            signing_key = settings.SIMPLE_JWT.get('SIGNING_KEY', settings.SECRET_KEY)
+            payload = jwt.decode(token, signing_key, algorithms=['HS256'], options={'verify_aud': False})
             return payload.get('user_id')
         except Exception:
             pass

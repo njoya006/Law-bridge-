@@ -1,0 +1,48 @@
+name: Rotate JWT Secret Key
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        run: |
+          if [ -z "$KUBECONFIG_DATA" ]; then
+            echo "KUBECONFIG secret not set — aborting."
+            exit 1
+          fi
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+
+      - name: Generate new JWT secret and update lawbridge-secrets
+        run: |
+          NEW_KEY=$(openssl rand -hex 32)
+          echo "Generated new JWT_SECRET_KEY (length: ${#NEW_KEY})"
+
+          kubectl patch secret lawbridge-secrets -n lawbridge \
+            --type merge \
+            -p "{\"stringData\":{\"JWT_SECRET_KEY\":\"${NEW_KEY}\"}}"
+
+          echo "lawbridge-secrets updated."
+
+      - name: Restart all deployments to pick up new key
+        run: |
+          kubectl rollout restart deployment -n lawbridge
+          echo "All deployments restarting..."
+
+      - name: Wait for rollouts to complete
+        run: |
+          for deploy in $(kubectl get deployments -n lawbridge -o name); do
+            echo "Waiting for $deploy ..."
+            kubectl rollout status "$deploy" -n lawbridge --timeout=180s || echo "Timeout/error on $deploy (continuing)"
+          done
+          echo "Rotation complete. All pods are running with the new JWT key."

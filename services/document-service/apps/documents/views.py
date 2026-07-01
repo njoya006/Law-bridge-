@@ -23,7 +23,8 @@ def extract_user_id_from_token(request):
     if auth_header.startswith('Bearer '):
         try:
             token = auth_header.split(' ')[1]
-            payload = jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
+            signing_key = settings.SIMPLE_JWT.get('SIGNING_KEY', settings.SECRET_KEY)
+            payload = jwt.decode(token, signing_key, algorithms=['HS256'], options={'verify_aud': False})
             return payload.get('user_id')
         except Exception:
             pass
@@ -38,12 +39,11 @@ def extract_auth_payload(request):
     if not auth_header.startswith('Bearer '):
         return {}
     token = auth_header.split(' ')[1]
-    for key in [config('JWT_SECRET_KEY', default='dev-secret'), config('SECRET_KEY', default='dev-secret'), 'dev-secret']:
-        try:
-            return jwt.decode(token, key, algorithms=['HS256'])
-        except Exception:
-            continue
-    return {}
+    try:
+        signing_key = settings.SIMPLE_JWT.get('SIGNING_KEY', settings.SECRET_KEY)
+        return jwt.decode(token, signing_key, algorithms=['HS256'], options={'verify_aud': False})
+    except Exception:
+        return {}
 
 
 def get_minio_client():

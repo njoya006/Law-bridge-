@@ -111,8 +111,10 @@ def _get_user_id(request):
     auth = request.META.get('HTTP_AUTHORIZATION', '')
     if auth.startswith('Bearer '):
         try:
+            from django.conf import settings as _settings
             token = auth.split(' ')[1]
-            payload = jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
+            signing_key = _settings.SIMPLE_JWT.get('SIGNING_KEY', _settings.SECRET_KEY)
+            payload = jwt.decode(token, signing_key, algorithms=['HS256'], options={'verify_aud': False})
             return payload.get('user_id')
         except Exception:
             pass

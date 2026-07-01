@@ -30,7 +30,8 @@ def extract_user_id_from_token(request):
     if auth_header.startswith('Bearer '):
         try:
             token = auth_header.split(' ')[1]
-            payload = jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
+            signing_key = settings.SIMPLE_JWT.get('SIGNING_KEY', settings.SECRET_KEY)
+            payload = jwt.decode(token, signing_key, algorithms=['HS256'], options={'verify_aud': False})
             return payload.get('user_id')
         except Exception as exc:
             logger.warning("JWT decode failed in extract_user_id_from_token: %s", exc)
@@ -100,13 +101,14 @@ STAFF_ROLES = {'lawyer', 'firm_admin', 'firm-admin', 'partner', 'associate', 'se
 
 
 def extract_token_payload(request):
-    """Decode JWT using the configured signing key."""
+    """Decode JWT using the same signing key as CustomJWTAuthentication."""
     auth_header = request.META.get('HTTP_AUTHORIZATION', '')
     if not auth_header.startswith('Bearer '):
         return {}
     token = auth_header.split(' ')[1]
     try:
-        return jwt.decode(token, config('JWT_SECRET_KEY', default='dev-secret'), algorithms=['HS256'])
+        signing_key = settings.SIMPLE_JWT.get('SIGNING_KEY', settings.SECRET_KEY)
+        return jwt.decode(token, signing_key, algorithms=['HS256'], options={'verify_aud': False})
     except Exception:
         return {}
 
