@@ -1,0 +1,43 @@
+name: Debug JWT Keys in Pods
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Set up kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+
+      - name: Show JWT key prefix in each service pod
+        run: |
+          echo "=== lawbridge-secrets current value (first 12 chars) ==="
+          kubectl get secret lawbridge-secrets -n lawbridge -o jsonpath='{.data.JWT_SECRET_KEY}' | base64 -d | cut -c1-12
+          echo ""
+
+          for svc in auth-service case-service ai-assistant-service; do
+            POD=$(kubectl get pod -n lawbridge -l app=$svc -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+            if [ -n "$POD" ]; then
+              KEY_PREFIX=$(kubectl exec -n lawbridge "$POD" -- sh -c 'echo -n $JWT_SECRET_KEY' 2>/dev/null | cut -c1-12)
+              echo "$svc ($POD): JWT_SECRET_KEY prefix = [$KEY_PREFIX]"
+            else
+              echo "$svc: no pod found"
+            fi
+          done
