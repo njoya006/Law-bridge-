@@ -32,6 +32,8 @@ spec:
             secretKeyRef: { name: groq-secret, key: GROQ_API_KEY }
         - name: GROQ_MODEL
           value: llama-3.3-70b-versatile
+        - name: CASE_SERVICE_URL
+          value: http://case-service
         envFrom:
         - secretRef:
             name: lawbridge-secrets
@@ -98,6 +100,8 @@ spec:
             secretKeyRef: { name: groq-secret, key: GROQ_API_KEY }
         - name: GROQ_MODEL
           value: llama-3.3-70b-versatile
+        - name: CASE_SERVICE_URL
+          value: http://case-service
         envFrom:
         - secretRef:
             name: lawbridge-secrets

@@ -794,25 +794,9 @@ class LegalDraftCreateView(APIView):
             draft_type = 'other'
 
         # Optional case context
-        case_context = ''
-        if case_id:
-            try:
-                import requests as req
-                r = req.get(
-                    f"{settings.CASE_SERVICE_URL}/api/v1/cases/{case_id}/summary/",
-                    headers={'X-Internal-Api-Key': getattr(settings, 'INTERNAL_API_KEY', '')},
-                    timeout=4,
-                )
-                if r.status_code == 200:
-                    d = r.json()
-                    case_context = (
-                        f"CASE CONTEXT:\nType: {d.get('case_type')} | "
-                        f"Circuit: {d.get('circuit')} ({d.get('legal_tradition')}) | "
-                        f"Status: {d.get('status')}\n"
-                        f"Parties: {str(d.get('description', ''))[:300]}"
-                    )
-            except Exception:
-                pass
+        internal_key = getattr(settings, 'INTERNAL_API_KEY', 'dev-internal-key')
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        case_context = _fetch_case_context(case_id, settings.CASE_SERVICE_URL, internal_key, auth_header) if case_id else ''
 
         type_prompt = DRAFT_TYPE_PROMPTS.get(draft_type, DRAFT_TYPE_PROMPTS['other'])
         draft_prompt = (
@@ -965,25 +949,9 @@ class LegalDraftStreamView(APIView):
             draft_type = 'other'
 
         # Optional case context
-        case_context = ''
-        if case_id:
-            try:
-                import requests as req
-                r = req.get(
-                    f"{settings.CASE_SERVICE_URL}/api/v1/cases/{case_id}/summary/",
-                    headers={'X-Internal-Api-Key': getattr(settings, 'INTERNAL_API_KEY', '')},
-                    timeout=4,
-                )
-                if r.status_code == 200:
-                    d = r.json()
-                    case_context = (
-                        f"CASE CONTEXT:\nType: {d.get('case_type')} | "
-                        f"Circuit: {d.get('circuit')} ({d.get('legal_tradition')}) | "
-                        f"Status: {d.get('status')}\n"
-                        f"Parties: {str(d.get('description', ''))[:300]}"
-                    )
-            except Exception:
-                pass
+        internal_key = getattr(settings, 'INTERNAL_API_KEY', 'dev-internal-key')
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        case_context = _fetch_case_context(case_id, settings.CASE_SERVICE_URL, internal_key, auth_header) if case_id else ''
 
         type_prompt = DRAFT_TYPE_PROMPTS.get(draft_type, DRAFT_TYPE_PROMPTS['other'])
         draft_prompt = (
