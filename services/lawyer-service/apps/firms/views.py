@@ -191,6 +191,8 @@ class FirmSearchView(APIView):
 
 
 class MyFirmMembershipsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def get(self, request):
         memberships = FirmMembership.objects.filter(user=request.user, is_active=True).select_related('firm')
         serializer = FirmMembershipSerializer(memberships, many=True)
@@ -234,6 +236,8 @@ class UserFirmMembershipsView(APIView):
 
 
 class InviteCreateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def post(self, request, firm_id):
         firm = get_object_or_404(Firm, id=firm_id)
         if not user_has_firm_admin(request.user, firm):
@@ -282,6 +286,7 @@ class InviteCreateView(APIView):
                         'role': role,
                         'invited_by': request.user,
                         'invited_email': email,
+                        'is_active': False,
                     },
                 )
             _log_action(firm, request, 'invite_sent', target_email=email, new_role=role, reason=note)
@@ -291,6 +296,7 @@ class InviteCreateView(APIView):
 
 class FirmPendingInvitesView(APIView):
     """List pending (not yet accepted) invites for a firm — admin only."""
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, firm_id):
         firm = get_object_or_404(Firm, id=firm_id)
@@ -300,8 +306,29 @@ class FirmPendingInvitesView(APIView):
         return Response(InviteSerializer(pending, many=True).data)
 
 
+class InviteCancelView(APIView):
+    """DELETE /api/v1/firms/<firm_id>/invites/<token>/ — cancel a pending invite (admin only)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, firm_id, token):
+        firm = get_object_or_404(Firm, id=firm_id)
+        if not user_has_firm_admin(request.user, firm):
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        invite = get_object_or_404(Invite, firm=firm, token=token, accepted_at__isnull=True)
+        email = invite.email
+        invite.delete()
+        # Remove the pending (inactive) membership that was pre-created for this invitee
+        try:
+            invitee = User.objects.get(email=email)
+            FirmMembership.objects.filter(user=invitee, firm=firm, is_active=False).delete()
+        except User.DoesNotExist:
+            pass
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class FirmActionLogView(APIView):
     """Activity/audit log for a firm — admin only."""
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, firm_id):
         firm = get_object_or_404(Firm, id=firm_id)
@@ -396,6 +423,8 @@ class FirmDetailView(APIView):
 
 
 class InviteAcceptView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def post(self, request, token):
         invite = get_object_or_404(Invite, token=token)
         if invite.accepted_at:
@@ -441,6 +470,8 @@ class InviteAcceptView(APIView):
 
 
 class MemberRoleUpdateView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def patch(self, request, member_id):
         membership = get_object_or_404(FirmMembership, id=member_id)
         firm = membership.firm
@@ -480,6 +511,8 @@ class MemberRoleUpdateView(APIView):
 
 
 class MemberAssignFirmView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def patch(self, request, member_id):
         membership = get_object_or_404(FirmMembership, id=member_id)
         firm = membership.firm
@@ -498,6 +531,8 @@ class MemberAssignFirmView(APIView):
 
 
 class MemberDeleteView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
     def delete(self, request, member_id):
         membership = get_object_or_404(FirmMembership, id=member_id)
         firm = membership.firm

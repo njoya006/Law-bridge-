@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-const ALLOWED = ['Secretary / Firm Admin', 'Firm Admin', 'Partner', 'Senior Partner', 'Admin']
+const ALLOWED = ['lawyer', 'firm_admin', 'secretary', 'owner']
 
 export default function RequireFirmAdmin({ children }: { children: React.ReactNode }) {
   const router = useRouter()

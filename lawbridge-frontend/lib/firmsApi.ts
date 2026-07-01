@@ -175,6 +175,10 @@ export function acceptInvite(inviteToken: string, accessToken: string) {
   return api.post<FirmMembership & { firm_name?: string }>('firms', `/invites/${inviteToken}/accept/`, undefined, accessToken)
 }
 
+export function cancelFirmInvite(firmId: number, inviteToken: string, accessToken: string) {
+  return api.request<void>('firms', `/${firmId}/invites/${inviteToken}/`, { method: 'DELETE', token: accessToken })
+}
+
 // Partnership
 export function getPartnershipPolicy(firmId: number, token: string) {
   return api.get<PartnershipPolicy>('firms', `/${firmId}/partnership-policy/`, token)

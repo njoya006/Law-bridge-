@@ -5,7 +5,7 @@ import Button from '../../../components/ui/Button'
 import {
   getMyFirmMemberships, getFirmMembers, getFirmPendingInvites,
   getFirmActivity, inviteFirmMember, updateFirmMemberRole, removeFirmMember,
-  createFirm,
+  cancelFirmInvite, createFirm,
   type FirmMembership, type FirmInvite, type FirmActionLog, type Firm,
 } from '../../../lib/firmsApi'
 
@@ -705,9 +705,27 @@ export default function LawyerTeamPage() {
                   {inv.expires_at && <span>· Expires {fmt(inv.expires_at)}</span>}
                 </div>
               </div>
-              <span className={`px-2 py-0.5 rounded-full text-xs border font-medium ${ROLE_COLORS[inv.role] ?? ROLE_COLORS.associate}`}>
-                {ROLE_LABELS[inv.role] ?? inv.role}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-0.5 rounded-full text-xs border font-medium ${ROLE_COLORS[inv.role] ?? ROLE_COLORS.associate}`}>
+                  {ROLE_LABELS[inv.role] ?? inv.role}
+                </span>
+                <button
+                  onClick={async () => {
+                    if (!firm) return
+                    const token = localStorage.getItem('access')
+                    if (!token) return
+                    try {
+                      await cancelFirmInvite(firm.id, inv.token, token)
+                      setPendingInvites(prev => prev.filter(i => i.token !== inv.token))
+                    } catch (e) {
+                      setErr(e instanceof Error ? e.message : 'Failed to cancel invite')
+                    }
+                  }}
+                  className="rounded-lg border border-neutral-700 px-2 py-0.5 text-xs text-neutral-400 hover:border-red-500/50 hover:text-red-400 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           ))}
           <p className="text-xs text-neutral-600 pt-2">Invites appear here until the recipient accepts them. Share the invite link directly with the person.</p>
