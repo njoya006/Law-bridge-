@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react'
 import { generateIntakeForm, type IntakeField } from '../../../lib/aiApi'
-import { saveIntakeForm, getMyIntakeForms, getIntakeFormDetail, type IntakeFormSummary } from '../../../lib/casesApi'
+import { saveIntakeForm, getMyIntakeForms, getIntakeFormDetail, type IntakeFormSummary, type IntakeForm } from '../../../lib/casesApi'
 
 const CASE_TYPES = [
   'Criminal Defence',
@@ -30,12 +30,12 @@ type ResponseDrawerProps = {
 }
 
 function ResponseDrawer({ summary, onClose, accessToken }: ResponseDrawerProps) {
-  const [detail, setDetail] = useState<{ form_fields: IntakeField[]; responses: Record<string, string>; completed_at: string | null } | null>(null)
+  const [detail, setDetail] = useState<IntakeForm | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     getIntakeFormDetail(summary.token, accessToken)
-      .then(d => setDetail(d as { form_fields: IntakeField[]; responses: Record<string, string>; completed_at: string | null }))
+      .then(setDetail)
       .catch(() => setDetail(null))
       .finally(() => setLoading(false))
   }, [summary.token, accessToken])
@@ -111,11 +111,11 @@ function ResponseDrawer({ summary, onClose, accessToken }: ResponseDrawerProps) 
                 <span className="text-xs text-neutral-500 font-medium">Client Responses</span>
                 <div className="h-px flex-1 bg-neutral-700/40" />
               </div>
-              {detail.form_fields.map((field, i) => (
+              {(detail.form_fields ?? []).map((field, i) => (
                 <div key={i} className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-4">
                   <p className="text-xs font-semibold text-neutral-400 mb-1.5">{field.label}{field.required && <span className="text-red-400 ml-1">*</span>}</p>
                   <p className="text-sm text-neutral-100 leading-relaxed">
-                    {detail.responses[field.label] || <span className="text-neutral-600 italic">No response</span>}
+                    {(detail.responses ?? {})[field.label] || <span className="text-neutral-600 italic">No response</span>}
                   </p>
                 </div>
               ))}

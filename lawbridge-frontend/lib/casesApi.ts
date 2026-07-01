@@ -283,6 +283,8 @@ export type IntakeForm = {
   circuit: string
   form_fields: IntakeField[]
   completed?: boolean
+  completed_at?: string | null
+  responses?: Record<string, string>
   created_at?: string
 }
 
@@ -317,5 +319,5 @@ export function getMyIntakeForms(token: string) {
 }
 
 export function getIntakeFormDetail(intakeToken: string, accessToken: string) {
-  return api.get<IntakeForm & { responses: Record<string, string> }>('case', `/cases/intake/${intakeToken}/detail/`, accessToken)
+  return api.get<IntakeForm>('case', `/cases/intake/${intakeToken}/detail/`, accessToken)
 }
