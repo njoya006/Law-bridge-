@@ -3,10 +3,11 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Card } from '../../../components/ui/Card'
-import { getIncomingBookings, assignCase, acceptBooking, declineBooking, type CaseItem } from '../../../lib/casesApi'
+import { getIncomingBookings, acceptBooking, declineBooking, type CaseItem } from '../../../lib/casesApi'
 import { listReportRequests, updateReportRequestStatus, REPORT_TYPE_LABELS, PERIOD_LABELS, type ReportRequest } from '../../../lib/reportRequestsApi'
 import { getMyFirmMemberships, getFirmLawyers, type FirmLawyer } from '../../../lib/firmsApi'
 import { ChartBarIcon, UsersIcon } from '../../../components/icons/Icons'
+import SmartAssignmentPanel from '../../../components/SmartAssignmentPanel'
 
 function fmtDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) } catch { return iso }
@@ -35,63 +36,6 @@ function reportStatusCls(s: string) {
 }
 const NEXT_STATUS: Record<string, ReportRequest['status']> = {
   pending: 'acknowledged', acknowledged: 'generated', generated: 'delivered',
-}
-
-function AssignModal({ caseItem, lawyers, onClose, onAssigned }: {
-  caseItem: CaseItem; lawyers: FirmLawyer[]; onClose: () => void; onAssigned: (u: CaseItem) => void
-}) {
-  const [selectedId, setSelectedId] = useState('')
-  const [note, setNote] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState('')
-
-  async function submit() {
-    if (!selectedId) { setErr('Select a lawyer first'); return }
-    setSaving(true); setErr('')
-    const token = localStorage.getItem('access') || ''
-    try { onAssigned(await assignCase(caseItem.id, selectedId, token, note || undefined)) }
-    catch (e) { setErr(e instanceof Error ? e.message : 'Failed to assign') }
-    finally { setSaving(false) }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md rounded-2xl bg-primary-900 border border-neutral-700/60 p-6 shadow-2xl space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-base font-semibold text-neutral-100">Assign Lawyer</h3>
-          <button onClick={onClose} className="text-neutral-500 hover:text-neutral-300 text-xl leading-none">×</button>
-        </div>
-        <p className="text-sm text-neutral-400 truncate">Case: <span className="text-neutral-200">{caseItem.title}</span></p>
-        {lawyers.length === 0 ? (
-          <p className="text-sm text-neutral-500 italic">No lawyers found for this firm.</p>
-        ) : (
-          <div className="space-y-2 max-h-52 overflow-y-auto">
-            {lawyers.map(l => (
-              <label key={l.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${selectedId === l.id ? 'border-gold-500/50 bg-gold-500/10' : 'border-neutral-700/40 hover:border-neutral-600/50'}`}>
-                <input type="radio" name="lawyer" value={l.id} checked={selectedId === l.id} onChange={() => setSelectedId(l.id)} className="accent-gold-400" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-neutral-100">{l.name}</p>
-                  <p className="text-xs text-neutral-500">{l.specialization || l.role || 'Lawyer'}{l.availability_status === 'available' ? <span className="text-emerald-400 ml-1"> · Available</span> : null}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        )}
-        <div>
-          <label className="text-xs text-neutral-400 block mb-1">Note to lawyer <span className="text-neutral-600">(optional)</span></label>
-          <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Context for the lawyer…"
-            className="w-full bg-primary-800/50 border border-neutral-700/40 rounded-lg px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-gold-500/50 resize-none" />
-        </div>
-        {err && <p className="text-xs text-red-400">{err}</p>}
-        <div className="flex gap-2 pt-1">
-          <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-neutral-700/40 text-neutral-400 hover:text-neutral-200 text-sm transition-colors">Cancel</button>
-          <button onClick={submit} disabled={saving || !selectedId} className="flex-1 py-2 rounded-lg bg-gold-500/20 border border-gold-500/30 text-gold-300 hover:bg-gold-500/30 text-sm font-medium transition-colors disabled:opacity-50">
-            {saving ? 'Assigning…' : 'Assign Lawyer'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 type Tab = 'overview' | 'bookings' | 'payments' | 'reports'
@@ -178,9 +122,13 @@ export default function SecretaryDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {assignTarget && (
-        <AssignModal caseItem={assignTarget} lawyers={firmLawyers} onClose={() => setAssignTarget(null)}
-          onAssigned={u => { setBookings(prev => prev.map(b => b.id === u.id ? u : b)); setAssignTarget(null) }} />
+      {assignTarget && firmId && (
+        <SmartAssignmentPanel
+          caseItem={assignTarget}
+          firmId={firmId}
+          onClose={() => setAssignTarget(null)}
+          onAssigned={u => { setBookings(prev => prev.map(b => b.id === u.id ? u : b)); setAssignTarget(null) }}
+        />
       )}
 
       <header className="flex items-center justify-between flex-wrap gap-3">

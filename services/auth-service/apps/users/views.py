@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from .serializers import RegisterSerializer, UserSerializer, UserPreferencesSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import User, UserPreferences
+from .models import User, UserPreferences, PasswordResetToken
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 from django.conf import settings
@@ -174,18 +174,79 @@ class PasswordChangeView(APIView):
 class PreferencesView(APIView):
     """GET or PATCH user preferences — auto-creates with defaults on first access."""
 
-    def _get_or_create(self, user_id):
-        prefs, _ = UserPreferences.objects.get_or_create(user_id=user_id)
+    def _get_or_create(self, user):
+        prefs, _ = UserPreferences.objects.get_or_create(user=user)
         return prefs
 
     def get(self, request):
-        prefs = self._get_or_create(request.user.id)
+        prefs = self._get_or_create(request.user)
         return Response(UserPreferencesSerializer(prefs).data)
 
     def patch(self, request):
-        prefs = self._get_or_create(request.user.id)
+        prefs = self._get_or_create(request.user)
         serializer = UserPreferencesSerializer(prefs, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetRequestView(APIView):
+    """POST /auth/password-reset/ — request a password reset email."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        # Always return 200 to avoid user enumeration
+        try:
+            user = User.objects.get(email=email)
+            token_obj = PasswordResetToken.objects.create(user=user)
+            # Build reset link
+            frontend_url = settings.__dict__.get('FRONTEND_URL', 'https://law-bridge-two.vercel.app')
+            reset_link = f"{frontend_url}/auth/reset-password?token={token_obj.token}"
+            # Send email via Django's built-in email
+            from django.core.mail import send_mail
+            send_mail(
+                subject='LawBridge — Reset your password',
+                message=(
+                    f"Hi {user.full_name or user.email},\n\n"
+                    f"Click the link below to reset your password (valid for 24 hours):\n\n"
+                    f"{reset_link}\n\n"
+                    f"If you did not request this, please ignore this email.\n\n"
+                    f"— The LawBridge Team"
+                ),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@lawbridge.cm'),
+                recipient_list=[user.email],
+                fail_silently=True,
+            )
+        except User.DoesNotExist:
+            pass
+        return Response({'detail': 'If an account exists with that email, a reset link has been sent.'})
+
+
+class PasswordResetConfirmView(APIView):
+    """POST /auth/password-reset/confirm/ — set a new password using a valid reset token."""
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        token_str = (request.data.get('token') or '').strip()
+        new_password = request.data.get('new_password', '')
+        if not token_str or not new_password:
+            return Response({'error': 'token and new_password are required'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(new_password) < 8:
+            return Response({'error': 'Password must be at least 8 characters'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            import uuid as uuid_mod
+            token_obj = PasswordResetToken.objects.select_related('user').get(token=uuid_mod.UUID(token_str), used=False)
+        except (PasswordResetToken.DoesNotExist, ValueError):
+            return Response({'error': 'Invalid or expired reset link'}, status=status.HTTP_400_BAD_REQUEST)
+        if token_obj.is_expired():
+            return Response({'error': 'This reset link has expired. Please request a new one.'}, status=status.HTTP_400_BAD_REQUEST)
+        user = token_obj.user
+        user.set_password(new_password)
+        user.save(update_fields=['password'])
+        token_obj.used = True
+        token_obj.save(update_fields=['used'])
+        # Invalidate all other reset tokens for this user
+        PasswordResetToken.objects.filter(user=user, used=False).update(used=True)
+        return Response({'detail': 'Password updated successfully. You can now sign in.'})

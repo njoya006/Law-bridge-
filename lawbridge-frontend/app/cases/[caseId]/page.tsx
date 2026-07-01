@@ -13,6 +13,8 @@ import {
 } from '../../../lib/casesApi'
 import { buildWorkflow, LAWYER_ACTIONS } from '../../../lib/workflow'
 import { ClientCard, LawyerCard } from '../../../components/IdentityCards'
+import { useCaseWebSocket } from '../../../lib/useCaseWebSocket'
+import { SERVICE_URLS } from '../../../lib/serviceUrls'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -1428,6 +1430,176 @@ function ReassignmentWizard({ caseItem, onComplete }: { caseItem: CaseItem; onCo
   )
 }
 
+// ── AI Case Intelligence Card ─────────────────────────────────────────────────
+
+type AIAnalysis = {
+  strength_score: number
+  risk_flags: string[]
+  recommended_next_steps: string[]
+  summary: string
+}
+
+function AICaseIntelligenceCard({ caseItem }: { caseItem: CaseItem }) {
+  const [analysis, setAnalysis] = useState<AIAnalysis | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [text, setText] = useState('')
+  const [error, setError] = useState('')
+
+  const analyze = async () => {
+    const access = localStorage.getItem('access')
+    if (!access) return
+    setLoading(true); setError(''); setText(''); setAnalysis(null)
+
+    const aiBase = (SERVICE_URLS.ai as string).replace(/\/$/, '')
+    const payload = {
+      session_id: null,
+      message: `Analyse this legal case and respond ONLY with JSON in this format: {"strength_score": 0-100, "risk_flags": ["..."], "recommended_next_steps": ["..."], "summary": "..."}. Case title: ${caseItem.title}. Type: ${caseItem.case_type}. Status: ${caseItem.status}. Tradition: ${caseItem.legal_tradition}. Timeline events: ${caseItem.timeline.length}. Latest status: ${caseItem.timeline[0]?.status ?? 'none'}.`,
+      language: caseItem.language ?? 'en',
+    }
+
+    try {
+      const res = await fetch(`${aiBase}/ai/chat/stream/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${access}`, Accept: 'text/event-stream' },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) { setError('AI service is unavailable. Try again later.'); setLoading(false); return }
+      const reader = res.body?.getReader()
+      if (!reader) { setError('No response.'); setLoading(false); return }
+
+      const decoder = new TextDecoder()
+      let buf = ''
+      let fullText = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n'); buf = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const raw = line.slice(6).trim()
+          if (!raw) continue
+          try {
+            const parsed = JSON.parse(raw) as { token?: string; done?: boolean; error?: string }
+            if (parsed.error) { setError(parsed.error); break }
+            if (parsed.token) { fullText += parsed.token; setText(fullText) }
+          } catch { /* skip */ }
+        }
+      }
+      // Parse the accumulated JSON
+      const jsonMatch = fullText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]) as AIAnalysis
+        setAnalysis(parsed)
+      } else {
+        setError('Unable to parse AI response.')
+      }
+    } catch {
+      setError('AI service is unavailable.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-b from-purple-950/20 to-transparent p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-purple-400 text-base">✦</span>
+          <p className="font-heading text-sm font-semibold text-purple-300">AI Case Intelligence</p>
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full border border-purple-500/30 text-purple-500 font-medium">Beta</span>
+        </div>
+        {!analysis && !loading && (
+          <button
+            onClick={analyze}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium border border-purple-500/30 text-purple-300 hover:bg-purple-500/10 transition-colors"
+          >
+            Get AI Analysis →
+          </button>
+        )}
+      </div>
+
+      {!analysis && !loading && !error && (
+        <p className="text-xs text-neutral-500 leading-relaxed">
+          Let AI analyse this case and suggest risk flags, next steps, and a strength score based on current status and timeline.
+        </p>
+      )}
+
+      {loading && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-purple-400 text-xs">
+            <span className="animate-spin h-3 w-3 border border-purple-400 border-t-transparent rounded-full" />
+            Analysing case…
+          </div>
+          {text && <p className="text-xs text-neutral-500 font-mono leading-relaxed opacity-60">{text}</p>}
+        </div>
+      )}
+
+      {error && (
+        <p className="text-xs text-neutral-500 italic">{error}</p>
+      )}
+
+      {analysis && (
+        <div className="space-y-4">
+          {/* Strength score */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs text-neutral-400 font-medium">Case Strength</p>
+              <p className={`text-sm font-bold tabular-nums ${analysis.strength_score >= 70 ? 'text-emerald-400' : analysis.strength_score >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+                {analysis.strength_score}/100
+              </p>
+            </div>
+            <div className="h-2 rounded-full bg-neutral-800/60 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${analysis.strength_score >= 70 ? 'bg-emerald-500/70' : analysis.strength_score >= 40 ? 'bg-amber-500/70' : 'bg-red-500/70'}`}
+                style={{ width: `${analysis.strength_score}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Summary */}
+          <div className="rounded-lg border border-neutral-700/30 bg-primary-900/40 p-3.5">
+            <p className="text-xs leading-relaxed text-neutral-300">{analysis.summary}</p>
+          </div>
+
+          {/* Risk flags */}
+          {analysis.risk_flags.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] uppercase tracking-wide text-red-400 font-semibold">Risk Flags</p>
+              {analysis.risk_flags.map((f, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="text-red-400 mt-0.5 flex-shrink-0 text-xs">▲</span>
+                  <p className="text-xs text-neutral-400">{f}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Recommended steps */}
+          {analysis.recommended_next_steps.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-[10px] uppercase tracking-wide text-emerald-400 font-semibold">Recommended Next Steps</p>
+              {analysis.recommended_next_steps.map((s, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="text-emerald-400 mt-0.5 flex-shrink-0 text-xs">✓</span>
+                  <p className="text-xs text-neutral-400">{s}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <button
+            onClick={() => { setAnalysis(null); setText('') }}
+            className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors"
+          >
+            Clear analysis
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 
 export default function CaseDetailPage() {
@@ -1460,6 +1632,17 @@ export default function CaseDetailPage() {
 
   const isLawyer = role === 'lawyer'
   const chronological = item ? [...item.timeline].reverse() : []
+
+  useCaseWebSocket(caseId ?? '', (data) => {
+    setItem(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        ...(data.status ? { status: data.status as string } : {}),
+        timeline: data.timeline ? (data.timeline as CaseItem['timeline']) : prev.timeline,
+      }
+    })
+  })
 
   if (loading) {
     return (
@@ -1623,6 +1806,9 @@ export default function CaseDetailPage() {
       {isLawyer && ['in_progress', 'hearing_scheduled', 'hearing_adjourned', 'awaiting_court_date'].includes(item.status) && (
         <CourtSessionPanel caseId={item.id} currentStatus={item.status} onLogged={load} />
       )}
+
+      {/* AI Case Intelligence — lawyers only */}
+      {isLawyer && <AICaseIntelligenceCard caseItem={item} />}
 
       {/* Timeline */}
       <div className="rounded-2xl border border-neutral-700/30 bg-primary-800/20 p-5">

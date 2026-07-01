@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { api } from '../../../lib/api'
 import { getMyFirmMemberships, type FirmMembership } from '../../../lib/firmsApi'
@@ -49,6 +49,7 @@ export default function LawyerProfilePage() {
   const [firm, setFirm] = useState<FirmMembership | null>(null)
   const [loading, setLoading] = useState(true)
   const [noProfile, setNoProfile] = useState(false)
+  const [availUpdating, setAvailUpdating] = useState(false)
 
   useEffect(() => {
     const run = async () => {
@@ -79,6 +80,17 @@ export default function LawyerProfilePage() {
 
     void run()
   }, [])
+
+  const changeAvailability = useCallback(async (newStatus: string) => {
+    const access = localStorage.getItem('access')
+    if (!access || !lawyerProfile || availUpdating) return
+    setAvailUpdating(true)
+    try {
+      await api.patch('lawyer', '/lawyers/me/', { availability_status: newStatus }, access)
+      setLawyerProfile(prev => prev ? { ...prev, availability_status: newStatus } : prev)
+    } catch { /* silently ignore — badge stays unchanged */ }
+    finally { setAvailUpdating(false) }
+  }, [lawyerProfile, availUpdating])
 
   const initials = me
     ? (me.full_name || me.email || 'L')
@@ -144,9 +156,29 @@ export default function LawyerProfilePage() {
                     <p className="text-primary-400 text-body-lg capitalize">{me.role}</p>
                   </div>
                   {lawyerProfile && (
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium capitalize self-start ${availColor}`}>
-                      {availLabel}
-                    </span>
+                    <div className="flex flex-col items-end gap-1.5 self-start flex-shrink-0">
+                      <div className="flex gap-1">
+                        {(['available', 'busy', 'on_leave'] as const).map(status => {
+                          const isActive = lawyerProfile.availability_status === status
+                          const statusColors: Record<string, string> = {
+                            available: isActive ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-300' : 'border-neutral-700/40 text-neutral-500 hover:border-neutral-600/60 hover:text-neutral-300',
+                            busy:      isActive ? 'border-gold-500/60 bg-gold-500/15 text-gold-300'           : 'border-neutral-700/40 text-neutral-500 hover:border-neutral-600/60 hover:text-neutral-300',
+                            on_leave:  isActive ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'           : 'border-neutral-700/40 text-neutral-500 hover:border-neutral-600/60 hover:text-neutral-300',
+                          }
+                          return (
+                            <button
+                              key={status}
+                              onClick={() => changeAvailability(status)}
+                              disabled={availUpdating || isActive}
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium border capitalize transition-all disabled:cursor-default ${statusColors[status]}`}
+                            >
+                              {status.replace(/_/g, ' ')}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <p className="text-[10px] text-neutral-600">Your availability status</p>
+                    </div>
                   )}
                 </div>
 

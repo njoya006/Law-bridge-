@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card } from '../../../components/ui/Card'
-import { getIncomingBookings, type CaseItem } from '../../../lib/casesApi'
+import { getIncomingBookings, verifyPayment, type CaseItem } from '../../../lib/casesApi'
 
 type Row = {
   id: string
@@ -37,6 +37,7 @@ export default function SecretaryPaymentsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
+  const [actioning, setActioning] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -77,6 +78,22 @@ export default function SecretaryPaymentsPage() {
   }, [])
 
   const visible = filter === 'all' ? rows : rows.filter(r => r.payment_status === filter)
+
+  async function handlePaymentAction(rowId: string, action: 'verify' | 'reject') {
+    const access = localStorage.getItem('access')
+    if (!access) return
+    setActioning(rowId + action)
+    try {
+      await verifyPayment(rowId, action, access)
+      setRows(prev => prev.map(r =>
+        r.id === rowId ? { ...r, payment_status: action === 'verify' ? 'verified' : 'rejected' } : r
+      ))
+    } catch {
+      // silently ignore — row status stays unchanged
+    } finally {
+      setActioning(null)
+    }
+  }
 
   const totalConsult = rows.reduce((s, r) => s + r.consultation_fee, 0)
   const totalProc = rows.reduce((s, r) => s + r.procedural_fee, 0)
@@ -201,7 +218,27 @@ export default function SecretaryPaymentsPage() {
                   </td>
                   <td className="px-4 py-3 text-neutral-500 text-xs">{formatDate(row.created_at)}</td>
                   <td className="px-4 py-3">
-                    <Link href={`/bookings/${row.id}`} className="text-xs text-gold-400 hover:text-gold-300 font-medium">View →</Link>
+                    <div className="flex items-center gap-1.5 flex-nowrap">
+                      {row.payment_status === 'pending_verification' && (
+                        <>
+                          <button
+                            onClick={() => handlePaymentAction(row.id, 'verify')}
+                            disabled={actioning !== null}
+                            className="px-2 py-1 rounded-md text-[11px] font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50 transition-colors"
+                          >
+                            {actioning === row.id + 'verify' ? '…' : '✓ Verify'}
+                          </button>
+                          <button
+                            onClick={() => handlePaymentAction(row.id, 'reject')}
+                            disabled={actioning !== null}
+                            className="px-2 py-1 rounded-md text-[11px] font-medium border border-red-500/30 text-red-300 hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                          >
+                            {actioning === row.id + 'reject' ? '…' : '✗ Reject'}
+                          </button>
+                        </>
+                      )}
+                      <Link href={`/bookings/${row.id}`} className="text-xs text-gold-400 hover:text-gold-300 font-medium">View →</Link>
+                    </div>
                   </td>
                 </tr>
               ))}

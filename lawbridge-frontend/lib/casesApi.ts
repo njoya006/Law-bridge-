@@ -255,3 +255,13 @@ export function selectReplacementLawyer(caseId: string, lawyerId: string, token:
     'case', `/cases/${caseId}/reassignment/select-lawyer/`, { lawyer_id: lawyerId }, token,
   )
 }
+
+export function verifyPayment(caseId: string, action: 'verify' | 'reject', token: string) {
+  return api.post<CaseItem>('case', `/cases/${caseId}/payment/verify/`, { action }, token)
+}
+
+export function respondToReassignment(caseId: string, response: string, token: string) {
+  return api.post<ReassignmentRequest>(
+    'case', `/cases/${caseId}/reassignment/respond/`, { response }, token,
+  )
+}

@@ -3,6 +3,7 @@ from django.db import models
 from django.contrib.auth.models import (
     AbstractBaseUser, BaseUserManager, PermissionsMixin
 )
+from django.utils import timezone
 
 
 class UserManager(BaseUserManager):
@@ -48,7 +49,7 @@ class UserPreferences(models.Model):
         ('in_app', 'In-App Messaging'),
     ]
 
-    user_id = models.UUIDField(unique=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='preferences')
 
     # Locale
     language = models.CharField(max_length=8, choices=LANGUAGE_CHOICES, default='en')
@@ -70,3 +71,19 @@ class UserPreferences(models.Model):
 
     def __str__(self):
         return f"Prefs({self.user_id})"
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reset_tokens')
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    used = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def is_expired(self):
+        return (timezone.now() - self.created_at).total_seconds() > 86400  # 24h
+
+    def __str__(self):
+        return f"PasswordReset({self.user.email})"

@@ -372,6 +372,53 @@ export default function MyOfficePage() {
             </div>
           </div>
 
+          {/* Firm Analytics — only shown when LawyerStats are available */}
+          {lawyerStats && (
+            <div className="space-y-3">
+              <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Performance Analytics</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                  { label: 'Active Cases',     value: lawyerStats.active_cases,           accent: 'text-gold-400',    bar: Math.min(100, (lawyerStats.active_cases / 20) * 100) },
+                  { label: 'Closed (Lifetime)',value: lawyerStats.closed_cases_count,      accent: 'text-emerald-400', bar: Math.min(100, (lawyerStats.closed_cases_count / (lawyerStats.closed_cases_count + lawyerStats.active_cases || 1)) * 100) },
+                  { label: 'Avg Resolution',   value: `${Math.round(lawyerStats.avg_resolution_days)}d`, accent: 'text-blue-400', bar: Math.min(100, Math.max(10, 100 - (lawyerStats.avg_resolution_days / 90) * 100)) },
+                  { label: 'This Month',       value: lawyerStats.cases_this_month,       accent: 'text-purple-400',  bar: Math.min(100, (lawyerStats.cases_this_month / 10) * 100) },
+                ].map(({ label, value, accent, bar }) => (
+                  <div key={label} className="bg-primary-900/40 border border-neutral-700/30 rounded-xl p-4">
+                    <p className={`text-2xl font-bold tabular-nums ${accent}`}>{value}</p>
+                    <p className="text-xs text-neutral-400 mt-0.5 font-medium">{label}</p>
+                    <div className="mt-3 h-1.5 rounded-full bg-neutral-800/60 overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-700 ${accent.replace('text-', 'bg-').replace('-400', '-500/60')}`} style={{ width: `${bar}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Case type breakdown — pure CSS bar chart */}
+              {cases.length > 0 && (() => {
+                const typeCounts: Record<string, number> = {}
+                for (const c of cases) { typeCounts[c.case_type] = (typeCounts[c.case_type] ?? 0) + 1 }
+                const sorted = Object.entries(typeCounts).sort((a, b) => b[1] - a[1]).slice(0, 6)
+                const max = sorted[0]?.[1] ?? 1
+                return (
+                  <div className="bg-primary-900/40 border border-neutral-700/30 rounded-xl p-5">
+                    <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wide mb-4">Cases by Type</p>
+                    <div className="space-y-3">
+                      {sorted.map(([type, count]) => (
+                        <div key={type} className="flex items-center gap-3">
+                          <p className="text-xs text-neutral-400 w-32 flex-shrink-0 truncate capitalize">{type}</p>
+                          <div className="flex-1 h-2 rounded-full bg-neutral-800/60 overflow-hidden">
+                            <div className="h-full rounded-full bg-gold-500/50 transition-all duration-700" style={{ width: `${(count / max) * 100}%` }} />
+                          </div>
+                          <p className="text-xs text-neutral-500 w-5 text-right flex-shrink-0">{count}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
           {/* Report Requests (visible to firm admin/owner/partner) */}
           {firmId && reportRequests.length > 0 && (
             <div className="space-y-3">

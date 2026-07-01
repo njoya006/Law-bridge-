@@ -122,3 +122,14 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_ENABLE_UTC = True
 
+CELERY_BEAT_SCHEDULE = {
+    'check-deadline-escalations': {
+        'task': 'cases.check_deadline_escalations',
+        'schedule': 300,  # every 5 minutes
+    },
+    'auto-close-expired-mediations': {
+        'task': 'cases.auto_close_expired_mediations',
+        'schedule': 600,  # every 10 minutes
+    },
+}
+

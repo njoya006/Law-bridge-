@@ -10,6 +10,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from .models import Case, CaseNote, CaseApplication, ReassignmentRequest
 from .serializers import CaseSerializer, CaseCreateSerializer, CaseNoteSerializer, ReassignmentRequestSerializer
+from apps.conflicts.models import ConflictCheck
 
 
 def extract_user_id_from_token(request):
@@ -178,12 +179,27 @@ class CaseAssignView(APIView):
         lawyer_id = request.data.get('lawyer_id')
         if not lawyer_id:
             return Response({'error': 'lawyer_id required'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # TODO: Check for conflicts of interest here
-        # For now, just assign
+
+        # Conflict of interest check: reject if lawyer already represents an opposing client
+        has_conflict, conflicting = ConflictCheck.check_conflict(lawyer_id, [str(case.client_id)])
+        if has_conflict:
+            conflict_ids = list(conflicting.values_list('case_id', flat=True)[:5])
+            return Response({
+                'error': 'Conflict of interest: this lawyer already represents an opposing party.',
+                'conflicting_case_ids': [str(cid) for cid in conflict_ids],
+            }, status=status.HTTP_400_BAD_REQUEST)
+
         case.assigned_lawyer_id = lawyer_id
         case.add_timeline_entry('assigned', f'Assigned to lawyer {lawyer_id}')
-        
+
+        # Record this assignment so future conflict checks can detect it
+        ConflictCheck.objects.get_or_create(
+            lawyer_id=lawyer_id,
+            case_id=case.id,
+            defaults={'client_id': case.client_id, 'opposing_party_ids': []},
+        )
+
+        case.save()
         return Response(CaseSerializer(case).data)
 
 
@@ -676,11 +692,12 @@ class ReassignmentSelectLawyerView(APIView):
         req.save(update_fields=['selected_lawyer_id', 'status', 'updated_at'])
 
         # Execute the case transfer
+        reason_label = dict(ReassignmentRequest.REASON_CHOICES).get(req.reason_code, req.reason_code)
         old_lawyer_id = str(case.assigned_lawyer_id) if case.assigned_lawyer_id else None
         case.assigned_lawyer_id = new_lawyer_id
         case.add_timeline_entry(
             status=case.status,
-            notes=f'Lawyer reassigned. Previous lawyer: {old_lawyer_id or "none"}. Reason: {req.get_reason_code_display()}.',
+            notes=f'Lawyer reassigned. Previous lawyer: {old_lawyer_id or "none"}. Reason: {reason_label}.',
             updated_by=str(client_id),
         )
 
@@ -689,8 +706,99 @@ class ReassignmentSelectLawyerView(APIView):
         req.handoff_summary = (
             f'Case transferred from lawyer {old_lawyer_id or "unassigned"} to {new_lawyer_id}. '
             f'Client rating of previous representation: {req.performance_rating}/5. '
-            f'Reason: {req.get_reason_code_display()}.'
+            f'Reason: {reason_label}.'
         )
         req.save(update_fields=['status', 'completed_at', 'handoff_summary', 'updated_at'])
 
         return Response(ReassignmentRequestSerializer(req).data)
+
+
+class ReassignmentRespondView(APIView):
+    """POST /cases/{id}/reassignment/respond/ — assigned lawyer submits a response during the mediation window."""
+
+    def post(self, request, case_id):
+        lawyer_id = extract_user_id_from_token(request)
+        payload = extract_token_payload(request)
+        if payload.get('role', '') not in STAFF_ROLES:
+            return Response({'error': 'Only lawyers can respond to reassignment requests'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            case = Case.objects.get(id=case_id, assigned_lawyer_id=lawyer_id)
+        except Case.DoesNotExist:
+            return Response({'error': 'Case not found or you are not the assigned lawyer'}, status=status.HTTP_404_NOT_FOUND)
+
+        req = ReassignmentRequest.objects.filter(
+            case=case, status='mediation_window'
+        ).order_by('-created_at').first()
+        if not req:
+            return Response({'error': 'No active mediation window for this case'}, status=status.HTTP_404_NOT_FOUND)
+
+        lawyer_response = (request.data.get('response') or '').strip()
+        if not lawyer_response:
+            return Response({'error': 'response text is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        req.lawyer_response = lawyer_response
+        req.lawyer_responded_at = timezone.now()
+        req.status = 'resolved'
+        req.save(update_fields=['lawyer_response', 'lawyer_responded_at', 'status', 'updated_at'])
+
+        return Response(ReassignmentRequestSerializer(req).data)
+
+
+class PaymentVerifyView(APIView):
+    """POST /cases/{id}/payment/verify/ — secretary verifies or rejects a client payment."""
+
+    def post(self, request, case_id):
+        payload = extract_token_payload(request)
+        if payload.get('role', '') not in STAFF_ROLES:
+            return Response({'error': 'Only firm staff can verify payments'}, status=status.HTTP_403_FORBIDDEN)
+
+        action = request.data.get('action', '').strip()
+        if action not in ('verify', 'reject'):
+            return Response({'error': "action must be 'verify' or 'reject'"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            case = Case.objects.get(id=case_id)
+        except Case.DoesNotExist:
+            return Response({'error': 'Case not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        meta = dict(case.booking_metadata or {})
+        new_status = 'verified' if action == 'verify' else 'rejected'
+        meta['payment_status'] = new_status
+        case.booking_metadata = meta
+        case.add_timeline_entry(
+            status=case.status,
+            notes=f'Payment {new_status} by firm staff.',
+            updated_by=str(payload.get('user_id', 'staff')),
+        )
+        case.save()
+
+        # Notify client
+        try:
+            notif_url = config(
+                'NOTIFICATION_SERVICE_URL',
+                default='http://notification-service/api/v1/notifications/internal/create/',
+            )
+            notif_payload = json.dumps({
+                'user_id': str(case.client_id),
+                'event_type': 'payment_confirmed' if action == 'verify' else 'payment_declined',
+                'title_en': 'Payment Verified' if action == 'verify' else 'Payment Rejected',
+                'title_fr': 'Paiement vérifié' if action == 'verify' else 'Paiement rejeté',
+                'message_en': 'Your payment has been verified and your booking is confirmed.' if action == 'verify'
+                    else 'Your payment could not be verified. Please contact the firm.',
+                'message_fr': 'Votre paiement a été vérifié et votre réservation est confirmée.' if action == 'verify'
+                    else "Votre paiement n'a pas pu être vérifié. Veuillez contacter le cabinet.",
+                'metadata': {'case_id': str(case.id), 'case_title': case.title},
+                'lang': case.language or 'en',
+                'send_email': False,
+            }).encode()
+            notif_req = Request(
+                notif_url, data=notif_payload,
+                headers={'Content-Type': 'application/json', 'X-Internal-Api-Key': config('INTERNAL_API_KEY', default='')},
+                method='POST',
+            )
+            urlopen(notif_req, timeout=3)
+        except Exception:
+            pass
+
+        return Response(CaseSerializer(case).data)
