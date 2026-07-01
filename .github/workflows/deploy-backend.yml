@@ -74,8 +74,7 @@ jobs:
               "$DIR"
           done
 
-      - name: Restart pods in K8s
-        if: steps.detect.outputs.services != 'none'
+      - name: Apply K8s manifests and restart pods
         env:
           SERVICES: ${{ steps.detect.outputs.services }}
           KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
@@ -90,12 +89,18 @@ jobs:
           curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
           chmod +x kubectl && sudo mv kubectl /usr/local/bin/
 
-          IFS=',' read -ra SVCS <<< "$SERVICES"
-          for svc in "${SVCS[@]}"; do
-            svc=$(echo "$svc" | xargs)
-            [ -z "$svc" ] && continue
-            echo "Restarting $svc..."
-            kubectl rollout restart deployment/"$svc" -n lawbridge 2>/dev/null \
-              && kubectl rollout status deployment/"$svc" -n lawbridge --timeout=120s \
-              || echo "Deployment $svc not found (continuing)"
-          done
+          # Always apply all K8s manifests so env var and config changes take effect
+          kubectl apply -f k8s/ -n lawbridge 2>/dev/null || true
+
+          # Restart only pods whose service code changed
+          if [ "$SERVICES" != "none" ]; then
+            IFS=',' read -ra SVCS <<< "$SERVICES"
+            for svc in "${SVCS[@]}"; do
+              svc=$(echo "$svc" | xargs)
+              [ -z "$svc" ] && continue
+              echo "Restarting $svc..."
+              kubectl rollout restart deployment/"$svc" -n lawbridge 2>/dev/null \
+                && kubectl rollout status deployment/"$svc" -n lawbridge --timeout=120s \
+                || echo "Deployment $svc not found (continuing)"
+            done
+          fi

@@ -127,8 +127,8 @@ CACHES = {
 }
 RABBITMQ_URL = config('RABBITMQ_URL', default='amqp://lawbridge:password@rabbitmq:5672/')
 
-CASE_SERVICE_URL = config('CASE_SERVICE_URL', default='http://lawbridge-case:8004')
-DOCUMENT_SERVICE_URL = config('DOCUMENT_SERVICE_URL', default='http://lawbridge-document:8005')
+CASE_SERVICE_URL = config('CASE_SERVICE_URL', default='http://case-service')
+DOCUMENT_SERVICE_URL = config('DOCUMENT_SERVICE_URL', default='http://document-service')
 INTERNAL_API_KEY = config('INTERNAL_API_KEY', default='dev-internal-key')
 
 # Groq (primary AI backend — free tier, fast, no GPU required)
