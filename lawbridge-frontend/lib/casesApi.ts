@@ -300,3 +300,22 @@ export function getIntakeForm(intakeToken: string) {
 export function submitIntakeForm(intakeToken: string, responses: Record<string, string>) {
   return api.post<{ detail: string }>('case', `/cases/intake/${intakeToken}/`, { responses })
 }
+
+export type IntakeFormSummary = {
+  id: string
+  token: string
+  case_type: string
+  circuit: string
+  completed: boolean
+  response_count: number
+  created_at: string
+  completed_at: string | null
+}
+
+export function getMyIntakeForms(token: string) {
+  return api.get<IntakeFormSummary[]>('case', '/cases/intake/', token)
+}
+
+export function getIntakeFormDetail(intakeToken: string, accessToken: string) {
+  return api.get<IntakeForm & { responses: Record<string, string> }>('case', `/cases/intake/${intakeToken}/detail/`, accessToken)
+}

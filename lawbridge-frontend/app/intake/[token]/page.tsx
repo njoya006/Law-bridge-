@@ -55,7 +55,8 @@ function FieldInput({
   )
 }
 
-export default function ClientIntakePage({ params }: { params: { token: string } }) {
+export default function ClientIntakePage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = React.use(params)
   const [form, setForm] = useState<IntakeForm | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -65,14 +66,14 @@ export default function ClientIntakePage({ params }: { params: { token: string }
   const [error, setError] = useState('')
 
   useEffect(() => {
-    getIntakeForm(params.token)
+    getIntakeForm(token)
       .then(data => {
         setForm(data)
         if (data.completed) setSubmitted(true)
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false))
-  }, [params.token])
+  }, [token])
 
   const progress = form
     ? Math.round((Object.keys(responses).filter(k => responses[k]).length / form.form_fields.length) * 100)
@@ -93,7 +94,7 @@ export default function ClientIntakePage({ params }: { params: { token: string }
 
     setSubmitting(true); setError('')
     try {
-      await submitIntakeForm(params.token, responses)
+      await submitIntakeForm(token, responses)
       setSubmitted(true)
     } catch (ex) {
       setError(ex instanceof Error ? ex.message : 'Submission failed. Please try again.')

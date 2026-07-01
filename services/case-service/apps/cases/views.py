@@ -807,8 +807,26 @@ class PaymentVerifyView(APIView):
 # ── Intake Forms ───────────────────────────────────────────────────────────────
 
 class IntakeFormCreateView(APIView):
-    """POST /api/v1/cases/intake/ — secretary saves an AI-generated intake form."""
+    """GET /api/v1/cases/intake/ — list intakes created by this user.
+       POST /api/v1/cases/intake/ — secretary saves an AI-generated intake form."""
     permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        uid = extract_user_id_from_token(request)
+        forms = IntakeForm.objects.filter(created_by=uid).order_by('-created_at')
+        return Response([
+            {
+                'id': str(f.id),
+                'token': str(f.token),
+                'case_type': f.case_type,
+                'circuit': f.circuit,
+                'completed': f.completed_at is not None,
+                'response_count': len(f.responses) if f.responses else 0,
+                'created_at': f.created_at.isoformat(),
+                'completed_at': f.completed_at.isoformat() if f.completed_at else None,
+            }
+            for f in forms
+        ])
 
     def post(self, request):
         fields = request.data.get('form_fields')
@@ -837,6 +855,29 @@ class IntakeFormCreateView(APIView):
             'form_fields': form.form_fields,
             'created_at': form.created_at.isoformat(),
         }, status=201)
+
+
+class IntakeFormDetailView(APIView):
+    """GET /api/v1/cases/intake/<token>/detail/ — authenticated: view responses."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, token):
+        uid = extract_user_id_from_token(request)
+        try:
+            form = IntakeForm.objects.get(token=token, created_by=uid)
+        except IntakeForm.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=404)
+        return Response({
+            'id': str(form.id),
+            'token': str(form.token),
+            'case_type': form.case_type,
+            'circuit': form.circuit,
+            'form_fields': form.form_fields,
+            'responses': form.responses,
+            'completed': form.completed_at is not None,
+            'completed_at': form.completed_at.isoformat() if form.completed_at else None,
+            'created_at': form.created_at.isoformat(),
+        })
 
 
 class IntakeFormPublicView(APIView):
