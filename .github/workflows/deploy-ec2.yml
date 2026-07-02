@@ -112,12 +112,46 @@ jobs:
 
       # ── Security group ────────────────────────────────────────────────────
 
-      - name: Create security group (idempotent)
+      - name: Resolve VPC and create security group
         run: |
+          # Try default VPC first; if none exists, use the EKS VPC (already has public subnets)
           VPC_ID=$(aws ec2 describe-vpcs \
             --filters "Name=isDefault,Values=true" \
-            --query 'Vpcs[0].VpcId' --output text)
+            --query 'Vpcs[0].VpcId' --output text 2>/dev/null || echo "")
 
+          if [ -z "$VPC_ID" ] || [ "$VPC_ID" = "None" ]; then
+            echo "No default VPC — looking for existing VPCs..."
+            VPC_ID=$(aws ec2 describe-vpcs \
+              --query 'Vpcs[0].VpcId' --output text)
+            echo "Using VPC: $VPC_ID"
+          fi
+
+          if [ -z "$VPC_ID" ] || [ "$VPC_ID" = "None" ]; then
+            echo "No VPC found — creating default VPC..."
+            VPC_ID=$(aws ec2 create-default-vpc --query 'Vpc.VpcId' --output text)
+            echo "Created default VPC: $VPC_ID"
+          fi
+
+          echo "VPC_ID=$VPC_ID" >> $GITHUB_ENV
+          echo "Resolved VPC: $VPC_ID"
+
+          # Find a public subnet (has a route to an Internet Gateway) in this VPC
+          SUBNET_ID=$(aws ec2 describe-subnets \
+            --filters "Name=vpc-id,Values=$VPC_ID" \
+                      "Name=map-public-ip-on-launch,Values=true" \
+            --query 'Subnets[0].SubnetId' --output text 2>/dev/null || echo "")
+
+          if [ -z "$SUBNET_ID" ] || [ "$SUBNET_ID" = "None" ]; then
+            echo "No auto-public subnet found — using first available subnet"
+            SUBNET_ID=$(aws ec2 describe-subnets \
+              --filters "Name=vpc-id,Values=$VPC_ID" \
+              --query 'Subnets[0].SubnetId' --output text)
+          fi
+
+          echo "SUBNET_ID=$SUBNET_ID" >> $GITHUB_ENV
+          echo "Resolved subnet: $SUBNET_ID"
+
+          # Create or reuse security group
           SG_ID=$(aws ec2 describe-security-groups \
             --filters "Name=group-name,Values=lawbridge-server-sg" \
                       "Name=vpc-id,Values=$VPC_ID" \
@@ -129,6 +163,9 @@ jobs:
               --description "LawBridge single-server" \
               --vpc-id "$VPC_ID" \
               --query 'GroupId' --output text)
+            echo "Created security group: $SG_ID"
+          else
+            echo "Reusing security group: $SG_ID"
           fi
 
           aws ec2 authorize-security-group-ingress --group-id "$SG_ID" \
@@ -167,7 +204,9 @@ jobs:
           INSTANCE_ID=$(aws ec2 run-instances \
             --image-id "$AMI_ID" \
             --instance-type "${{ github.event.inputs.instance_type }}" \
+            --subnet-id "$SUBNET_ID" \
             --security-group-ids "$SG_ID" \
+            --associate-public-ip-address \
             --iam-instance-profile Name=lawbridge-ec2-profile \
             --user-data file:///tmp/user-data.sh \
             --block-device-mappings '[{"DeviceName":"/dev/xvda","Ebs":{"VolumeSize":30,"VolumeType":"gp3","DeleteOnTermination":true}}]' \
