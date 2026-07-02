@@ -366,8 +366,8 @@ class IncomingBookingsView(APIView):
         # Firm bookings (target_id == firm's integer ID, e.g. "7")
         for firm_id in user_firm_ids:
             q |= Q(booking_metadata__target_id=str(firm_id))
-        # Cases directly assigned to this lawyer with a pending booking status
-        q |= Q(assigned_lawyer_id=user_id, booking_status='pending')
+        # Cases directly assigned to this lawyer (any booking status)
+        q |= Q(assigned_lawyer_id=str(user_id))
 
         cases = Case.objects.filter(q).exclude(booking_status='').prefetch_related('notes').order_by('-created_at')
 
