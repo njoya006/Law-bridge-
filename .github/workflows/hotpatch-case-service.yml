@@ -1,0 +1,37 @@
+name: Hotpatch — case-service views.py on EC2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Git pull and copy updated views.py into case-service container
+        run: |
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids i-031445edd3e88f5fe \
+            --document-name AWS-RunShellScript \
+            --parameters '{"commands":[
+              "cd /opt/lawbridge && git pull origin main",
+              "docker cp /opt/lawbridge/services/case-service/apps/cases/views.py case-service:/app/apps/cases/views.py",
+              "docker exec case-service pkill -HUP -f gunicorn || docker compose restart case-service",
+              "sleep 3 && docker exec case-service python -c \"from apps.cases.views import IncomingBookingsView; print(\\\"PATCH_OK\\\")\" 2>&1 || echo IMPORT_FAIL"
+            ]}' \
+            --query Command.CommandId --output text)
+
+          echo "Command ID: $CMD_ID"
+          sleep 20
+
+          aws ssm get-command-invocation \
+            --command-id "$CMD_ID" \
+            --instance-id i-031445edd3e88f5fe \
+            --query '[StandardOutputContent,StandardErrorContent]' \
+            --output text
