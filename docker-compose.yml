@@ -64,7 +64,7 @@ services:
 
   auth-service:
     <<: *django-common
-    image: ghcr.io/njoya006/lawbridge-auth-service:latest
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/auth-service:latest
     expose: ["8001"]
     environment:
       DB_HOST: postgres
@@ -74,7 +74,7 @@ services:
 
   client-service:
     <<: *django-common
-    image: ghcr.io/njoya006/lawbridge-client-service:latest
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/client-service:latest
     expose: ["8002"]
     environment:
       DB_HOST: postgres
@@ -84,7 +84,7 @@ services:
 
   lawyer-service:
     <<: *django-common
-    image: ghcr.io/njoya006/lawbridge-lawyer-service:latest
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/lawyer-service:latest
     expose: ["8003"]
     environment:
       DB_HOST: postgres
@@ -94,7 +94,7 @@ services:
 
   case-service:
     <<: *django-common
-    image: ghcr.io/njoya006/lawbridge-case-service:latest
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/case-service:latest
     expose: ["8004"]
     environment:
       DB_HOST: postgres
@@ -105,7 +105,7 @@ services:
 
   document-service:
     <<: *django-common
-    image: ghcr.io/njoya006/lawbridge-document-service:latest
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/document-service:latest
     expose: ["8005"]
     environment:
       DB_HOST: postgres
@@ -115,7 +115,7 @@ services:
 
   notification-service:
     <<: *django-common
-    image: ghcr.io/njoya006/lawbridge-notification-service:latest
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/notification-service:latest
     expose: ["8006"]
     environment:
       DB_HOST: postgres
@@ -125,7 +125,7 @@ services:
 
   payment-service:
     <<: *django-common
-    image: ghcr.io/njoya006/lawbridge-payment-service:latest
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/payment-service:latest
     expose: ["8007"]
     environment:
       DB_HOST: postgres
@@ -135,7 +135,7 @@ services:
 
   calendar-service:
     <<: *django-common
-    image: ghcr.io/njoya006/lawbridge-calendar-service:latest
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/calendar-service:latest
     expose: ["8008"]
     environment:
       DB_HOST: postgres
@@ -145,7 +145,7 @@ services:
 
   monitoring-service:
     <<: *django-common
-    image: ghcr.io/njoya006/lawbridge-monitoring-service:latest
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/monitoring-service:latest
     expose: ["8009"]
     environment:
       DB_HOST: postgres
@@ -157,7 +157,7 @@ services:
 
   search-service:
     <<: *django-common
-    image: ghcr.io/njoya006/lawbridge-search-service:latest
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/search-service:latest
     expose: ["8010"]
     environment:
       DB_HOST: postgres
