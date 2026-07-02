@@ -1,5 +1,5 @@
 /** @type {import('next').NextConfig} */
-const apiGateway = process.env.API_GATEWAY_URL || 'http://a6ce24e27601b4cbc8e417ae051a2e82-1176155018.us-east-1.elb.amazonaws.com'
+const apiGateway = process.env.API_GATEWAY_URL || 'http://32.197.83.70'
 
 const nextConfig = {
   reactStrictMode: true,
