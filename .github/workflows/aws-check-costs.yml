@@ -1,0 +1,64 @@
+name: AWS — Check Node Types and Load Balancers
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: EKS node group details
+        run: |
+          echo "=== EKS Node Group Config (what was running) ==="
+          for CLUSTER in $(aws eks list-clusters --region us-east-1 --query 'clusters[]' --output text); do
+            for NG in $(aws eks list-nodegroups --cluster-name "$CLUSTER" --region us-east-1 --query 'nodegroups[]' --output text); do
+              aws eks describe-nodegroup --cluster-name "$CLUSTER" --nodegroup-name "$NG" --region us-east-1 \
+                --query 'nodegroup.{InstanceType:instanceTypes,Min:scalingConfig.minSize,Max:scalingConfig.maxSize,Desired:scalingConfig.desiredSize,DiskGB:diskSize,AMI:amiType}' \
+                --output table
+            done
+          done
+
+      - name: EC2 instances (terminating or any remaining)
+        run: |
+          echo "=== All EC2 instances ==="
+          aws ec2 describe-instances --region us-east-1 \
+            --query 'Reservations[].Instances[].{ID:InstanceId,Type:InstanceType,State:State.Name,AZ:Placement.AvailabilityZone}' \
+            --output table
+
+      - name: Load balancers (still billing!)
+        run: |
+          echo "=== Load Balancers — these are STILL billing ==="
+          aws elbv2 describe-load-balancers --region us-east-1 \
+            --query 'LoadBalancers[].{Name:LoadBalancerName,Type:Type,State:State.Code,ARN:LoadBalancerArn}' \
+            --output table
+
+      - name: RDS instance class
+        run: |
+          echo "=== RDS Instance Types ==="
+          aws rds describe-db-instances --region us-east-1 \
+            --query 'DBInstances[].{ID:DBInstanceIdentifier,Class:DBInstanceClass,Storage:AllocatedStorage,Status:DBInstanceStatus,MultiAZ:MultiAZ}' \
+            --output table
+
+      - name: Monthly cost estimate
+        run: |
+          echo "=== Estimated costs BEFORE shutdown ==="
+          echo "(Based on node group config above)"
+          echo ""
+          echo "t3.medium  = \$30/month"
+          echo "t3.large   = \$60/month"
+          echo "m5.large   = \$70/month"
+          echo "m5.xlarge  = \$140/month"
+          echo "m5.2xlarge = \$280/month"
+          echo ""
+          echo "EKS control plane = \$73/month (always)"
+          echo "db.t3.micro  RDS  = \$15/month"
+          echo "db.t3.small  RDS  = \$29/month"
+          echo "db.t3.medium RDS  = \$48/month"
+          echo "NLB load balancer = \$16/month minimum"
