@@ -1,5 +1,10 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "build": {
+    "env": {
+      "EC2_API_URL": "http://32.197.83.70"
+    }
+  }
 }

@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
-const apiGateway = process.env.API_GATEWAY_URL || 'http://32.197.83.70'
+// EC2_API_URL is set in vercel.json build.env and is not overridden by the
+// stale API_GATEWAY_URL dashboard variable (which still points to the old ELB).
+const apiGateway = process.env.EC2_API_URL || process.env.API_GATEWAY_URL || 'http://32.197.83.70'
 
 const nextConfig = {
   reactStrictMode: true,
