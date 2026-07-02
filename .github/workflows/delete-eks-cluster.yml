@@ -1,0 +1,139 @@
+name: AWS — Delete EKS Cluster ($73/month saved)
+
+# Deletes the EKS control plane. The node group is already at 0 nodes so
+# no EC2 compute is running, but the control plane still costs $73/month.
+# Run this ONLY after the EC2 Docker Compose deployment is confirmed working.
+#
+# WARNING: This is irreversible. To restore K8s you would need to create a
+# new cluster and re-apply all manifests. Since we migrated to Docker Compose,
+# this is intentional.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DELETE-EKS to confirm permanent deletion'
+        required: true
+        default: ''
+
+jobs:
+  delete-eks:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'DELETE-EKS' }}
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Delete all node groups first
+        run: |
+          echo "=== Deleting EKS node groups ==="
+          for CLUSTER in $(aws eks list-clusters --region us-east-1 \
+            --query 'clusters[]' --output text); do
+            echo "Cluster: $CLUSTER"
+            for NG in $(aws eks list-nodegroups --cluster-name "$CLUSTER" \
+              --region us-east-1 --query 'nodegroups[]' --output text 2>/dev/null); do
+              echo "  Deleting node group: $NG"
+              aws eks delete-nodegroup \
+                --cluster-name "$CLUSTER" \
+                --nodegroup-name "$NG" \
+                --region us-east-1 || echo "  Could not delete $NG (may already be gone)"
+
+              echo "  Waiting for node group deletion..."
+              aws eks wait nodegroup-deleted \
+                --cluster-name "$CLUSTER" \
+                --nodegroup-name "$NG" \
+                --region us-east-1 2>/dev/null || echo "  (wait timed out or already deleted)"
+            done
+          done
+          echo "All node groups deleted."
+
+      - name: Delete EKS cluster control plane
+        run: |
+          echo "=== Deleting EKS clusters ==="
+          for CLUSTER in $(aws eks list-clusters --region us-east-1 \
+            --query 'clusters[]' --output text); do
+            echo "Deleting cluster: $CLUSTER"
+            aws eks delete-cluster --name "$CLUSTER" --region us-east-1 \
+              && echo "  Deletion initiated for $CLUSTER" \
+              || echo "  WARNING: Could not delete $CLUSTER"
+          done
+
+          echo ""
+          echo "Waiting up to 15 minutes for cluster deletion..."
+          for CLUSTER in lawbridge-cluster; do
+            aws eks wait cluster-deleted --name "$CLUSTER" \
+              --region us-east-1 2>/dev/null && \
+              echo "$CLUSTER deleted." || \
+              echo "$CLUSTER deletion still in progress (check AWS console)"
+          done
+
+      - name: Delete RDS instance (no longer needed — was only used by AI service)
+        run: |
+          echo "=== Deleting RDS instance lawbridge-postgres ==="
+          echo "NOTE: AI service now uses the in-Docker PostgreSQL container."
+          echo "The RDS instance was already stopped — deleting it saves storage costs."
+          aws rds delete-db-instance \
+            --db-instance-identifier lawbridge-postgres \
+            --skip-final-snapshot \
+            --region us-east-1 \
+            && echo "RDS deletion initiated." \
+            || echo "RDS instance not found or already deleted."
+
+      - name: Clean up any remaining unattached EBS volumes
+        run: |
+          echo "=== Checking for orphaned EBS volumes ==="
+          VOLS=$(aws ec2 describe-volumes --region us-east-1 \
+            --filters "Name=status,Values=available" \
+            --query 'Volumes[?Tags[?Key==`kubernetes.io/cluster/lawbridge-cluster`]].VolumeId' \
+            --output text)
+          if [ -z "$VOLS" ]; then
+            echo "No orphaned K8s EBS volumes found."
+          else
+            for VOL in $VOLS; do
+              echo "Deleting orphaned volume: $VOL"
+              aws ec2 delete-volume --volume-id "$VOL" --region us-east-1 \
+                && echo "  Deleted $VOL" || echo "  Could not delete $VOL"
+            done
+          fi
+
+      - name: Verify nothing left billing
+        run: |
+          echo ""
+          echo "=== Remaining AWS resources ==="
+
+          echo "--- EKS clusters ---"
+          aws eks list-clusters --region us-east-1
+
+          echo "--- RDS instances ---"
+          aws rds describe-db-instances --region us-east-1 \
+            --query 'DBInstances[].{ID:DBInstanceIdentifier,Status:DBInstanceStatus}' \
+            --output table 2>/dev/null || echo "(none)"
+
+          echo "--- EC2 instances ---"
+          aws ec2 describe-instances --region us-east-1 \
+            --filters "Name=instance-state-name,Values=running,stopped" \
+            --query 'Reservations[].Instances[].{ID:InstanceId,Type:InstanceType,State:State.Name,Name:Tags[?Key==`Name`]|[0].Value}' \
+            --output table 2>/dev/null || echo "(none)"
+
+          echo "--- Elastic IPs ---"
+          aws ec2 describe-addresses --region us-east-1 \
+            --query 'Addresses[].{IP:PublicIp,Attached:AssociationId}' \
+            --output table 2>/dev/null || echo "(none)"
+
+          echo ""
+          echo "================================================"
+          echo "  CLEANUP COMPLETE"
+          echo "================================================"
+          echo ""
+          echo "  Savings:"
+          echo "    EKS control plane: -\$73/month"
+          echo "    RDS (stopped):     -\$11.50/month (storage)"
+          echo "    Orphaned EBS:      eliminated"
+          echo ""
+          echo "  Remaining monthly cost:"
+          echo "    EC2 t3.medium + EIP + EBS: ~\$37/month"

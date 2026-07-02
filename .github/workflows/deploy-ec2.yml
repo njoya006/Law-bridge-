@@ -1,0 +1,283 @@
+name: Deploy — EC2 Docker Compose (~$35/month)
+
+# Migrates from EKS ($800/month) to a single EC2 t3.medium ($30/month).
+# All 11 Django services + PostgreSQL + Redis + Nginx run via Docker Compose.
+# After success, updates Vercel's API_GATEWAY_URL to the EC2 Elastic IP.
+#
+# Prerequisites (add to GitHub repo Secrets):
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, KUBECONFIG  (already set)
+#   VERCEL_TOKEN  — optional; workflow continues without it but Vercel update is skipped
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type DEPLOY to confirm'
+        required: true
+        default: ''
+      instance_type:
+        description: 'EC2 instance type (t3.medium = $30/month)'
+        required: false
+        default: 't3.medium'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 820561684310.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'DEPLOY' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ── Extract secrets from live K8s and store in SSM ────────────────────
+
+      - name: Set up kubectl
+        run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl && sudo mv kubectl /usr/local/bin/
+
+      - name: Configure kubeconfig
+        env:
+          KUBECONFIG_DATA: ${{ secrets.KUBECONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_DATA" | base64 -d > ~/.kube/config
+
+      - name: Extract secrets from K8s and store in SSM
+        run: |
+          JWT_SECRET_KEY=$(kubectl get secret lawbridge-secrets -n lawbridge \
+            -o jsonpath='{.data.JWT_SECRET_KEY}' 2>/dev/null | base64 -d || echo "")
+
+          GROQ_API_KEY=$(kubectl get secret groq-secret -n lawbridge \
+            -o jsonpath='{.data.GROQ_API_KEY}' 2>/dev/null | base64 -d \
+            || kubectl get secret lawbridge-secrets -n lawbridge \
+            -o jsonpath='{.data.GROQ_API_KEY}' 2>/dev/null | base64 -d || echo "")
+
+          DB_PASSWORD=$(kubectl get secret lawbridge-db-secrets -n lawbridge \
+            -o jsonpath='{.data.DB_PASSWORD}' 2>/dev/null | base64 -d || echo "changeme")
+
+          if [ -z "$JWT_SECRET_KEY" ]; then
+            echo "WARNING: JWT_SECRET_KEY not found in K8s — using GitHub secret fallback"
+            JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}"
+          fi
+
+          echo "::add-mask::$JWT_SECRET_KEY"
+          echo "::add-mask::$GROQ_API_KEY"
+          echo "::add-mask::$DB_PASSWORD"
+
+          aws ssm put-parameter --name "/lawbridge/JWT_SECRET_KEY" \
+            --value "$JWT_SECRET_KEY" --type SecureString --overwrite
+          aws ssm put-parameter --name "/lawbridge/GROQ_API_KEY" \
+            --value "$GROQ_API_KEY" --type SecureString --overwrite
+          aws ssm put-parameter --name "/lawbridge/DB_PASSWORD" \
+            --value "$DB_PASSWORD" --type SecureString --overwrite
+          aws ssm put-parameter --name "/lawbridge/GH_TOKEN" \
+            --value "${{ secrets.GITHUB_TOKEN }}" --type SecureString --overwrite
+
+          echo "All secrets stored in SSM."
+
+      # ── IAM role so EC2 can pull ECR images and read SSM ─────────────────
+
+      - name: Create EC2 IAM role (idempotent)
+        run: |
+          TRUST='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+          aws iam create-role --role-name lawbridge-ec2-role \
+            --assume-role-policy-document "$TRUST" 2>/dev/null || true
+          aws iam attach-role-policy --role-name lawbridge-ec2-role \
+            --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly 2>/dev/null || true
+          aws iam attach-role-policy --role-name lawbridge-ec2-role \
+            --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore 2>/dev/null || true
+          aws iam put-role-policy --role-name lawbridge-ec2-role \
+            --policy-name LawBridgeSSMRead \
+            --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["ssm:GetParameter","ssm:GetParameters"],"Resource":"arn:aws:ssm:*:*:parameter/lawbridge/*"}]}' \
+            2>/dev/null || true
+          aws iam create-instance-profile \
+            --instance-profile-name lawbridge-ec2-profile 2>/dev/null || true
+          aws iam add-role-to-instance-profile \
+            --instance-profile-name lawbridge-ec2-profile \
+            --role-name lawbridge-ec2-role 2>/dev/null || true
+          echo "Waiting 10s for IAM propagation..."
+          sleep 10
+
+      # ── Security group ────────────────────────────────────────────────────
+
+      - name: Create security group (idempotent)
+        run: |
+          VPC_ID=$(aws ec2 describe-vpcs \
+            --filters "Name=isDefault,Values=true" \
+            --query 'Vpcs[0].VpcId' --output text)
+
+          SG_ID=$(aws ec2 describe-security-groups \
+            --filters "Name=group-name,Values=lawbridge-server-sg" \
+                      "Name=vpc-id,Values=$VPC_ID" \
+            --query 'SecurityGroups[0].GroupId' --output text 2>/dev/null || echo "")
+
+          if [ -z "$SG_ID" ] || [ "$SG_ID" = "None" ]; then
+            SG_ID=$(aws ec2 create-security-group \
+              --group-name lawbridge-server-sg \
+              --description "LawBridge single-server" \
+              --vpc-id "$VPC_ID" \
+              --query 'GroupId' --output text)
+          fi
+
+          aws ec2 authorize-security-group-ingress --group-id "$SG_ID" \
+            --protocol tcp --port 80 --cidr 0.0.0.0/0 2>/dev/null || true
+          aws ec2 authorize-security-group-ingress --group-id "$SG_ID" \
+            --protocol tcp --port 443 --cidr 0.0.0.0/0 2>/dev/null || true
+          aws ec2 authorize-security-group-ingress --group-id "$SG_ID" \
+            --protocol tcp --port 22 --cidr 0.0.0.0/0 2>/dev/null || true
+
+          echo "SG_ID=$SG_ID" >> $GITHUB_ENV
+
+      # ── Prepare user-data (substitute repo + region into bootstrap script) ─
+
+      - name: Prepare EC2 bootstrap script
+        run: |
+          REPO="${{ github.repository }}"
+          REGION="${{ env.AWS_REGION }}"
+          sed "s|REPO_PLACEHOLDER|${REPO}|g; s|REGION_PLACEHOLDER|${REGION}|g" \
+            scripts/ec2-bootstrap.sh > /tmp/user-data.sh
+          echo "--- User-data preview (first 5 lines) ---"
+          head -5 /tmp/user-data.sh
+
+      # ── Launch EC2 ────────────────────────────────────────────────────────
+
+      - name: Launch EC2 instance
+        run: |
+          AMI_ID=$(aws ec2 describe-images \
+            --owners amazon \
+            --filters "Name=name,Values=al2023-ami-2023.*-x86_64" \
+                      "Name=state,Values=available" \
+                      "Name=architecture,Values=x86_64" \
+            --query 'sort_by(Images, &CreationDate)[-1].ImageId' \
+            --output text)
+          echo "AMI: $AMI_ID"
+
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id "$AMI_ID" \
+            --instance-type "${{ github.event.inputs.instance_type }}" \
+            --security-group-ids "$SG_ID" \
+            --iam-instance-profile Name=lawbridge-ec2-profile \
+            --user-data file:///tmp/user-data.sh \
+            --block-device-mappings '[{"DeviceName":"/dev/xvda","Ebs":{"VolumeSize":30,"VolumeType":"gp3","DeleteOnTermination":true}}]' \
+            --tag-specifications \
+              'ResourceType=instance,Tags=[{Key=Name,Value=lawbridge-server},{Key=Project,Value=lawbridge}]' \
+            --query 'Instances[0].InstanceId' \
+            --output text)
+
+          echo "Launched: $INSTANCE_ID"
+          echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+
+      # ── Elastic IP ────────────────────────────────────────────────────────
+
+      - name: Allocate Elastic IP and associate
+        run: |
+          echo "Waiting for instance running state..."
+          aws ec2 wait instance-running --instance-ids "$INSTANCE_ID"
+
+          ALLOC_ID=$(aws ec2 allocate-address \
+            --domain vpc \
+            --tag-specifications 'ResourceType=elastic-ip,Tags=[{Key=Name,Value=lawbridge-eip}]' \
+            --query 'AllocationId' --output text)
+
+          aws ec2 associate-address \
+            --instance-id "$INSTANCE_ID" \
+            --allocation-id "$ALLOC_ID"
+
+          PUBLIC_IP=$(aws ec2 describe-addresses \
+            --allocation-ids "$ALLOC_ID" \
+            --query 'Addresses[0].PublicIp' --output text)
+
+          echo "PUBLIC_IP=$PUBLIC_IP" >> $GITHUB_ENV
+          echo "Elastic IP: $PUBLIC_IP"
+
+      # ── Update Vercel API_GATEWAY_URL ─────────────────────────────────────
+
+      - name: Update Vercel API_GATEWAY_URL
+        continue-on-error: true
+        # Add VERCEL_TOKEN to GitHub Secrets to enable this step automatically.
+        # Without it, update Vercel manually: Settings > Environment Variables >
+        # API_GATEWAY_URL = http://<PUBLIC_IP>  then redeploy.
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: prj_mQQgFxhBGPxnrgDhaRUF0pHqTHks
+          VERCEL_TEAM_ID: team_dmtId0wYPJsNmwfBNmetJQBG
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "VERCEL_TOKEN not set — skipping automatic Vercel update."
+            echo "Manually set API_GATEWAY_URL=http://${PUBLIC_IP} in Vercel dashboard."
+            exit 0
+          fi
+
+          NEW_URL="http://${PUBLIC_IP}"
+          echo "Setting API_GATEWAY_URL=$NEW_URL in Vercel..."
+
+          ENV_LIST=$(curl -sf \
+            "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/env?teamId=${VERCEL_TEAM_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" || echo '{"envs":[]}')
+
+          ENV_ID=$(echo "$ENV_LIST" | python3 -c "
+          import json,sys
+          data=json.load(sys.stdin)
+          for e in data.get('envs',[]):
+              if e.get('key')=='API_GATEWAY_URL':
+                  print(e['id'])
+                  break
+          " 2>/dev/null || echo "")
+
+          if [ -n "$ENV_ID" ] && [ "$ENV_ID" != "None" ]; then
+            curl -sf -X PATCH \
+              "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/env/${ENV_ID}?teamId=${VERCEL_TEAM_ID}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"value\":\"${NEW_URL}\",\"target\":[\"production\",\"preview\"],\"type\":\"plain\"}"
+            echo "Updated API_GATEWAY_URL."
+          else
+            curl -sf -X POST \
+              "https://api.vercel.com/v9/projects/${VERCEL_PROJECT_ID}/env?teamId=${VERCEL_TEAM_ID}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"key\":\"API_GATEWAY_URL\",\"value\":\"${NEW_URL}\",\"target\":[\"production\",\"preview\"],\"type\":\"plain\"}"
+            echo "Created API_GATEWAY_URL."
+          fi
+
+      # ── Summary ───────────────────────────────────────────────────────────
+
+      - name: Deployment summary
+        run: |
+          echo ""
+          echo "================================================"
+          echo "  LAWBRIDGE EC2 DEPLOYMENT COMPLETE"
+          echo "================================================"
+          echo ""
+          echo "  EC2 Instance:  $INSTANCE_ID"
+          echo "  Elastic IP:    $PUBLIC_IP"
+          echo "  API Gateway:   http://$PUBLIC_IP"
+          echo "  Frontend:      https://law-bridge-two.vercel.app"
+          echo ""
+          echo "  Services are bootstrapping via user-data (~5 min)."
+          echo "  Monitor: ssh ec2-user@$PUBLIC_IP 'tail -f /var/log/lawbridge-init.log'"
+          echo ""
+          echo "  If Vercel was not updated automatically, set manually:"
+          echo "    Vercel Dashboard > Settings > Environment Variables"
+          echo "    API_GATEWAY_URL = http://$PUBLIC_IP"
+          echo "    Then trigger a redeploy."
+          echo ""
+          echo "  Monthly cost estimate:"
+          echo "    EC2 t3.medium:   ~\$30/month"
+          echo "    Elastic IP:      ~\$4/month"
+          echo "    30GB gp3 EBS:    ~\$2.40/month"
+          echo "    TOTAL:           ~\$37/month"
+          echo ""
+          echo "  Next: run delete-eks-cluster workflow to save \$73/month more."

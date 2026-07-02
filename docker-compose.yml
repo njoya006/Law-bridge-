@@ -1,539 +1,187 @@
-services:
-  # Infrastructure
-  redis:
-    image: redis:7-alpine
-    container_name: lawbridge-redis
-    ports:
-      - "6379:6379"
-    networks:
-      - lawbridge-network
+version: '3.8'
 
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: lawbridge-rabbitmq
+# Single-server deployment — all services on one EC2 t3.medium (~$30/month)
+# Nginx acts as the API gateway (same routing as the former K8s api-gateway).
+# One PostgreSQL instance hosts all service databases (created by postgres-init/).
+# Update API_GATEWAY_URL in Vercel to http://<EC2_PUBLIC_IP> to reconnect frontend.
+
+x-django-common: &django-common
+  restart: unless-stopped
+  networks: [lawbridge]
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_started
+  env_file: .env
+
+services:
+
+  # ── Infrastructure ────────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    networks: [lawbridge]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
     environment:
-      RABBITMQ_DEFAULT_USER: lawbridge
-      RABBITMQ_DEFAULT_PASS: password
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+      POSTGRES_USER: lawbridge_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: auth_db
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U lawbridge_user -d auth_db"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - lawbridge-network
 
-  minio:
-    image: minio/minio:latest
-    container_name: lawbridge-minio
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    networks:
-      - lawbridge-network
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: lawbridge-ollama
-    ports:
-      - "11434:11434"
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-    networks:
-      - lawbridge-network
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [lawbridge]
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
 
   nginx:
-    image: nginx:alpine
-    container_name: lawbridge-gateway
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    networks: [lawbridge]
     ports:
       - "80:80"
     volumes:
-      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - auth-service
-    networks:
-      - lawbridge-network
-
-  # frontend: (removed) — frontend has been deleted; remove or recreate if needed
-
-  # ─── SERVICES (placeholders) ─────────────────────────────────
-  auth-service:
-    build: ./services/auth-service
-    container_name: lawbridge-auth
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      DB_HOST: auth-db
-      DB_NAME: ${AUTH_DB}
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-    depends_on:
-      auth-db:
-        condition: service_healthy
-    ports:
-      - "8001:8001"
+      - case-service
+      - lawyer-service
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request, sys; u='http://localhost:8001/api/v1/health/'; urllib.request.urlopen(u, timeout=5); sys.exit(0)\""]
-      interval: 10s
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
+      interval: 30s
       timeout: 5s
-      retries: 5
-    networks:
-      - lawbridge-network
+      retries: 3
+
+  # ── Django Microservices ──────────────────────────────────────────────────────
+
+  auth-service:
+    <<: *django-common
+    image: ghcr.io/njoya006/lawbridge-auth-service:latest
+    expose: ["8001"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: auth_db
+      REDIS_URL: redis://redis:6379/0
 
   client-service:
-    build: ./services/client-service
-    container_name: lawbridge-client
-    restart: unless-stopped
-    env_file: .env
+    <<: *django-common
+    image: ghcr.io/njoya006/lawbridge-client-service:latest
+    expose: ["8002"]
     environment:
-      DB_HOST: client-db
-      DB_NAME: ${CLIENT_DB}
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-    depends_on:
-      client-db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    ports:
-      - "8002:8002"
-    networks:
-      - lawbridge-network
-
-  client-celery-worker:
-    build: ./services/client-service
-    container_name: lawbridge-client-celery-worker
-    restart: unless-stopped
-    command: celery -A core worker --loglevel=info --concurrency=4
-    env_file: .env
-    environment:
-      DB_HOST: client-db
-      DB_NAME: ${CLIENT_DB}
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-    depends_on:
-      - client-db
-      - redis
-      - rabbitmq
-    networks:
-      - lawbridge-network
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: client_db
+      REDIS_URL: redis://redis:6379/0
 
   lawyer-service:
-    build: ./services/lawyer-service
-    container_name: lawbridge-lawyer
-    restart: unless-stopped
-    env_file: .env
+    <<: *django-common
+    image: ghcr.io/njoya006/lawbridge-lawyer-service:latest
+    expose: ["8003"]
     environment:
-      DB_HOST: lawyer-db
-      DB_NAME: ${LAWYER_DB}
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-    depends_on:
-      lawyer-db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    ports:
-      - "8003:8003"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request, sys; u='http://localhost:8003/api/v1/health/'; urllib.request.urlopen(u, timeout=5); sys.exit(0)\""]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lawbridge-network
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: lawyer_db
+      REDIS_URL: redis://redis:6379/0
 
   case-service:
-    build: ./services/case-service
-    container_name: lawbridge-case
-    restart: unless-stopped
-    env_file: .env
+    <<: *django-common
+    image: ghcr.io/njoya006/lawbridge-case-service:latest
+    expose: ["8004"]
     environment:
-      DB_HOST: case-db
-      DB_NAME: ${CASE_DB}
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-    depends_on:
-      case-db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      rabbitmq:
-        condition: service_started
-    ports:
-      - "8004:8004"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request, sys; u='http://localhost:8004/api/v1/health/'; urllib.request.urlopen(u, timeout=5); sys.exit(0)\""]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lawbridge-network
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: case_db
+      REDIS_URL: redis://redis:6379/0
+      LAWYER_SERVICE_URL: http://lawyer-service:8003
 
   document-service:
-    build: ./services/document-service
-    container_name: lawbridge-document
-    restart: unless-stopped
-    env_file: .env
+    <<: *django-common
+    image: ghcr.io/njoya006/lawbridge-document-service:latest
+    expose: ["8005"]
     environment:
-      DB_HOST: document-db
-      DB_NAME: ${DOCUMENT_DB}
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-    depends_on:
-      document-db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      minio:
-        condition: service_started
-    ports:
-      - "8005:8005"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request, sys; u='http://localhost:8005/api/v1/health/'; urllib.request.urlopen(u, timeout=5); sys.exit(0)\""]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lawbridge-network
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: document_db
+      REDIS_URL: redis://redis:6379/0
 
   notification-service:
-    build: ./services/notification-service
-    container_name: lawbridge-notification
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "8006:8006"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c 'import urllib.request, sys, urllib.error; u=\"http://localhost:8006/\"; req=urllib.request.Request(u);\ntry:\n    r=urllib.request.urlopen(req, timeout=5); code=r.getcode(); sys.exit(0 if code<500 else 1)\nexcept urllib.error.HTTPError as e:\n    sys.exit(0 if e.code<500 else 1)\nexcept Exception:\n    sys.exit(1)'"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lawbridge-network
+    <<: *django-common
+    image: ghcr.io/njoya006/lawbridge-notification-service:latest
+    expose: ["8006"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: notification_db
+      REDIS_URL: redis://redis:6379/0
 
   payment-service:
-    build: ./services/payment-service
-    container_name: lawbridge-payment
-    restart: unless-stopped
-    env_file: .env
+    <<: *django-common
+    image: ghcr.io/njoya006/lawbridge-payment-service:latest
+    expose: ["8007"]
     environment:
-      DB_HOST: payment-db
-      DB_NAME: ${PAYMENT_DB}
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-    depends_on:
-      payment-db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-      rabbitmq:
-        condition: service_started
-    ports:
-      - "8007:8007"
-    networks:
-      - lawbridge-network
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: payment_db
+      REDIS_URL: redis://redis:6379/0
 
   calendar-service:
-    build: ./services/calendar-service
-    container_name: lawbridge-calendar
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "8008:8008"
-    # Run migrations on container start, then launch the app
-    command: sh -c "python manage.py migrate --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:8008 --workers 2"
-    healthcheck:
-      test: ["CMD-SHELL", "python -c 'import urllib.request, sys, urllib.error; u=\"http://localhost:8008/\"; req=urllib.request.Request(u);\ntry:\n    r=urllib.request.urlopen(req, timeout=5); code=r.getcode(); sys.exit(0 if code<500 else 1)\nexcept urllib.error.HTTPError as e:\n    sys.exit(0 if e.code<500 else 1)\nexcept Exception:\n    sys.exit(1)'"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - lawbridge-network
+    <<: *django-common
+    image: ghcr.io/njoya006/lawbridge-calendar-service:latest
+    expose: ["8008"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: calendar_db
+      REDIS_URL: redis://redis:6379/0
 
   monitoring-service:
-    build: ./services/monitoring-service
-    container_name: lawbridge-monitoring
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "8009:8009"
-    networks:
-      - lawbridge-network
+    <<: *django-common
+    image: ghcr.io/njoya006/lawbridge-monitoring-service:latest
+    expose: ["8009"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: monitoring_db
+      REDIS_URL: redis://redis:6379/0
+      LAWYER_SERVICE_URL: http://lawyer-service:8003
+      AI_SERVICE_URL: http://ai-assistant-service:8011
 
   search-service:
-    build: ./services/search-service
-    container_name: lawbridge-search
-    restart: unless-stopped
-    env_file: .env
-    ports:
-      - "8010:8010"
-    networks:
-      - lawbridge-network
+    <<: *django-common
+    image: ghcr.io/njoya006/lawbridge-search-service:latest
+    expose: ["8010"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: search_db
+      REDIS_URL: redis://redis:6379/0
 
   ai-assistant-service:
-    build: ./services/ai-assistant-service
-    env_file: .env
+    <<: *django-common
+    image: ${AI_SERVICE_IMAGE}
+    expose: ["8011"]
     environment:
-      DB_HOST: ai-db
-      DB_NAME: ${AI_DB}
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ai_db
+      DB_USER: lawbridge_user
       DB_PASSWORD: ${DB_PASSWORD}
       REDIS_URL: redis://redis:6379/0
-    ports:
-      - "8011:8011"
-    restart: unless-stopped
-    depends_on:
-      ai-db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    networks:
-      - lawbridge-network
-    healthcheck:
-      test: ["CMD-SHELL", "python -c 'import urllib.request, sys, urllib.error; u=\"http://localhost:8011/\"; req=urllib.request.Request(u);\ntry:\n    r=urllib.request.urlopen(req, timeout=5); code=r.getcode(); sys.exit(0 if code<500 else 1)\nexcept urllib.error.HTTPError as e:\n    sys.exit(0 if e.code<500 else 1)\nexcept Exception:\n    sys.exit(1)'"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  ai-assistant-celery:
-    build: ./services/ai-assistant-service
-    command: celery -A core worker --loglevel=info --concurrency=1
-    env_file: .env
-    environment:
-      DB_HOST: ai-db
-      DB_NAME: ${AI_DB}
-      DB_PORT: 5432
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-    depends_on:
-      - ai-db
-      - redis
-      - rabbitmq
-      - ai-assistant-service
-    networks:
-      - lawbridge-network
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: lawbridge-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./.monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./.monitoring/alert_rules.yml:/etc/prometheus/rules/alert_rules.yml:ro
-    networks:
-      - lawbridge-network
-
-  alertmanager:
-    image: prom/alertmanager:latest
-    container_name: lawbridge-alertmanager
-    ports:
-      - "9093:9093"
-    volumes:
-      - ./.monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-    networks:
-      - lawbridge-network
-
-  # ─── DATABASES (one per service) ────────────────────────────
-  auth-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-auth-db
-    environment:
-      POSTGRES_DB: ${AUTH_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - auth_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - lawbridge-network
-
-  client-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-client-db
-    environment:
-      POSTGRES_DB: ${CLIENT_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - client_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - lawbridge-network
-
-  lawyer-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-lawyer-db
-    environment:
-      POSTGRES_DB: ${LAWYER_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - lawyer_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - lawbridge-network
-
-  case-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-case-db
-    environment:
-      POSTGRES_DB: ${CASE_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - case_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - lawbridge-network
-
-  document-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-document-db
-    environment:
-      POSTGRES_DB: ${DOCUMENT_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - document_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - lawbridge-network
-
-  notification-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-notification-db
-    environment:
-      POSTGRES_DB: ${NOTIFICATION_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - notification_data:/var/lib/postgresql/data
-    networks:
-      - lawbridge-network
-
-  payment-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-payment-db
-    environment:
-      POSTGRES_DB: ${PAYMENT_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - payment_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - lawbridge-network
-
-  calendar-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-calendar-db
-    environment:
-      POSTGRES_DB: ${CALENDAR_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - calendar_data:/var/lib/postgresql/data
-    networks:
-      - lawbridge-network
-
-  monitoring-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-monitoring-db
-    environment:
-      POSTGRES_DB: ${MONITORING_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - monitoring_data:/var/lib/postgresql/data
-    networks:
-      - lawbridge-network
-
-  search-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-search-db
-    environment:
-      POSTGRES_DB: ${SEARCH_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - search_data:/var/lib/postgresql/data
-    networks:
-      - lawbridge-network
-
-  ai-db:
-    image: postgres:16-alpine
-    container_name: lawbridge-ai-db
-    environment:
-      POSTGRES_DB: ${AI_DB}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-    volumes:
-      - ai_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - lawbridge-network
-
-volumes:
-  auth_data:
-  client_data:
-  lawyer_data:
-  case_data:
-  document_data:
-  notification_data:
-  payment_data:
-  calendar_data:
-  monitoring_data:
-  search_data:
-  ai_data:
+      CASE_SERVICE_URL: http://case-service:8004
+      GROQ_MODEL: llama-3.3-70b-versatile
 
 networks:
-  lawbridge-network:
+  lawbridge:
     driver: bridge
+
+volumes:
+  postgres_data:
