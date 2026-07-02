@@ -1,0 +1,22 @@
+﻿name: Update SSM GH_TOKEN with PAT
+
+on:
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      - name: Update GH_TOKEN in SSM with long-lived PAT
+        run: |
+          aws ssm put-parameter \
+            --name "/lawbridge/GH_TOKEN" \
+            --value "${{ secrets.GH_PAT }}" \
+            --type SecureString --overwrite
+          echo "Updated /lawbridge/GH_TOKEN with PAT"
