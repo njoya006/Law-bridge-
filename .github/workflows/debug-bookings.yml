@@ -14,18 +14,18 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Targeted diagnostic
+      - name: Check recent cases and client UUIDs
         run: |
           CMD_ID=$(aws ssm send-command \
             --instance-ids i-031445edd3e88f5fe \
             --document-name AWS-RunShellScript \
             --parameters '{"commands":[
-              "echo === CONTAINERS ===",
-              "docker ps --format \"{{.Names}}\" 2>&1",
-              "echo === VIEWS LINE 370 IN CONTAINER ===",
-              "docker exec lawbridge-case-service-1 sed -n '\''368,372p'\'' /app/apps/cases/views.py 2>&1 || docker exec case-service sed -n '\''368,372p'\'' /app/apps/cases/views.py 2>&1 || echo BOTH_FAILED",
-              "echo === CASE COUNT ===",
-              "docker exec lawbridge-postgres-1 psql -U lawbridge_user -d case_db -c \"SELECT COUNT(*) FROM cases_case;\" 2>&1 || docker exec postgres psql -U lawbridge_user -d case_db -c \"SELECT COUNT(*) FROM cases_case;\" 2>&1 || echo DB_FAIL"
+              "echo === NEWEST 5 CASES ===",
+              "docker exec lawbridge-postgres-1 psql -U lawbridge_user -d case_db -c \"SELECT id, client_id, assigned_lawyer_id, booking_status, booking_metadata->>'"'"'target_id'"'"' AS target_id, booking_metadata->>'"'"'target_name'"'"' AS target_name, created_at FROM cases_case ORDER BY created_at DESC LIMIT 5;\" 2>&1",
+              "echo === CLIENT UUIDs ===",
+              "docker exec lawbridge-postgres-1 psql -U lawbridge_user -d auth_db -c \"SELECT id, email FROM users_user WHERE email LIKE '"'"'client%'"'"';\" 2>&1",
+              "echo === VIEWS LINE 370 ===",
+              "docker exec lawbridge-case-service-1 sed -n '"'"'368,372p'"'"' /app/apps/cases/views.py 2>&1"
             ]}' \
             --query Command.CommandId --output text)
           echo "CMD: $CMD_ID"
@@ -33,5 +33,4 @@ jobs:
           aws ssm get-command-invocation \
             --command-id "$CMD_ID" \
             --instance-id i-031445edd3e88f5fe \
-            --query '[StandardOutputContent, StandardErrorContent]' \
-            --output text
+            --query StandardOutputContent --output text
