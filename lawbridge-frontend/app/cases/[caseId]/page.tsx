@@ -2217,10 +2217,8 @@ export default function CaseDetailPage() {
         )}
       </div>
 
-      {/* AI Case Bot — shown for clients to ask about their case in natural language */}
-      {!isLawyer && (
-        <ClientCaseBot caseId={item.id} caseTitle={item.title} />
-      )}
+      {/* AI Case Bot — conversational chat for both lawyers and clients */}
+      <ClientCaseBot caseId={item.id} caseTitle={item.title} />
     </div>
   )
 }
