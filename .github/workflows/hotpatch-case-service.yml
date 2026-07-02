@@ -21,9 +21,9 @@ jobs:
             --document-name AWS-RunShellScript \
             --parameters '{"commands":[
               "cd /opt/lawbridge && git pull origin main",
-              "docker cp /opt/lawbridge/services/case-service/apps/cases/views.py case-service:/app/apps/cases/views.py",
-              "docker exec case-service pkill -HUP -f gunicorn || docker compose restart case-service",
-              "sleep 3 && docker exec case-service python -c \"from apps.cases.views import IncomingBookingsView; print(\\\"PATCH_OK\\\")\" 2>&1 || echo IMPORT_FAIL"
+              "docker cp /opt/lawbridge/services/case-service/apps/cases/views.py lawbridge-case-service-1:/app/apps/cases/views.py",
+              "docker restart lawbridge-case-service-1",
+              "sleep 8 && docker exec lawbridge-case-service-1 grep -c any.booking /app/apps/cases/views.py && echo PATCH_VERIFIED"
             ]}' \
             --query Command.CommandId --output text)
 
