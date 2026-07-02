@@ -14,22 +14,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Check recent cases and client UUIDs
+      - name: Full booking diagnostic
         run: |
           CMD_ID=$(aws ssm send-command \
             --instance-ids i-031445edd3e88f5fe \
             --document-name AWS-RunShellScript \
             --parameters '{"commands":[
-              "echo === NEWEST 5 CASES ===",
-              "docker exec lawbridge-postgres-1 psql -U lawbridge_user -d case_db -c \"SELECT id, client_id, assigned_lawyer_id, booking_status, booking_metadata->>'"'"'target_id'"'"' AS target_id, booking_metadata->>'"'"'target_name'"'"' AS target_name, created_at FROM cases_case ORDER BY created_at DESC LIMIT 5;\" 2>&1",
-              "echo === CLIENT UUIDs ===",
-              "docker exec lawbridge-postgres-1 psql -U lawbridge_user -d auth_db -c \"SELECT id, email FROM users_user WHERE email LIKE '"'"'client%'"'"';\" 2>&1",
-              "echo === VIEWS LINE 370 ===",
-              "docker exec lawbridge-case-service-1 sed -n '"'"'368,372p'"'"' /app/apps/cases/views.py 2>&1"
+              "echo === WHO BOOKED (auth_db lookup) ===",
+              "docker exec lawbridge-postgres-1 psql -U lawbridge_user -d auth_db -c \"SELECT id, email, role FROM users_user WHERE id IN ('"'"'4ffe5f0d-4d67-41ab-80f5-38150576741c'"'"', '"'"'64f3fda3-ad58-40f1-8721-1bf02eb20472'"'"');\" 2>&1",
+              "echo === FIRM IDs IN LAWYER_DB ===",
+              "docker exec lawbridge-postgres-1 psql -U lawbridge_user -d lawyer_db -c \"SELECT f.id, f.name FROM firms_firm f;\" 2>&1",
+              "echo === EMMANUEL NJI MEMBERSHIPS ===",
+              "docker exec lawbridge-postgres-1 psql -U lawbridge_user -d lawyer_db -c \"SELECT fm.id, fm.role, fm.firm_id, fm.is_active, u.username FROM firms_firmmembership fm JOIN auth_user u ON u.id=fm.user_id WHERE u.username='"'"'emmanuel.nji@nji-associates.cm'"'"';\" 2>&1",
+              "echo === TEST LOGIN + CALL incoming-bookings ===",
+              "TOKEN=$(curl -sf -X POST http://localhost/api/v1/auth/login/ -H Content-Type:application/json -d '\''{\"email\":\"emmanuel.nji@nji-associates.cm\",\"password\":\"LawBridge@2024\"}'\'' | python3 -c \"import sys,json; print(json.load(sys.stdin)['"'"'access'"'"'])\" 2>/dev/null) && echo GOT_TOKEN && curl -sf http://localhost/api/v1/cases/incoming-bookings/ -H \"Authorization: Bearer $TOKEN\" | python3 -m json.tool 2>&1 || echo LOGIN_FAILED"
             ]}' \
             --query Command.CommandId --output text)
           echo "CMD: $CMD_ID"
-          sleep 20
+          sleep 25
           aws ssm get-command-invocation \
             --command-id "$CMD_ID" \
             --instance-id i-031445edd3e88f5fe \
