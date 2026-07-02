@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { getFirmIntelligence, type FirmIntelligence, type StalledCase } from '../../../lib/monitoringApi'
+import { SERVICE_URLS } from '../../../lib/serviceUrls'
 
 // ── Expandable Stalled Case Card ───────────────────────────────────────────────
 function StalledCard({ c }: { c: StalledCase }) {
@@ -65,6 +66,13 @@ export default function FirmIntelligencePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  // Client-side AI insights (used when server didn't return any)
+  const [aiNarrative, setAiNarrative] = useState('')
+  const [aiBullets, setAiBullets] = useState<string[]>([])
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const [aiStreamText, setAiStreamText] = useState('')
+
   useEffect(() => {
     const token = localStorage.getItem('access') ?? ''
     if (!token) { setError('Not authenticated'); setLoading(false); return }
@@ -73,6 +81,88 @@ export default function FirmIntelligencePage() {
       .catch(() => setError('Could not load firm intelligence data.'))
       .finally(() => setLoading(false))
   }, [])
+
+  const generateInsights = async () => {
+    if (!data) return
+    const access = localStorage.getItem('access')
+    if (!access) return
+    setAiLoading(true)
+    setAiError('')
+    setAiStreamText('')
+    setAiNarrative('')
+    setAiBullets([])
+
+    const aiBase = (SERVICE_URLS.ai as string).replace(/\/$/, '')
+    const prompt = `You are a senior law firm management consultant. Analyse this firm's operational data and provide actionable insights.
+
+FIRM DATA:
+- Active cases: ${data.total_active_cases}
+- Total cases all time: ${data.total_cases_all_time}
+- Stalled cases (no update >14 days): ${data.stalled_cases.length}
+- Number of lawyers: ${data.lawyer_loads.length}
+- Average resolution days: ${data.avg_resolution_days}
+- Status distribution: ${JSON.stringify(data.status_distribution)}
+- Top stalled cases: ${JSON.stringify(data.stalled_cases.slice(0, 3))}
+- Top lawyer loads: ${JSON.stringify(data.lawyer_loads.slice(0, 5))}
+
+Provide a brief management narrative (2-3 sentences) and 3-5 bullet point action items.
+Respond ONLY with JSON: {"narrative": "...", "bullet_insights": ["...", "..."]}`
+
+    try {
+      const res = await fetch(`${aiBase}/ai/chat/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${access}`,
+          Accept: 'text/event-stream',
+        },
+        body: JSON.stringify({ message: prompt }),
+      })
+      if (!res.ok) { setAiError('AI service unavailable. Try again later.'); setAiLoading(false); return }
+
+      const reader = res.body?.getReader()
+      if (!reader) { setAiError('No response from AI service.'); setAiLoading(false); return }
+
+      const decoder = new TextDecoder()
+      let buf = ''
+      let fullText = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        const lines = buf.split('\n')
+        buf = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const raw = line.slice(6).trim()
+          if (!raw) continue
+          try {
+            const parsed = JSON.parse(raw) as { token?: string; done?: boolean; error?: string }
+            if (parsed.error) { setAiError(parsed.error); break }
+            if (parsed.token) { fullText += parsed.token; setAiStreamText(fullText) }
+          } catch { /* skip malformed SSE line */ }
+        }
+      }
+
+      const jsonMatch = fullText.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]) as { narrative?: string; bullet_insights?: string[] }
+          setAiNarrative(parsed.narrative ?? '')
+          setAiBullets(parsed.bullet_insights ?? [])
+        } catch {
+          setAiError('Could not parse AI response.')
+        }
+      } else {
+        setAiError('AI returned an unexpected format.')
+      }
+    } catch {
+      setAiError('AI service unavailable.')
+    } finally {
+      setAiLoading(false)
+      setAiStreamText('')
+    }
+  }
 
   if (loading) {
     return (
@@ -94,6 +184,11 @@ export default function FirmIntelligencePage() {
   }
 
   const maxLoad = Math.max(...data.lawyer_loads.map(l => l.active_cases), 1)
+
+  // Prefer server-provided insights; fall back to client-generated
+  const shownNarrative = data.ai_narrative || aiNarrative
+  const shownBullets = (data.ai_bullet_insights?.length ? data.ai_bullet_insights : aiBullets)
+  const hasInsights = Boolean(shownNarrative || shownBullets.length)
 
   return (
     <div className="space-y-6">
@@ -188,7 +283,7 @@ export default function FirmIntelligencePage() {
         </div>
       </div>
 
-      {/* Bottleneck Detector — expandable, no broken routing */}
+      {/* Bottleneck Detector — expandable */}
       {data.stalled_cases.length > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-900/10 p-5 space-y-3">
           <h2 className="font-heading text-body-lg text-neutral-50 flex items-center gap-2">
@@ -204,30 +299,73 @@ export default function FirmIntelligencePage() {
         </div>
       )}
 
-      {/* AI Insights */}
-      {(data.ai_narrative || (data.ai_bullet_insights && data.ai_bullet_insights.length > 0)) && (
-        <div className="rounded-xl border border-gold-500/20 bg-gold-900/10 p-5 space-y-3">
+      {/* AI Insights — always visible, generates on demand if server didn't provide */}
+      <div className="rounded-xl border border-gold-500/20 bg-gold-900/10 p-5 space-y-3">
+        <div className="flex items-center justify-between">
           <h2 className="font-heading text-body-lg text-neutral-50 flex items-center gap-2">
             <svg className="w-5 h-5 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
             AI Insights
           </h2>
-          {data.ai_narrative && (
-            <p className="text-sm text-neutral-300 leading-relaxed">{data.ai_narrative}</p>
+          {!hasInsights && !aiLoading && (
+            <button
+              onClick={generateInsights}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gold-500/30 text-gold-300 hover:bg-gold-500/10 transition-colors"
+            >
+              Get AI Insights →
+            </button>
           )}
-          {data.ai_bullet_insights && data.ai_bullet_insights.length > 0 && (
-            <ul className="space-y-1.5 mt-2">
-              {data.ai_bullet_insights.map((insight, i) => (
-                <li key={i} className="flex gap-2 text-sm text-neutral-300">
-                  <span className="text-gold-500 mt-0.5 flex-shrink-0">•</span>
-                  <span>{insight}</span>
-                </li>
-              ))}
-            </ul>
+          {hasInsights && !aiLoading && (
+            <button
+              onClick={generateInsights}
+              className="text-[10px] text-neutral-600 hover:text-neutral-400 transition-colors"
+            >
+              Refresh
+            </button>
           )}
         </div>
-      )}
+
+        {!hasInsights && !aiLoading && !aiError && (
+          <p className="text-xs text-neutral-500 leading-relaxed">
+            Click &quot;Get AI Insights →&quot; to generate an AI-powered management summary based on current firm data.
+          </p>
+        )}
+
+        {aiLoading && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-gold-400 text-xs">
+              <span className="animate-spin h-3 w-3 border border-gold-400 border-t-transparent rounded-full" />
+              Analysing firm data…
+            </div>
+            {aiStreamText && (
+              <p className="text-xs text-neutral-500 font-mono leading-relaxed opacity-60">{aiStreamText}</p>
+            )}
+          </div>
+        )}
+
+        {aiError && (
+          <p className="text-xs text-neutral-500 italic">{aiError}</p>
+        )}
+
+        {hasInsights && !aiLoading && (
+          <>
+            {shownNarrative && (
+              <p className="text-sm text-neutral-300 leading-relaxed">{shownNarrative}</p>
+            )}
+            {shownBullets.length > 0 && (
+              <ul className="space-y-1.5 mt-2">
+                {shownBullets.map((insight, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-neutral-300">
+                    <span className="text-gold-500 mt-0.5 flex-shrink-0">•</span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
