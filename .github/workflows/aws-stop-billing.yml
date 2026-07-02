@@ -1,0 +1,147 @@
+name: AWS Emergency — Stop All Billing
+
+# This workflow stops all expensive resources:
+# 1. Scales EKS nodes to 0 (stops EC2 charges immediately)
+# 2. Stops all RDS instances (data preserved, compute stops)
+# 3. Deletes NAT Gateways (saves $33+/month each)
+# 4. Releases unattached Elastic IPs
+#
+# The EKS cluster control plane ($73/month) keeps running.
+# Run "aws-delete-eks-cluster.yml" separately if you want to
+# stop that too (requires manual ELB recreation to bring back).
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type STOP to confirm you want to stop all resources'
+        required: true
+        default: ''
+      delete_nat_gateways:
+        description: 'Delete NAT Gateways? (yes/no) — saves $33+/month but EKS pods lose internet on restart'
+        required: true
+        default: 'yes'
+
+jobs:
+  stop-billing:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.confirm == 'STOP' }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Scale EKS node groups to 0
+        run: |
+          echo "=== Scaling all EKS node groups to 0 ==="
+          for CLUSTER in $(aws eks list-clusters --region us-east-1 --query 'clusters[]' --output text); do
+            echo "Cluster: $CLUSTER"
+            for NG in $(aws eks list-nodegroups --cluster-name "$CLUSTER" --region us-east-1 --query 'nodegroups[]' --output text); do
+              echo "  Scaling node group $NG to 0..."
+              aws eks update-nodegroup-config \
+                --cluster-name "$CLUSTER" \
+                --nodegroup-name "$NG" \
+                --scaling-config minSize=0,maxSize=10,desiredSize=0 \
+                --region us-east-1 || echo "  WARNING: Could not scale $NG"
+              echo "  Waiting for scale-down..."
+              aws eks wait nodegroup-active \
+                --cluster-name "$CLUSTER" \
+                --nodegroup-name "$NG" \
+                --region us-east-1 2>/dev/null || echo "  (wait timed out — nodes may still be terminating)"
+            done
+          done
+          echo ""
+          echo "EC2 nodes from EKS node groups are now terminating."
+          echo "This stops EC2 instance charges."
+
+      - name: Stop all RDS instances
+        run: |
+          echo "=== Stopping all RDS instances ==="
+          echo "NOTE: Data is preserved. Stopped RDS still charges for storage (~\$0.115/GB/month)"
+          echo ""
+          for DB in $(aws rds describe-db-instances --region us-east-1 \
+            --query 'DBInstances[?DBInstanceStatus==`available`].DBInstanceIdentifier' \
+            --output text); do
+            echo "Stopping RDS instance: $DB"
+            aws rds stop-db-instance --db-instance-identifier "$DB" --region us-east-1 \
+              && echo "  OK: $DB stopping" \
+              || echo "  WARNING: Could not stop $DB (may be in wrong state or be Aurora)"
+          done
+          echo ""
+          echo "RDS instances are stopping. Compute charges will stop within minutes."
+          echo "Storage charges (~\$0.115/GB/month) continue but are very small."
+
+      - name: Delete NAT Gateways (if confirmed)
+        if: ${{ github.event.inputs.delete_nat_gateways == 'yes' }}
+        run: |
+          echo "=== Deleting NAT Gateways ==="
+          echo "Each NAT Gateway costs ~\$33/month + data transfer fees."
+          echo ""
+          NAT_IDS=$(aws ec2 describe-nat-gateways --region us-east-1 \
+            --filter "Name=state,Values=available" \
+            --query 'NatGateways[].NatGatewayId' --output text)
+          if [ -z "$NAT_IDS" ]; then
+            echo "No active NAT Gateways found."
+          else
+            for NAT_ID in $NAT_IDS; do
+              echo "Deleting NAT Gateway: $NAT_ID"
+              aws ec2 delete-nat-gateway --nat-gateway-id "$NAT_ID" --region us-east-1 \
+                && echo "  OK: $NAT_ID deleted" \
+                || echo "  WARNING: Could not delete $NAT_ID"
+            done
+            echo ""
+            echo "NAT Gateways deleted. Savings: \$33+/month per gateway."
+            echo "When you restart EKS, you'll need to recreate a NAT Gateway"
+            echo "or use public subnets for nodes."
+          fi
+
+      - name: Release unattached Elastic IPs
+        run: |
+          echo "=== Releasing unattached Elastic IPs ==="
+          echo "Each unattached Elastic IP costs \$7.20/month."
+          echo ""
+          for ALLOC_ID in $(aws ec2 describe-addresses --region us-east-1 \
+            --query 'Addresses[?AssociationId==null].AllocationId' --output text); do
+            echo "Releasing Elastic IP: $ALLOC_ID"
+            aws ec2 release-address --allocation-id "$ALLOC_ID" --region us-east-1 \
+              && echo "  OK: released" \
+              || echo "  WARNING: Could not release $ALLOC_ID"
+          done
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "========================================"
+          echo "BILLING STOP COMPLETE"
+          echo "========================================"
+          echo ""
+          echo "Actions taken:"
+          echo "  ✓ EKS node groups scaled to 0 (EC2 instances terminating)"
+          echo "  ✓ RDS instances stopped (data preserved)"
+          echo "  ✓ NAT Gateways deleted (if confirmed)"
+          echo "  ✓ Unattached Elastic IPs released"
+          echo ""
+          echo "Still running (still billing):"
+          echo "  - EKS control plane: ~\$73/month per cluster"
+          echo "  - RDS storage: ~\$0.115/GB/month (very small)"
+          echo "  - EBS snapshots (if any)"
+          echo "  - S3 buckets (if any)"
+          echo ""
+          echo "To also stop EKS control plane (\$73/month):"
+          echo "  Run the 'aws-delete-eks-cluster.yml' workflow."
+          echo "  WARNING: This deletes the cluster. You will need to"
+          echo "  re-create it and re-deploy all services from scratch."
+          echo ""
+          echo "Remaining resources:"
+          echo "--- EKS clusters ---"
+          aws eks list-clusters --region us-east-1
+          echo "--- RDS instances ---"
+          aws rds describe-db-instances --region us-east-1 \
+            --query 'DBInstances[].{ID:DBInstanceIdentifier,Status:DBInstanceStatus}' --output table
+          echo "--- NAT Gateways ---"
+          aws ec2 describe-nat-gateways --region us-east-1 \
+            --filter "Name=state,Values=available,pending" \
+            --query 'NatGateways[].{ID:NatGatewayId,State:State}' --output table 2>/dev/null || echo "none"

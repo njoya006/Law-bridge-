@@ -1,0 +1,127 @@
+name: AWS Cost Audit — What Is Running
+
+on:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: EKS — clusters and node groups
+        run: |
+          echo "========================================"
+          echo "EKS CLUSTERS"
+          echo "========================================"
+          aws eks list-clusters --region us-east-1
+          echo ""
+          for CLUSTER in $(aws eks list-clusters --region us-east-1 --query 'clusters[]' --output text); do
+            echo "--- Cluster: $CLUSTER ---"
+            aws eks describe-cluster --name "$CLUSTER" --region us-east-1 \
+              --query 'cluster.{Name:name,Status:status,Version:version,CreatedAt:createdAt}' --output table
+            echo "Node Groups:"
+            aws eks list-nodegroups --cluster-name "$CLUSTER" --region us-east-1
+            for NG in $(aws eks list-nodegroups --cluster-name "$CLUSTER" --region us-east-1 --query 'nodegroups[]' --output text); do
+              echo "  NodeGroup: $NG"
+              aws eks describe-nodegroup --cluster-name "$CLUSTER" --nodegroup-name "$NG" --region us-east-1 \
+                --query 'nodegroup.{Status:status,InstanceType:instanceTypes[0],Min:scalingConfig.minSize,Max:scalingConfig.maxSize,Desired:scalingConfig.desiredSize,DiskGB:diskSize}' \
+                --output table
+            done
+          done
+
+      - name: EC2 — running instances
+        run: |
+          echo "========================================"
+          echo "EC2 INSTANCES (running)"
+          echo "========================================"
+          aws ec2 describe-instances --region us-east-1 \
+            --filters "Name=instance-state-name,Values=running,stopped" \
+            --query 'Reservations[].Instances[].{ID:InstanceId,Type:InstanceType,State:State.Name,LaunchTime:LaunchTime,Name:Tags[?Key==`Name`]|[0].Value}' \
+            --output table
+
+      - name: RDS — all database instances
+        run: |
+          echo "========================================"
+          echo "RDS DATABASE INSTANCES"
+          echo "========================================"
+          aws rds describe-db-instances --region us-east-1 \
+            --query 'DBInstances[].{ID:DBInstanceIdentifier,Class:DBInstanceClass,Engine:Engine,Status:DBInstanceStatus,MultiAZ:MultiAZ,Storage:AllocatedStorage}' \
+            --output table
+
+      - name: Load Balancers — all
+        run: |
+          echo "========================================"
+          echo "LOAD BALANCERS (ALB/NLB)"
+          echo "========================================"
+          aws elbv2 describe-load-balancers --region us-east-1 \
+            --query 'LoadBalancers[].{Name:LoadBalancerName,Type:Type,State:State.Code,DNS:DNSName,ARN:LoadBalancerArn}' \
+            --output table
+          echo ""
+          echo "Classic ELBs:"
+          aws elb describe-load-balancers --region us-east-1 \
+            --query 'LoadBalancerDescriptions[].{Name:LoadBalancerName,DNS:DNSName}' \
+            --output table 2>/dev/null || echo "(none)"
+
+      - name: NAT Gateways
+        run: |
+          echo "========================================"
+          echo "NAT GATEWAYS (very expensive — $0.045/hr each + data)"
+          echo "========================================"
+          aws ec2 describe-nat-gateways --region us-east-1 \
+            --query 'NatGateways[].{ID:NatGatewayId,State:State,VPC:VpcId,Created:CreateTime}' \
+            --output table
+
+      - name: Elastic IPs
+        run: |
+          echo "========================================"
+          echo "ELASTIC IPs (unattached = $7.20/month each)"
+          echo "========================================"
+          aws ec2 describe-addresses --region us-east-1 \
+            --query 'Addresses[].{IP:PublicIp,AssociationId:AssociationId,InstanceId:InstanceId,Status:if(AssociationId!=null,`attached`,`UNATTACHED-BILLING`)}' \
+            --output table
+
+      - name: EBS Volumes — unattached
+        run: |
+          echo "========================================"
+          echo "EBS VOLUMES (unattached = wasted money)"
+          echo "========================================"
+          aws ec2 describe-volumes --region us-east-1 \
+            --filters "Name=status,Values=available" \
+            --query 'Volumes[].{ID:VolumeId,SizeGB:Size,Type:VolumeType,Created:CreateTime}' \
+            --output table
+
+      - name: ECR — repositories and image sizes
+        run: |
+          echo "========================================"
+          echo "ECR REPOSITORIES"
+          echo "========================================"
+          aws ecr describe-repositories --region us-east-1 \
+            --query 'repositories[].{Name:repositoryName,URI:repositoryUri}' \
+            --output table
+
+      - name: Cost estimate summary
+        run: |
+          echo "========================================"
+          echo "ROUGH MONTHLY COST GUIDE"
+          echo "========================================"
+          echo "EKS control plane:    \$73/month per cluster"
+          echo "m5.large EC2 node:    \$70/month (on-demand)"
+          echo "t3.medium EC2 node:   \$30/month (on-demand)"
+          echo "db.t3.micro RDS:      \$15/month"
+          echo "db.t3.small RDS:      \$29/month"
+          echo "NAT Gateway:          \$33/month + \$0.045/GB data"
+          echo "ALB:                  \$16/month minimum"
+          echo "Unattached Elastic IP:\$7.20/month each"
+          echo ""
+          echo "To STOP spending immediately:"
+          echo "  1. Scale EKS node groups to 0 (stops EC2 costs)"
+          echo "  2. Stop RDS instances (stops compute cost, keeps data)"
+          echo "  3. Delete NAT Gateways (saves \$33+/month immediately)"
+          echo "  4. Delete EKS cluster (saves \$73/month control plane)"
+          echo "  5. Release unattached Elastic IPs"
