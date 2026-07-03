@@ -19,6 +19,7 @@ const nextConfig = {
       { source: '/api/v1/monitoring/:path*', destination: `${apiGateway}/api/v1/monitoring/:path*` },
       { source: '/api/v1/search/:path*', destination: `${apiGateway}/api/v1/search/:path*` },
       { source: '/api/v1/ai/:path*', destination: `${apiGateway}/api/v1/ai/:path*` },
+      { source: '/api/v1/messages/:path*', destination: `${apiGateway}/api/v1/messages/:path*` },
     ]
   },
 }

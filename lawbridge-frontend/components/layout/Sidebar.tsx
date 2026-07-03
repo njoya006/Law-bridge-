@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   DashboardIcon, UploadIcon, AnalysisIcon, ChatIcon, DocumentIcon,
   CaseIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon,
-  SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon,
+  SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon, BellIcon, GridIcon,
 } from '../icons/Icons'
 import { clearSession } from '../../lib/authSession'
 
@@ -15,23 +15,34 @@ const NAV = [
   { label: 'Portal',         href: '/dashboard',     icon: DashboardIcon },
   { label: 'Discover',       href: '/discover',       icon: LawIcon },
   { label: 'Bookings',       href: '/bookings',       icon: CaseIcon },
-  { label: 'Notifications',  href: '/notifications',  icon: ChatIcon },
+  { label: 'Notifications',  href: '/notifications',  icon: BellIcon },
   { label: 'Upload',         href: '/upload',         icon: UploadIcon },
   { label: 'Updates',        href: '/analyses',       icon: AnalysisIcon },
-  { label: 'Messages',       href: '/chat',           icon: ChatIcon },
+  { label: 'Messages',       href: '/messages',       icon: ChatIcon },
   { label: 'Files',          href: '/documents',      icon: DocumentIcon },
   { label: 'Matters',        href: '/cases',          icon: CaseIcon },
   { label: 'Billing',        href: '/payments',       icon: PaymentIcon },
   { label: 'Settings',       href: '/settings',       icon: SettingsIcon },
 ]
 
-// Five tabs shown in the mobile bottom bar (most-used)
+// Four core tabs + ··· More
 const BOTTOM_NAV = [
   { label: 'Portal',    href: '/dashboard',    icon: DashboardIcon },
   { label: 'Discover',  href: '/discover',     icon: LawIcon },
   { label: 'Matters',   href: '/cases',        icon: CaseIcon },
-  { label: 'Messages',  href: '/chat',         icon: ChatIcon },
-  { label: 'Profile',   href: '/profile',      icon: UserIcon },
+  { label: 'Messages',  href: '/messages',     icon: ChatIcon },
+]
+
+// Items shown in the ··· More drawer
+const MORE_ITEMS = [
+  { label: 'Bookings',       href: '/bookings',       icon: CaseIcon },
+  { label: 'Alerts',         href: '/notifications',  icon: BellIcon },
+  { label: 'Files',          href: '/documents',      icon: DocumentIcon },
+  { label: 'Billing',        href: '/payments',       icon: PaymentIcon },
+  { label: 'Settings',       href: '/settings',       icon: SettingsIcon },
+  { label: 'Profile',        href: '/profile',        icon: UserIcon },
+  { label: 'Updates',        href: '/analyses',       icon: AnalysisIcon },
+  { label: 'Upload',         href: '/upload',         icon: UploadIcon },
 ]
 
 // ── Desktop sidebar ───────────────────────────────────────────────────────────
@@ -168,59 +179,131 @@ function DesktopSidebar() {
 function MobileBottomNav() {
   const pathname = usePathname()
   const router = useRouter()
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   function handleLogout() {
     clearSession()
     router.push('/auth/login')
   }
 
-  // Set sidebar-width to 0 on mobile so main content fills full width
   useEffect(() => {
     document.body.dataset.sidebarMode = 'mobile-collapsed'
   }, [])
 
-  return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary-900/95 backdrop-blur-md border-t border-neutral-700/40 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
-      <div className="flex items-stretch">
-        {BOTTOM_NAV.map(item => {
-          const Icon = item.icon
-          const active = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href))
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2.5 px-1 transition-colors duration-150 active:bg-white/5 ${
-                active ? 'text-gold-400' : 'text-neutral-500'
-              }`}
-            >
-              <span className={`flex items-center justify-center h-6 w-6 transition-transform duration-150 ${active ? 'scale-110' : ''}`}>
-                <Icon width={20} height={20} />
-              </span>
-              <span className={`text-[9px] font-semibold uppercase tracking-wider ${active ? 'text-gold-400' : 'text-neutral-500'}`}>
-                {item.label}
-              </span>
-              {active && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-gold-400 shadow-[0_0_8px_rgba(201,146,58,0.8)]" />
-              )}
-            </Link>
-          )
-        })}
+  // Close drawer on route change
+  useEffect(() => {
+    setDrawerOpen(false)
+  }, [pathname])
 
-        {/* Logout — far right */}
-        <button
-          onClick={handleLogout}
-          className="flex-none flex flex-col items-center justify-center gap-0.5 py-2.5 px-3 text-neutral-600 active:bg-white/5 transition-colors"
-        >
-          <span className="flex items-center justify-center h-6 w-6">
-            <LogoutIcon width={20} height={20} />
-          </span>
-          <span className="text-[9px] font-semibold uppercase tracking-wider">Out</span>
-        </button>
+  const moreActive = MORE_ITEMS.some(item => pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href)))
+
+  return (
+    <>
+      {/* ── More drawer backdrop ──────────────────────────────────────────────── */}
+      {drawerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      {/* ── More drawer ──────────────────────────────────────────────────────── */}
+      <div
+        className={`fixed left-0 right-0 z-50 bg-primary-900/98 backdrop-blur-xl border-t border-neutral-700/40 shadow-[0_-8px_40px_rgba(0,0,0,0.5)] transition-transform duration-300 ease-out ${
+          drawerOpen ? 'translate-y-0' : 'translate-y-full'
+        }`}
+        style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom))' }}
+      >
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-2">
+          <div className="h-1 w-10 rounded-full bg-neutral-600" />
+        </div>
+
+        <div className="px-4 pb-2">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-neutral-500 mb-3">More</p>
+
+          {/* 4-column icon grid */}
+          <div className="grid grid-cols-4 gap-2 mb-4">
+            {MORE_ITEMS.map(item => {
+              const Icon = item.icon
+              const active = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href))
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-150 active:scale-95 ${
+                    active
+                      ? 'bg-gold-500/15 text-gold-300'
+                      : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-neutral-200'
+                  }`}
+                >
+                  <Icon width={22} height={22} />
+                  <span className="text-[9px] font-semibold uppercase tracking-wider leading-none">{item.label}</span>
+                  {active && <span className="h-1 w-1 rounded-full bg-gold-400" />}
+                </Link>
+              )
+            })}
+          </div>
+
+          {/* Logout row */}
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 text-neutral-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-150 active:scale-[0.98]"
+          >
+            <LogoutIcon width={18} height={18} />
+            <span className="text-sm font-medium">Sign out</span>
+          </button>
+        </div>
+
+        <div style={{ height: 'env(safe-area-inset-bottom)' }} />
       </div>
 
-      {/* iOS safe-area spacer */}
-      <div className="h-safe-bottom bg-primary-900/95" style={{ height: 'env(safe-area-inset-bottom)' }} />
-    </nav>
+      {/* ── Bottom tab bar ────────────────────────────────────────────────────── */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-primary-900/95 backdrop-blur-md border-t border-neutral-700/40 shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
+        <div className="flex items-stretch h-16">
+          {BOTTOM_NAV.map(item => {
+            const Icon = item.icon
+            const active = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href))
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`relative flex-1 flex flex-col items-center justify-center gap-1 transition-colors duration-150 active:bg-white/5 ${
+                  active ? 'text-gold-400' : 'text-neutral-500'
+                }`}
+              >
+                {active && (
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-gold-400 shadow-[0_0_8px_rgba(201,146,58,0.8)]" />
+                )}
+                <span className={`flex items-center justify-center transition-transform duration-150 ${active ? 'scale-110' : ''}`}>
+                  <Icon width={20} height={20} />
+                </span>
+                <span className="text-[9px] font-semibold uppercase tracking-wider">{item.label}</span>
+              </Link>
+            )
+          })}
+
+          {/* ··· More button */}
+          <button
+            onClick={() => setDrawerOpen(v => !v)}
+            className={`relative flex-1 flex flex-col items-center justify-center gap-1 transition-colors duration-150 active:bg-white/5 ${
+              drawerOpen || moreActive ? 'text-gold-400' : 'text-neutral-500'
+            }`}
+          >
+            {(drawerOpen || moreActive) && (
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-gold-400 shadow-[0_0_8px_rgba(201,146,58,0.8)]" />
+            )}
+            <span className={`flex items-center justify-center transition-transform duration-200 ${drawerOpen ? 'rotate-90 scale-110' : ''}`}>
+              <GridIcon width={20} height={20} />
+            </span>
+            <span className="text-[9px] font-semibold uppercase tracking-wider">More</span>
+          </button>
+        </div>
+
+        {/* iOS safe-area spacer */}
+        <div className="bg-primary-900/95" style={{ height: 'env(safe-area-inset-bottom)' }} />
+      </nav>
+    </>
   )
 }
 

@@ -13,6 +13,7 @@ export const SERVICE_URLS = {
   monitoring:   fallback(process.env.NEXT_PUBLIC_MONITORING_SERVICE_URL,   '/api/v1'),
   search:       fallback(process.env.NEXT_PUBLIC_SEARCH_SERVICE_URL,       '/api/v1'),
   ai:           fallback(process.env.NEXT_PUBLIC_AI_ASSISTANT_SERVICE_URL, '/api/v1'),
+  messaging:    fallback(process.env.NEXT_PUBLIC_MESSAGING_SERVICE_URL,    '/api/v1'),
 } as const
 
 export type ServiceName = keyof typeof SERVICE_URLS

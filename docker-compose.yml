@@ -195,6 +195,17 @@ services:
       CASE_SERVICE_URL: http://case-service:8004
       GROQ_MODEL: llama-3.3-70b-versatile
 
+  messaging-service:
+    <<: *django-common
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/messaging-service:latest
+    expose: ["8012"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: messaging_db
+      REDIS_URL: redis://redis:6379/0
+      AI_SERVICE_URL: http://ai-assistant-service:8011
+
 networks:
   lawbridge:
     driver: bridge

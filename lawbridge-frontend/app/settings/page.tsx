@@ -105,6 +105,8 @@ export default function ClientSettingsPage() {
       try {
         const data = await api.get<Prefs>('auth', '/auth/preferences/', access)
         setPrefs(prev => ({ ...prev, ...data }))
+        // Cache for other pages (e.g. messaging preference gate)
+        localStorage.setItem('userSettings', JSON.stringify({ ...prefs, ...data }))
       } catch {
         // falls back to defaults
       } finally {
@@ -127,6 +129,8 @@ export default function ClientSettingsPage() {
     setSaveSuccess(false)
     try {
       await api.patch('auth', '/auth/preferences/', prefs, access)
+      // Cache preferences locally so other pages can read them without an API call
+      localStorage.setItem('userSettings', JSON.stringify(prefs))
       // Apply language change immediately
       setLang(prefs.language)
       setSaveSuccess(true)

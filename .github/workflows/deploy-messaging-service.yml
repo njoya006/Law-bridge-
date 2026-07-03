@@ -1,0 +1,97 @@
+name: Deploy messaging-service to EC2
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'services/messaging-service/**'
+      - 'docker-compose.yml'
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 820561684310.dkr.ecr.us-east-1.amazonaws.com
+  INSTANCE_ID: i-031445edd3e88f5fe
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Create ECR repository (idempotent)
+        run: |
+          aws ecr describe-repositories \
+            --repository-names "lawbridge/messaging-service" \
+            --region "$AWS_REGION" 2>/dev/null || \
+          aws ecr create-repository \
+            --repository-name "lawbridge/messaging-service" \
+            --region "$AWS_REGION"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push messaging-service to ECR
+        run: |
+          IMAGE="${ECR_REGISTRY}/lawbridge/messaging-service"
+          SHA="${{ github.sha }}"
+          docker buildx build \
+            --push \
+            --cache-from type=gha,scope=messaging-service \
+            --cache-to   type=gha,mode=max,scope=messaging-service \
+            -t "${IMAGE}:latest" \
+            -t "${IMAGE}:${SHA:0:7}" \
+            services/messaging-service/
+
+      - name: Pull new image and restart messaging-service on EC2
+        run: |
+          SCRIPT='
+          set -e
+          cd /opt/lawbridge
+          git pull origin main
+
+          # ECR login
+          aws ecr get-login-password --region us-east-1 \
+            | docker login --username AWS --password-stdin \
+              820561684310.dkr.ecr.us-east-1.amazonaws.com
+
+          # Pull latest image
+          docker pull 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/messaging-service:latest
+
+          # Start or recreate the service (creates messaging_db via postgres init if not exists)
+          docker compose up -d messaging-service
+
+          # Reload nginx to pick up /ws/ and /api/v1/messages/ routes
+          docker exec lawbridge-nginx-1 nginx -t && docker exec lawbridge-nginx-1 nginx -s reload
+
+          sleep 10
+          docker ps --filter name=lawbridge-messaging --format "{{.Names}} {{.Status}}"
+          echo MESSAGING_DEPLOYED
+          '
+          ENCODED=$(printf '%s' "$SCRIPT" | base64 -w 0)
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --parameters commands=["echo $ENCODED | base64 -d | bash"] \
+            --query Command.CommandId --output text)
+          echo "CMD: $CMD_ID"
+          sleep 60
+          aws ssm get-command-invocation \
+            --command-id "$CMD_ID" \
+            --instance-id "$INSTANCE_ID" \
+            --query '[StandardOutputContent,StandardErrorContent]' \
+            --output text
