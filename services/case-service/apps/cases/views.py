@@ -50,10 +50,18 @@ def fetch_json(url, headers=None, timeout=5):
         return json.loads(payload) if payload else []
 
 
+def _lawyer_firms_base_url():
+    """Return the base URL for the lawyer-service firms API, normalised to always end with /api/v1/firms."""
+    raw = getattr(settings, 'LAWYER_SERVICE_URL', 'http://lawyer-service:8003/api/v1/firms').rstrip('/')
+    if '/api/v1' in raw:
+        return raw
+    return f"{raw}/api/v1/firms"
+
+
 def get_firm_member_uuids(auth_header):
     """Return set of auth-service UUIDs for all active members in the user's first firm.
     Used so secretaries can see all cases assigned to lawyers in their firm."""
-    base_url = getattr(settings, 'LAWYER_SERVICE_URL', 'http://lawyer-service:8003/api/v1/firms').rstrip('/')
+    base_url = _lawyer_firms_base_url()
     headers = {'Authorization': auth_header}
     try:
         memberships = fetch_json(f'{base_url}/me/', headers=headers)
@@ -73,7 +81,7 @@ def get_firm_member_uuids(auth_header):
 
 
 def get_user_firm_ids_from_lawyer_service(user_id, internal=False, auth_header=None):
-    base_url = getattr(settings, 'LAWYER_SERVICE_URL', 'http://lawyer-service:8003/api/v1/firms').rstrip('/')
+    base_url = _lawyer_firms_base_url()
     headers = {}
     if internal:
         headers['X-Internal-Api-Key'] = config('INTERNAL_API_KEY', default='dev-internal-key')
