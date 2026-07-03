@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useRef, useState } from 'react'
+import { MarkdownRenderer } from '../../../components/ui/MarkdownRenderer'
 import {
   sendChatMessage,
   listChatSessions,
@@ -165,25 +166,29 @@ function ChatPanel({ token }: { token: string }) {
           )}
           {messages.map((m, i) => (
             <div key={i} className={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold ${
-                m.role === 'user' ? 'bg-gold-500/20 text-gold-400' : 'bg-primary-600/60 text-neutral-300'
+              <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5 ${
+                m.role === 'user' ? 'bg-gold-500/20 text-gold-400' : 'bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300'
               }`}>
                 {m.role === 'user' ? 'Y' : 'AI'}
               </div>
-              <div className={`max-w-[80%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap ${
+              <div className={`max-w-[80%] rounded-xl px-4 py-3 ${
                 m.role === 'user'
-                  ? 'bg-gold-500/10 border border-gold-500/20 text-neutral-100'
-                  : 'bg-primary-900/60 border border-neutral-700/30 text-neutral-200'
+                  ? 'bg-gold-500/10 border border-gold-500/20 text-neutral-100 text-sm whitespace-pre-wrap'
+                  : 'bg-primary-900/60 border border-neutral-700/30'
               }`}>
-                {m.content}
+                {m.role === 'user'
+                  ? m.content
+                  : <MarkdownRenderer content={m.content} />
+                }
               </div>
             </div>
           ))}
           {streaming && streamingText && (
             <div className="flex gap-3">
-              <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold bg-primary-600/60 text-neutral-300">AI</div>
-              <div className="max-w-[80%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap bg-primary-900/60 border border-neutral-700/30 text-neutral-200">
-                {streamingText}<span className="animate-pulse">▍</span>
+              <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 mt-0.5">AI</div>
+              <div className="max-w-[80%] rounded-xl px-4 py-3 bg-primary-900/60 border border-neutral-700/30">
+                <MarkdownRenderer content={streamingText} />
+                <span className="inline-block w-0.5 h-4 bg-gold-400 animate-pulse align-middle ml-0.5" />
               </div>
             </div>
           )}
@@ -1487,7 +1492,8 @@ function ResearchPanel({ token }: { token: string }) {
         {/* Streaming answer */}
         {streaming && streamText && (
           <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-5">
-            <p className="text-sm text-neutral-200 whitespace-pre-wrap">{streamText}<span className="animate-pulse">▍</span></p>
+            <MarkdownRenderer content={streamText} />
+            <span className="inline-block w-0.5 h-4 bg-gold-400 animate-pulse align-middle ml-0.5 mt-1" />
           </div>
         )}
 
@@ -1504,7 +1510,7 @@ function ResearchPanel({ token }: { token: string }) {
                   {result.confidence === 'high' ? 'High Confidence' : result.confidence === 'medium' ? 'Medium Confidence' : 'Low — verify independently'}
                 </span>
               </div>
-              <p className="text-sm text-neutral-200 whitespace-pre-wrap leading-relaxed">{result.answer}</p>
+              <MarkdownRenderer content={result.answer} />
               {result.disclaimer && (
                 <p className="text-xs text-neutral-500 border-t border-neutral-700/30 pt-2">{result.disclaimer}</p>
               )}

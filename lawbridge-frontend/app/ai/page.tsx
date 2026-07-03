@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { sendChatMessage, streamLegalResearch, type ResearchResult, type ResearchCitation } from '../../lib/aiApi'
+import { MarkdownRenderer } from '../../components/ui/MarkdownRenderer'
 
 type Tab = 'chat' | 'research' | 'ask'
 
@@ -116,22 +117,30 @@ function ChatPanel({ token }: { token: string }) {
             {m.role === 'assistant' && (
               <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 text-xs font-bold mt-0.5">AI</div>
             )}
-            <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+            <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
               m.role === 'user'
-                ? 'bg-gold-500/15 text-neutral-100 rounded-tr-sm'
-                : 'bg-primary-800/60 text-neutral-200 rounded-tl-sm border border-white/8'
+                ? 'bg-gold-500/15 text-neutral-100 rounded-tr-sm text-sm leading-relaxed'
+                : 'bg-primary-800/60 rounded-tl-sm border border-white/8'
             }`}>
-              <p className="whitespace-pre-wrap">{m.content}</p>
+              {m.role === 'user'
+                ? <p className="whitespace-pre-wrap text-sm">{m.content}</p>
+                : <MarkdownRenderer content={m.content} />
+              }
             </div>
           </div>
         ))}
 
         {streaming && (
           <div className="flex gap-3 justify-start">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 text-xs font-bold">AI</div>
-            <div className="max-w-[80%] rounded-2xl rounded-tl-sm border border-white/8 bg-primary-800/60 px-4 py-2.5 text-sm leading-relaxed text-neutral-200">
+            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 text-xs font-bold mt-0.5">AI</div>
+            <div className="max-w-[80%] rounded-2xl rounded-tl-sm border border-white/8 bg-primary-800/60 px-4 py-3">
               {streamingText
-                ? <p className="whitespace-pre-wrap">{streamingText}<span className="ml-0.5 inline-block w-1 h-4 bg-gold-400 animate-pulse align-middle" /></p>
+                ? (
+                  <div className="relative">
+                    <MarkdownRenderer content={streamingText} />
+                    <span className="ml-0.5 inline-block w-0.5 h-4 bg-gold-400 animate-pulse align-middle" />
+                  </div>
+                )
                 : <div className="flex gap-1 items-center h-5"><span className="h-1.5 w-1.5 rounded-full bg-gold-400/70 animate-bounce" /><span className="h-1.5 w-1.5 rounded-full bg-gold-400/70 animate-bounce [animation-delay:0.15s]" /><span className="h-1.5 w-1.5 rounded-full bg-gold-400/70 animate-bounce [animation-delay:0.3s]" /></div>
               }
             </div>
@@ -232,14 +241,15 @@ function ResearchPanel({ token }: { token: string }) {
 
       {loading && streamText && (
         <div className="rounded-xl border border-white/8 bg-primary-800/40 p-4">
-          <p className="text-sm text-neutral-200 leading-relaxed whitespace-pre-wrap">{streamText}<span className="ml-0.5 inline-block w-1 h-4 bg-gold-400 animate-pulse align-middle" /></p>
+          <MarkdownRenderer content={streamText} />
+          <span className="ml-0.5 inline-block w-0.5 h-4 bg-gold-400 animate-pulse align-middle mt-1" />
         </div>
       )}
 
       {result && (
         <div className="space-y-4">
           <div className="rounded-xl border border-white/8 bg-primary-800/40 p-4">
-            <p className="text-sm text-neutral-200 leading-relaxed whitespace-pre-wrap">{result.answer}</p>
+            <MarkdownRenderer content={result.answer} />
           </div>
           {result.citations?.length > 0 && (
             <div>
