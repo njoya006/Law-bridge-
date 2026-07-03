@@ -128,6 +128,10 @@ class ThreadConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def check_participant(self):
+        if self.user_role in ('support', 'admin'):
+            return Thread.objects.filter(
+                id=self.thread_id, thread_type='client_support'
+            ).exists()
         return ThreadParticipant.objects.filter(
             thread_id=self.thread_id,
             user_id=self.user_id,

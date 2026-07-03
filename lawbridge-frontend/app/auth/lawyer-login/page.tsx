@@ -28,8 +28,10 @@ export default function LawyerLoginPage() {
         setError('This login is for firm staff only. Please use the client login instead.')
         return
       }
-      applyRoleToSession(result.me, 'lawyer')
-      router.push(role === 'secretary' ? '/secretary/dashboard' : '/lawyer/dashboard')
+      applyRoleToSession(result.me, role === 'secretary' ? 'secretary' : role === 'support' || role === 'admin' ? 'support' : 'lawyer')
+      if (role === 'secretary') { router.push('/secretary/dashboard'); return }
+      if (role === 'support' || role === 'admin') { router.push('/admin'); return }
+      router.push('/lawyer/dashboard')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to sign in')
     } finally {

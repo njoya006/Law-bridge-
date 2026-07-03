@@ -1,0 +1,308 @@
+'use client'
+
+import React, { Suspense, useEffect, useRef, useState } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+
+type Participant = { user_id: string; display_name: string; role: string }
+type LastMessage = { content: string; sender_name: string; created_at: string }
+type Thread = {
+  id: number
+  case_title?: string
+  subject?: string
+  escalated_to_human: boolean
+  is_ai_support: boolean
+  updated_at: string
+  participants: Participant[]
+  last_message?: LastMessage
+  unread_count?: number
+}
+type Message = {
+  id: number
+  content: string
+  sender_id: string
+  sender_name: string
+  sender_role: string
+  is_ai: boolean
+  is_system: boolean
+  created_at: string
+}
+
+function formatTime(iso: string) {
+  const d = new Date(iso)
+  const now = new Date()
+  const diff = now.getTime() - d.getTime()
+  if (diff < 60000) return 'just now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+// ── Thread list ────────────────────────────────────────────────────────────────
+
+function ThreadList({ threads, activeId, onSelect }: {
+  threads: Thread[]
+  activeId: number | null
+  onSelect: (id: number) => void
+}) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b border-white/8 flex-shrink-0">
+        <h2 className="font-semibold text-neutral-100 text-sm">Support Inbox</h2>
+        <p className="text-xs text-neutral-500 mt-0.5">{threads.length} thread{threads.length !== 1 ? 's' : ''}</p>
+      </div>
+      <div className="flex-1 overflow-y-auto divide-y divide-white/5">
+        {threads.map(t => {
+          const client = t.participants?.find(p => p.role === 'client')
+          const active = t.id === activeId
+          return (
+            <button
+              key={t.id}
+              onClick={() => onSelect(t.id)}
+              className={`w-full text-left px-4 py-3 transition-all hover:bg-white/4 ${active ? 'bg-gold-500/8 border-l-2 border-gold-400' : 'border-l-2 border-transparent'}`}
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 text-xs font-bold">
+                  {(client?.display_name?.[0] ?? '?').toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-neutral-200 truncate">{client?.display_name ?? 'Unknown'}</p>
+                    <span className="text-[10px] text-neutral-600 flex-shrink-0">{formatTime(t.updated_at)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    {t.escalated_to_human ? (
+                      <span className="rounded-full bg-amber-500/15 border border-amber-500/25 px-1.5 py-px text-[9px] font-bold text-amber-400 uppercase">Human</span>
+                    ) : (
+                      <span className="rounded-full bg-blue-500/15 border border-blue-500/25 px-1.5 py-px text-[9px] font-bold text-blue-400 uppercase">AI</span>
+                    )}
+                    {t.last_message && (
+                      <p className="text-xs text-neutral-500 truncate">{t.last_message.content}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </button>
+          )
+        })}
+        {threads.length === 0 && (
+          <div className="px-4 py-12 text-center text-neutral-500 text-sm">No support threads</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Message view ───────────────────────────────────────────────────────────────
+
+function MessageView({ threadId, token }: { threadId: number; token: string }) {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+  const wsRef = useRef<WebSocket | null>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setMessages([])
+    setInput('')
+    setError('')
+
+    // Load history via REST
+    fetch(`/api/v1/messages/threads/${threadId}/messages/`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((data: Message[] | { results?: Message[] }) =>
+        setMessages(Array.isArray(data) ? data : (data.results ?? []))
+      )
+      .catch(() => {})
+
+    // WebSocket
+    const wsBase = (process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? 'http://32.197.83.70').replace(/^http/, 'ws')
+    const ws = new WebSocket(`${wsBase}/ws/messages/thread/${threadId}/?token=${token}`)
+    wsRef.current = ws
+
+    ws.onmessage = (e) => {
+      const data = JSON.parse(e.data ?? '{}')
+      if (data.type === 'history') {
+        setMessages(data.messages ?? [])
+      } else if (data.type === 'message') {
+        setMessages(prev => [...prev, {
+          id: data.id,
+          content: data.content,
+          sender_id: data.sender_id,
+          sender_name: data.sender_name,
+          sender_role: data.sender_role,
+          is_ai: data.is_ai ?? false,
+          is_system: false,
+          created_at: data.created_at,
+        }])
+      }
+    }
+
+    return () => { ws.close() }
+  }, [threadId, token])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  async function send() {
+    if (!input.trim() || sending) return
+    const content = input.trim()
+    setInput('')
+    setSending(true)
+    setError('')
+
+    const ws = wsRef.current
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'message', content }))
+      setSending(false)
+    } else {
+      // REST fallback
+      fetch(`/api/v1/messages/threads/${threadId}/messages/`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      })
+        .then(r => r.ok ? r.json() : Promise.reject(r.status))
+        .then((msg: Message) => setMessages(prev => [...prev, msg]))
+        .catch(e => setError(`Send failed (${e})`))
+        .finally(() => setSending(false))
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
+        {messages.map((m, i) => {
+          if (m.is_system) {
+            return (
+              <p key={i} className="text-center text-xs text-neutral-600 py-1">{m.content}</p>
+            )
+          }
+          const isAdmin = m.sender_role === 'support'
+          const isAI = m.is_ai
+          return (
+            <div key={i} className={`flex gap-2 ${isAdmin && !isAI ? 'justify-end' : 'justify-start'}`}>
+              {!isAdmin && (
+                <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 ${
+                  isAI ? 'bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300' : 'bg-primary-700 text-neutral-300'
+                }`}>
+                  {isAI ? 'AI' : m.sender_name?.[0]?.toUpperCase() ?? '?'}
+                </div>
+              )}
+              <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
+                isAdmin && !isAI
+                  ? 'bg-gold-500/15 text-neutral-100 rounded-tr-sm'
+                  : isAI
+                  ? 'bg-blue-500/10 border border-blue-500/15 text-neutral-200 rounded-tl-sm'
+                  : 'bg-primary-800/60 border border-white/8 text-neutral-200 rounded-tl-sm'
+              }`}>
+                {!isAdmin && <p className="text-[10px] font-semibold text-neutral-500 mb-0.5">{isAI ? '🤖 LawBridge AI' : m.sender_name}</p>}
+                <p className="whitespace-pre-wrap">{m.content}</p>
+                <p className="text-[9px] text-neutral-600 mt-1 text-right">{formatTime(m.created_at)}</p>
+              </div>
+            </div>
+          )
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div className="border-t border-white/8 p-4 flex-shrink-0">
+        {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+        <div className="flex gap-2 items-end rounded-2xl border border-white/10 bg-primary-900/60 p-2 focus-within:border-gold-500/30 transition-all">
+          <textarea
+            rows={1}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() } }}
+            placeholder="Reply as LawBridge Support…"
+            className="flex-1 resize-none bg-transparent px-2 py-1 text-sm text-neutral-200 placeholder-neutral-500 outline-none max-h-28"
+          />
+          <button
+            onClick={() => void send()}
+            disabled={!input.trim() || sending}
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-gold-500/20 text-gold-300 transition-all hover:bg-gold-500/30 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-[10px] text-neutral-600 mt-1.5 text-center">Your reply will appear as LawBridge Support in the client&apos;s messages.</p>
+      </div>
+    </div>
+  )
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────────
+
+function SupportPageContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [threads, setThreads] = useState<Thread[]>([])
+  const [loading, setLoading] = useState(true)
+  const [token, setToken] = useState<string | null>(null)
+
+  const initialThread = searchParams.get('thread')
+  const [activeId, setActiveId] = useState<number | null>(initialThread ? parseInt(initialThread) : null)
+
+  useEffect(() => {
+    const t = localStorage.getItem('access')
+    setToken(t)
+    if (!t) return
+
+    fetch('/api/v1/messages/admin/threads/', { headers: { Authorization: `Bearer ${t}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: Thread[]) => {
+        setThreads(data)
+        if (!activeId && data.length > 0) setActiveId(data[0].id)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  function selectThread(id: number) {
+    setActiveId(id)
+    router.push(`/admin/support?thread=${id}`, { scroll: false })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center">
+        <div className="h-8 w-8 rounded-full border-2 border-gold-400/30 border-t-gold-400 animate-spin" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-[calc(100vh-5rem)] rounded-2xl border border-white/8 overflow-hidden bg-primary-900/20">
+      {/* Left: thread list */}
+      <div className="w-72 flex-shrink-0 border-r border-white/8">
+        <ThreadList threads={threads} activeId={activeId} onSelect={selectThread} />
+      </div>
+
+      {/* Right: message view */}
+      <div className="flex-1 min-w-0">
+        {activeId && token ? (
+          <MessageView threadId={activeId} token={token} />
+        ) : (
+          <div className="flex h-full items-center justify-center text-neutral-500 text-sm">
+            Select a thread to view messages
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function AdminSupportPage() {
+  return (
+    <Suspense fallback={<div className="flex h-[70vh] items-center justify-center"><div className="h-8 w-8 rounded-full border-2 border-gold-400/30 border-t-gold-400 animate-spin" /></div>}>
+      <SupportPageContent />
+    </Suspense>
+  )
+}

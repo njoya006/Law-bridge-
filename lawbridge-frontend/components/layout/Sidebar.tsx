@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   DashboardIcon, UploadIcon, AnalysisIcon, ChatIcon, DocumentIcon,
   CaseIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon,
-  SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon, BellIcon, GridIcon,
+  SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon, BellIcon, GridIcon, SparklesIcon,
 } from '../icons/Icons'
 import { clearSession } from '../../lib/authSession'
 
@@ -16,8 +16,7 @@ const NAV = [
   { label: 'Discover',       href: '/discover',       icon: LawIcon },
   { label: 'Bookings',       href: '/bookings',       icon: CaseIcon },
   { label: 'Notifications',  href: '/notifications',  icon: BellIcon },
-  { label: 'Upload',         href: '/upload',         icon: UploadIcon },
-  { label: 'Updates',        href: '/analyses',       icon: AnalysisIcon },
+  { label: 'AI Assistant',   href: '/ai',             icon: SparklesIcon },
   { label: 'Messages',       href: '/messages',       icon: ChatIcon },
   { label: 'Files',          href: '/documents',      icon: DocumentIcon },
   { label: 'Matters',        href: '/cases',          icon: CaseIcon },
@@ -37,11 +36,11 @@ const BOTTOM_NAV = [
 const MORE_ITEMS = [
   { label: 'Bookings',       href: '/bookings',       icon: CaseIcon },
   { label: 'Alerts',         href: '/notifications',  icon: BellIcon },
+  { label: 'AI Assistant',   href: '/ai',             icon: SparklesIcon },
   { label: 'Files',          href: '/documents',      icon: DocumentIcon },
   { label: 'Billing',        href: '/payments',       icon: PaymentIcon },
   { label: 'Settings',       href: '/settings',       icon: SettingsIcon },
   { label: 'Profile',        href: '/profile',        icon: UserIcon },
-  { label: 'Updates',        href: '/analyses',       icon: AnalysisIcon },
   { label: 'Upload',         href: '/upload',         icon: UploadIcon },
 ]
 
@@ -50,8 +49,27 @@ const MORE_ITEMS = [
 function DesktopSidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  const [unreadCount, setUnreadCount] = useState(0)
   const pathname = usePathname()
   const router = useRouter()
+
+  useEffect(() => {
+    async function fetchUnread() {
+      const token = localStorage.getItem('access')
+      if (!token) return
+      try {
+        const res = await fetch('/api/v1/messages/threads/', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return
+        const threads = (await res.json()) as Array<{ unread_count?: number }>
+        setUnreadCount(threads.reduce((s, t) => s + (t.unread_count || 0), 0))
+      } catch { /* silent */ }
+    }
+    fetchUnread()
+    const iv = setInterval(fetchUnread, 30000)
+    return () => clearInterval(iv)
+  }, [])
 
   useEffect(() => {
     document.body.dataset.sidebarMode = collapsed ? 'desktop-collapsed' : 'desktop-expanded'
@@ -133,7 +151,12 @@ function DesktopSidebar() {
                 </span>
               </span>
               {!collapsed && <span className="relative z-10 font-medium text-sm">{item.label}</span>}
-              {active && !collapsed && (
+              {!collapsed && item.label === 'Messages' && unreadCount > 0 && (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+              {active && !collapsed && item.label !== 'Messages' && (
                 <span className="ml-auto h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_12px_rgba(201,146,58,0.7)] animate-pulse-subtle" />
               )}
             </Link>
@@ -180,6 +203,25 @@ function MobileBottomNav() {
   const pathname = usePathname()
   const router = useRouter()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    async function fetchUnread() {
+      const token = localStorage.getItem('access')
+      if (!token) return
+      try {
+        const res = await fetch('/api/v1/messages/threads/', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return
+        const threads = (await res.json()) as Array<{ unread_count?: number }>
+        setUnreadCount(threads.reduce((s, t) => s + (t.unread_count || 0), 0))
+      } catch { /* silent */ }
+    }
+    fetchUnread()
+    const iv = setInterval(fetchUnread, 30000)
+    return () => clearInterval(iv)
+  }, [])
 
   function handleLogout() {
     clearSession()
@@ -275,8 +317,13 @@ function MobileBottomNav() {
                 {active && (
                   <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-gold-400 shadow-[0_0_8px_rgba(201,146,58,0.8)]" />
                 )}
-                <span className={`flex items-center justify-center transition-transform duration-150 ${active ? 'scale-110' : ''}`}>
+                <span className={`relative flex items-center justify-center transition-transform duration-150 ${active ? 'scale-110' : ''}`}>
                   <Icon width={20} height={20} />
+                  {item.label === 'Messages' && unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </span>
                 <span className="text-[9px] font-semibold uppercase tracking-wider">{item.label}</span>
               </Link>

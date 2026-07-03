@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    path('admin/threads/', views.AdminSupportThreadsView.as_view()),
     path('threads/', views.ThreadListCreateView.as_view()),
     path('threads/<int:pk>/', views.ThreadDetailView.as_view()),
     path('threads/<int:pk>/messages/', views.MessageListView.as_view()),

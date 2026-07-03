@@ -237,6 +237,21 @@ def toggle_reaction(request, pk, message_id):
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+class AdminSupportThreadsView(APIView):
+    """GET /api/v1/messages/admin/threads/ — all client_support threads for support/admin roles."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        role = _role(request)
+        if role not in ('support', 'admin'):
+            return Response({'detail': 'Forbidden'}, status=403)
+        threads = Thread.objects.filter(
+            thread_type='client_support'
+        ).prefetch_related('participants').order_by('-updated_at')
+        serializer = ThreadSerializer(threads, many=True, context={'request': request})
+        return Response(serializer.data)
+
+
 def _welcome_text(thread_type, case_title):
     names = {
         'client_lawyer': 'lawyer',

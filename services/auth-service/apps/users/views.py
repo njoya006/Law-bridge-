@@ -250,3 +250,26 @@ class PasswordResetConfirmView(APIView):
         # Invalidate all other reset tokens for this user
         PasswordResetToken.objects.filter(user=user, used=False).update(used=True)
         return Response({'detail': 'Password updated successfully. You can now sign in.'})
+
+
+class AdminUserListView(APIView):
+    """GET /api/v1/auth/admin/users/ — all users; requires support or admin role."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role not in ('support', 'admin'):
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        users = User.objects.all().order_by('-created_at').values(
+            'id', 'email', 'full_name', 'role', 'created_at'
+        )
+        data = [
+            {
+                'id': str(u['id']),
+                'email': u['email'],
+                'full_name': u['full_name'] or '',
+                'role': u['role'],
+                'created_at': u['created_at'].isoformat() if u['created_at'] else None,
+            }
+            for u in users
+        ]
+        return Response({'count': len(data), 'results': data})

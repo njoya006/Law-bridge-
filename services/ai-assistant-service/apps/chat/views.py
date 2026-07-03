@@ -1539,3 +1539,35 @@ class IntakeGenerateView(APIView):
             return Response({'error': 'AI returned unexpected format. Please try again.'}, status=502)
 
         return Response({'form_fields': fields, 'case_type': case_type, 'circuit': circuit})
+
+
+# ── Internal: AI support-reply ─────────────────────────────────────────────────
+
+class SupportReplyView(APIView):
+    """Called internally by messaging-service to auto-reply to support threads."""
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        message = request.data.get('message', '')
+        case_id = request.data.get('case_id')
+
+        prompt = (
+            "You are LawBridge Support AI, a helpful and professional customer support agent "
+            "for a legal services platform operating in Cameroon. "
+            "A client has sent a support message. Reply helpfully and concisely in plain language. "
+            "If the issue requires case-specific legal advice, politely explain that a human support "
+            "agent or licensed lawyer will follow up. Keep your reply under 150 words.\n\n"
+            f"Client message: {message}"
+        )
+
+        try:
+            ai = get_ai_client(settings)
+            reply_text = ai.complete(prompt, max_tokens=300)
+        except Exception as exc:
+            logger.warning("Support reply AI error: %s", exc)
+            reply_text = (
+                "Thank you for reaching out. A member of our support team will review your "
+                "message and get back to you shortly."
+            )
+
+        return Response({'reply': reply_text})
