@@ -1,7 +1,7 @@
 'use client'
 
 import React, { Suspense, useState, useEffect, useRef } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import {
   listThreads, createThread, listMessages, sendMessage,
   markRead, escalateToHuman, toggleReaction, getWebSocketUrl,
