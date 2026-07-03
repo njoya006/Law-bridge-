@@ -1,0 +1,67 @@
+name: Debug — check INTERNAL_API_KEY and test firm lookup via Python
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Diagnose internal key mismatch and test firm lookup
+        run: |
+          SCRIPT='
+          echo "=== INTERNAL_API_KEY in case-service ==="
+          docker exec lawbridge-case-service-1 python3 -c "from decouple import config; print(repr(config(\"INTERNAL_API_KEY\", default=\"dev-internal-key\")))" 2>&1
+
+          echo "=== INTERNAL_API_KEY in lawyer-service ==="
+          docker exec lawbridge-lawyer-service-1 python3 -c "from decouple import config; print(repr(config(\"INTERNAL_API_KEY\", default=\"dev-internal-key\")))" 2>&1
+
+          echo "=== Test internal firm endpoint via Python from case-service ==="
+          docker exec lawbridge-case-service-1 python3 -c "
+import urllib.request, json
+from decouple import config
+key = config(\"INTERNAL_API_KEY\", default=\"dev-internal-key\")
+url = \"http://lawyer-service:8003/api/v1/firms/internal/users/240bbc06-751e-467e-b110-ea46d0ea2b60/memberships/\"
+req = urllib.request.Request(url, headers={\"X-Internal-Api-Key\": key})
+try:
+    with urllib.request.urlopen(req, timeout=5) as r:
+        print(\"STATUS:\", r.status)
+        print(\"BODY:\", r.read().decode())
+except Exception as e:
+    print(\"ERROR:\", type(e).__name__, str(e))
+" 2>&1
+
+          echo "=== LAWYER_SERVICE_URL in case-service ==="
+          docker exec lawbridge-case-service-1 python3 -c "from django.conf import settings; import os; os.environ.setdefault(\"DJANGO_SETTINGS_MODULE\", \"core.settings\"); import django; django.setup(); print(getattr(settings, \"LAWYER_SERVICE_URL\", \"NOT_SET\"))" 2>&1
+
+          echo "=== Test get_user_firm_ids_from_lawyer_service directly ==="
+          docker exec lawbridge-case-service-1 python3 -c "
+import os
+os.environ.setdefault(\"DJANGO_SETTINGS_MODULE\", \"core.settings\")
+import django
+django.setup()
+from apps.cases.views import get_user_firm_ids_from_lawyer_service
+result = get_user_firm_ids_from_lawyer_service(\"240bbc06-751e-467e-b110-ea46d0ea2b60\", internal=True)
+print(\"FIRM_IDS:\", result)
+" 2>&1
+          '
+          ENCODED=$(echo "$SCRIPT" | base64 -w 0)
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids i-031445edd3e88f5fe \
+            --document-name AWS-RunShellScript \
+            --parameters commands=["echo $ENCODED | base64 -d | bash"] \
+            --query Command.CommandId --output text)
+          echo "CMD: $CMD_ID"
+          sleep 30
+          aws ssm get-command-invocation \
+            --command-id "$CMD_ID" \
+            --instance-id i-031445edd3e88f5fe \
+            --query '[StandardOutputContent,StandardErrorContent]' \
+            --output text
