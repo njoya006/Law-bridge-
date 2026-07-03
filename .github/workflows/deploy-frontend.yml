@@ -26,11 +26,25 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Strip BOM from token
+      - name: Clean token
         env:
           VERCEL_TOKEN_RAW: ${{ secrets.VERCEL_TOKEN }}
-        run: python3 -c "import os; t=os.environ['VERCEL_TOKEN_RAW'].encode('utf-8').decode('utf-8-sig').strip(); open('/tmp/vt','w').write(t)"
+        run: |
+          python3 << 'PYEOF'
+          import os, re, sys
+          raw = os.environ['VERCEL_TOKEN_RAW']
+          clean = raw.encode('utf-8').decode('utf-8-sig')
+          clean = re.sub(r'[^\x21-\x7e]', '', clean)
+          print("Cleaned token length:", len(clean))
+          print("First 4 chars:", repr(clean[:4]))
+          if len(clean) < 10:
+              print("ERROR: token too short or empty")
+              sys.exit(1)
+          open('/tmp/vt', 'w').write(clean)
+          PYEOF
 
       - name: Deploy to Vercel (production)
         working-directory: lawbridge-frontend
-        run: vercel --prod --token "$(cat /tmp/vt)" --yes
+        run: |
+          export VERCEL_TOKEN=$(cat /tmp/vt)
+          vercel --prod --yes
