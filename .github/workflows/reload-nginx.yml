@@ -16,7 +16,7 @@ jobs:
 
       - name: Pull and reload nginx
         run: |
-          SCRIPT='cd /opt/lawbridge && git pull origin main && docker exec lawbridge-nginx-1 nginx -t && docker exec lawbridge-nginx-1 nginx -s reload && echo NGINX_RELOADED'
+          SCRIPT='cd /opt/lawbridge && git pull origin main && docker compose restart nginx && sleep 3 && docker exec lawbridge-nginx-1 nginx -t && echo NGINX_RELOADED'
           ENCODED=$(echo "$SCRIPT" | base64 -w 0)
           CMD_ID=$(aws ssm send-command \
             --instance-ids i-031445edd3e88f5fe \
