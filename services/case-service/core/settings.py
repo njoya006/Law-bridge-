@@ -109,7 +109,7 @@ CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
     default='http://localhost:3000,https://lawbridge.vercel.app',
 ).split(',')
-LAWYER_SERVICE_URL = config('LAWYER_SERVICE_URL', default='http://lawyer-service/api/v1/firms')
+LAWYER_SERVICE_URL = config('LAWYER_SERVICE_URL', default='http://lawyer-service:8003/api/v1/firms')
 
 
 from datetime import timedelta
