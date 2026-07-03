@@ -358,7 +358,7 @@ class IncomingBookingsView(APIView):
         auth_header = get_auth_header(request)
 
         # Fetch firm IDs this user belongs to so firm bookings are visible to all members
-        user_firm_ids = get_user_firm_ids_from_lawyer_service(user_id, auth_header=auth_header)
+        user_firm_ids = get_user_firm_ids_from_lawyer_service(user_id, internal=True)
 
         from django.db.models import Q
         # Direct lawyer bookings (target_id == lawyer's auth UUID)

@@ -241,7 +241,7 @@ class UserFirmMembershipsView(APIView):
     def get(self, request, user_id):
         if not is_internal_request(request):
             return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
-        memberships = FirmMembership.objects.filter(user_id=user_id, is_active=True).select_related('firm')
+        memberships = FirmMembership.objects.filter(user_uuid=user_id, is_active=True).select_related('firm')
         serializer = FirmMembershipSerializer(memberships, many=True)
         return Response(serializer.data)
 
