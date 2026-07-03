@@ -2,7 +2,11 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { sendChatMessage, streamLegalResearch, type ResearchResult, type ResearchCitation } from '../../lib/aiApi'
+import {
+  sendChatMessage, streamLegalResearch,
+  listChatSessions, getChatSession, deleteChatSession,
+  type ChatSession, type ResearchResult, type ResearchCitation,
+} from '../../lib/aiApi'
 import { MarkdownRenderer } from '../../components/ui/MarkdownRenderer'
 
 type Tab = 'chat' | 'research' | 'ask'
@@ -32,24 +36,141 @@ function MsgIcon() {
   )
 }
 
-// ── Chat Panel ────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 type Msg = { role: 'user' | 'assistant'; content: string }
 
+function relTime(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  if (diff < 60000) return 'just now'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
+  if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+// ── Sessions Sidebar ──────────────────────────────────────────────────────────
+
+function SessionsSidebar({
+  sessions,
+  activeId,
+  onSelect,
+  onNew,
+  onDelete,
+}: {
+  sessions: ChatSession[]
+  activeId: string | null
+  onSelect: (id: string) => void
+  onNew: () => void
+  onDelete: (e: React.MouseEvent, id: string) => void
+}) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-3 flex-shrink-0">
+        <button
+          onClick={onNew}
+          className="w-full flex items-center justify-center gap-2 rounded-xl border border-gold-500/25 bg-gold-500/8 px-3 py-2 text-xs font-semibold text-gold-400 transition-all hover:bg-gold-500/15 hover:border-gold-500/40"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          New Chat
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5">
+        {sessions.length === 0 && (
+          <p className="text-center text-xs text-neutral-600 py-6 px-3">No past conversations yet.</p>
+        )}
+        {sessions.map(s => (
+          <div
+            key={s.id}
+            onClick={() => onSelect(s.id)}
+            className={`group relative flex flex-col rounded-lg px-3 py-2 cursor-pointer transition-all ${
+              s.id === activeId
+                ? 'bg-gold-500/10 border border-gold-500/20'
+                : 'hover:bg-white/5 border border-transparent'
+            }`}
+          >
+            <p className={`text-xs font-medium truncate pr-6 leading-snug ${s.id === activeId ? 'text-neutral-100' : 'text-neutral-300'}`}>
+              {s.title || 'Untitled chat'}
+            </p>
+            <p className="text-[10px] text-neutral-600 mt-0.5">{relTime(s.updated_at)}</p>
+            <button
+              onClick={(e) => onDelete(e, s.id)}
+              className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 rounded-md p-0.5 text-neutral-600 hover:text-red-400 transition-all"
+              title="Delete"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Chat Panel ────────────────────────────────────────────────────────────────
+
 function ChatPanel({ token }: { token: string }) {
+  const [sessions, setSessions] = useState<ChatSession[]>([])
+  const [activeId, setActiveId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState('')
-  const [sessionId, setSessionId] = useState<string | undefined>(undefined)
   const [error, setError] = useState('')
+  const [loadingSession, setLoadingSession] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const accRef = useRef('')
 
   useEffect(() => {
+    listChatSessions(token).then(setSessions).catch(() => {})
+  }, [token])
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamingText])
+
+  async function openSession(id: string) {
+    if (id === activeId || loadingSession) return
+    setLoadingSession(true)
+    setActiveId(id)
+    setMessages([])
+    setInput('')
+    setError('')
+    setSidebarOpen(false)
+    try {
+      const s = await getChatSession(id, token)
+      setMessages((s.messages ?? []).map((m: { role: 'user' | 'assistant'; content: string }) => ({
+        role: m.role,
+        content: m.content,
+      })))
+    } catch {
+      setError('Could not load this conversation.')
+    } finally {
+      setLoadingSession(false)
+    }
+  }
+
+  function newChat() {
+    setActiveId(null)
+    setMessages([])
+    setInput('')
+    setError('')
+    setSidebarOpen(false)
+  }
+
+  async function deleteSession(e: React.MouseEvent, id: string) {
+    e.stopPropagation()
+    await deleteChatSession(id, token).catch(() => {})
+    setSessions(prev => prev.filter(s => s.id !== id))
+    if (activeId === id) newChat()
+  }
 
   async function send() {
     if (!input.trim() || streaming) return
@@ -61,8 +182,18 @@ function ChatPanel({ token }: { token: string }) {
     setStreamingText('')
     accRef.current = ''
 
+    let sid = activeId ?? undefined
+
     await sendChatMessage(msg, token, {
-      onSessionId: (id) => setSessionId(id),
+      onSessionId: (id) => {
+        sid = id
+        setActiveId(id)
+        setSessions(prev =>
+          prev.some(s => s.id === id)
+            ? prev.map(s => s.id === id ? { ...s, updated_at: new Date().toISOString() } : s)
+            : [{ id, title: msg.slice(0, 55), language: 'en', case_id: null, updated_at: new Date().toISOString() }, ...prev]
+        )
+      },
       onToken: (t) => {
         accRef.current += t
         setStreamingText(accRef.current)
@@ -72,107 +203,168 @@ function ChatPanel({ token }: { token: string }) {
         setStreaming(false)
         setStreamingText('')
         if (final) setMessages(prev => [...prev, { role: 'assistant', content: final }])
+        if (sid) setSessions(prev => prev.map(s => s.id === sid ? { ...s, updated_at: new Date().toISOString() } : s))
       },
       onError: (e) => { setError(e); setStreaming(false) },
-    }, sessionId)
-  }
-
-  function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() }
+    }, sid)
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
-        {messages.length === 0 && !streaming && (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-center py-12">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300">
-              <SparkIcon />
-            </div>
-            <div>
-              <h3 className="font-semibold text-neutral-200 text-lg">LexAI — Your Legal Assistant</h3>
-              <p className="text-sm text-neutral-500 mt-1 max-w-md">Ask any legal question. I specialise in Cameroonian law, OHADA, and Common Law.</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-left max-w-lg w-full">
-              {[
-                'What are my rights if my landlord evicts me without notice?',
-                'How do I file a small claims case in Cameroon?',
-                'What does OHADA law say about business contracts?',
-                'Can my employer fire me without compensation?',
-              ].map(q => (
-                <button
-                  key={q}
-                  onClick={() => { setInput(q); inputRef.current?.focus() }}
-                  className="rounded-xl border border-white/8 bg-primary-800/40 px-3 py-2.5 text-left text-xs text-neutral-400 transition-all hover:border-gold-500/25 hover:bg-gold-500/5 hover:text-neutral-200"
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {messages.map((m, i) => (
-          <div key={i} className={`flex gap-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            {m.role === 'assistant' && (
-              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 text-xs font-bold mt-0.5">AI</div>
-            )}
-            <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-              m.role === 'user'
-                ? 'bg-gold-500/15 text-neutral-100 rounded-tr-sm text-sm leading-relaxed'
-                : 'bg-primary-800/60 rounded-tl-sm border border-white/8'
-            }`}>
-              {m.role === 'user'
-                ? <p className="whitespace-pre-wrap text-sm">{m.content}</p>
-                : <MarkdownRenderer content={m.content} />
-              }
-            </div>
-          </div>
-        ))}
-
-        {streaming && (
-          <div className="flex gap-3 justify-start">
-            <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 text-xs font-bold mt-0.5">AI</div>
-            <div className="max-w-[80%] rounded-2xl rounded-tl-sm border border-white/8 bg-primary-800/60 px-4 py-3">
-              {streamingText
-                ? (
-                  <div className="relative">
-                    <MarkdownRenderer content={streamingText} />
-                    <span className="ml-0.5 inline-block w-0.5 h-4 bg-gold-400 animate-pulse align-middle" />
-                  </div>
-                )
-                : <div className="flex gap-1 items-center h-5"><span className="h-1.5 w-1.5 rounded-full bg-gold-400/70 animate-bounce" /><span className="h-1.5 w-1.5 rounded-full bg-gold-400/70 animate-bounce [animation-delay:0.15s]" /><span className="h-1.5 w-1.5 rounded-full bg-gold-400/70 animate-bounce [animation-delay:0.3s]" /></div>
-              }
-            </div>
-          </div>
-        )}
-
-        {error && <p className="text-center text-xs text-red-400">{error}</p>}
-        <div ref={bottomRef} />
-      </div>
-
-      <div className="border-t border-white/8 p-4 flex-shrink-0">
-        <div className="flex gap-2 items-end rounded-2xl border border-white/10 bg-primary-900/60 p-2 focus-within:border-gold-500/30 transition-all">
-          <textarea
-            ref={inputRef}
-            rows={1}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKey}
-            placeholder="Ask a legal question…"
-            className="flex-1 resize-none bg-transparent px-2 py-1 text-sm text-neutral-200 placeholder-neutral-500 outline-none max-h-32"
+    <div className="flex h-full overflow-hidden">
+      {/* ── Sessions sidebar (desktop always visible, mobile overlay) ── */}
+      <>
+        {/* Mobile overlay backdrop */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-20 bg-black/50 md:hidden"
+            onClick={() => setSidebarOpen(false)}
           />
+        )}
+
+        {/* Sidebar panel */}
+        <aside className={`
+          flex-shrink-0 border-r border-white/8 bg-primary-900/40 overflow-hidden transition-all duration-200
+          md:w-52 md:translate-x-0 md:relative md:z-auto
+          ${sidebarOpen
+            ? 'fixed inset-y-0 left-0 z-30 w-64 translate-x-0'
+            : 'fixed inset-y-0 left-0 z-30 w-64 -translate-x-full md:w-52 md:translate-x-0 md:relative'
+          }
+        `}>
+          <div className="flex items-center justify-between px-3 pt-3 pb-1 md:hidden">
+            <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">Conversations</p>
+            <button onClick={() => setSidebarOpen(false)} className="text-neutral-500 hover:text-neutral-300">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="hidden md:flex items-center gap-2 px-3 pt-3 pb-1">
+            <p className="text-[10px] font-semibold text-neutral-600 uppercase tracking-widest">Conversations</p>
+          </div>
+          <SessionsSidebar
+            sessions={sessions}
+            activeId={activeId}
+            onSelect={openSession}
+            onNew={newChat}
+            onDelete={deleteSession}
+          />
+        </aside>
+      </>
+
+      {/* ── Main chat area ── */}
+      <div className="flex flex-col flex-1 min-w-0 h-full">
+        {/* Mobile sidebar toggle */}
+        <div className="md:hidden flex items-center gap-2 px-3 py-2 border-b border-white/8 flex-shrink-0">
           <button
-            onClick={() => void send()}
-            disabled={!input.trim() || streaming}
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-gold-500/20 text-gold-300 transition-all hover:bg-gold-500/30 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+            onClick={() => setSidebarOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-neutral-400 border border-white/8 hover:text-neutral-200 hover:bg-white/5 transition-all"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h7" />
             </svg>
+            {activeId ? sessions.find(s => s.id === activeId)?.title?.slice(0, 24) || 'Current chat' : 'New chat'}
           </button>
         </div>
-        <p className="mt-2 text-center text-[10px] text-neutral-600">LexAI may make mistakes. Verify important legal information with a licensed lawyer.</p>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+          {loadingSession && (
+            <div className="flex items-center justify-center h-full">
+              <div className="h-6 w-6 rounded-full border-2 border-gold-400/30 border-t-gold-400 animate-spin" />
+            </div>
+          )}
+
+          {!loadingSession && messages.length === 0 && !streaming && (
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-center py-12">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300">
+                <SparkIcon />
+              </div>
+              <div>
+                <h3 className="font-semibold text-neutral-200 text-lg">LexAI — Your Legal Assistant</h3>
+                <p className="text-sm text-neutral-500 mt-1 max-w-md">Ask any legal question. I specialise in Cameroonian law, OHADA, and Common Law.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 text-left max-w-lg w-full">
+                {[
+                  'What are my rights if my landlord evicts me without notice?',
+                  'How do I file a small claims case in Cameroon?',
+                  'What does OHADA law say about business contracts?',
+                  'Can my employer fire me without compensation?',
+                ].map(q => (
+                  <button
+                    key={q}
+                    onClick={() => { setInput(q); inputRef.current?.focus() }}
+                    className="rounded-xl border border-white/8 bg-primary-800/40 px-3 py-2.5 text-left text-xs text-neutral-400 transition-all hover:border-gold-500/25 hover:bg-gold-500/5 hover:text-neutral-200"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!loadingSession && messages.map((m, i) => (
+            <div key={i} className={`flex gap-3 ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              {m.role === 'assistant' && (
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 text-xs font-bold mt-0.5">AI</div>
+              )}
+              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                m.role === 'user'
+                  ? 'bg-gold-500/15 text-neutral-100 rounded-tr-sm'
+                  : 'bg-primary-800/60 rounded-tl-sm border border-white/8'
+              }`}>
+                {m.role === 'user'
+                  ? <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</p>
+                  : <MarkdownRenderer content={m.content} />
+                }
+              </div>
+            </div>
+          ))}
+
+          {streaming && (
+            <div className="flex gap-3 justify-start">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 text-xs font-bold mt-0.5">AI</div>
+              <div className="max-w-[80%] rounded-2xl rounded-tl-sm border border-white/8 bg-primary-800/60 px-4 py-3">
+                {streamingText
+                  ? (
+                    <div>
+                      <MarkdownRenderer content={streamingText} />
+                      <span className="inline-block w-0.5 h-4 bg-gold-400 animate-pulse align-middle ml-0.5" />
+                    </div>
+                  )
+                  : <div className="flex gap-1 items-center h-5"><span className="h-1.5 w-1.5 rounded-full bg-gold-400/70 animate-bounce" /><span className="h-1.5 w-1.5 rounded-full bg-gold-400/70 animate-bounce [animation-delay:0.15s]" /><span className="h-1.5 w-1.5 rounded-full bg-gold-400/70 animate-bounce [animation-delay:0.3s]" /></div>
+                }
+              </div>
+            </div>
+          )}
+
+          {error && <p className="text-center text-xs text-red-400">{error}</p>}
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Input */}
+        <div className="border-t border-white/8 p-4 flex-shrink-0">
+          <div className="flex gap-2 items-end rounded-2xl border border-white/10 bg-primary-900/60 p-2 focus-within:border-gold-500/30 transition-all">
+            <textarea
+              ref={inputRef}
+              rows={1}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() } }}
+              placeholder="Ask a legal question…"
+              className="flex-1 resize-none bg-transparent px-2 py-1 text-sm text-neutral-200 placeholder-neutral-500 outline-none max-h-32"
+            />
+            <button
+              onClick={() => void send()}
+              disabled={!input.trim() || streaming}
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-gold-500/20 text-gold-300 transition-all hover:bg-gold-500/30 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </button>
+          </div>
+          <p className="mt-2 text-center text-[10px] text-neutral-600">LexAI may make mistakes. Verify important legal information with a licensed lawyer.</p>
+        </div>
       </div>
     </div>
   )
