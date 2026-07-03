@@ -35,6 +35,7 @@ function PortalShell({ children }: { children: React.ReactNode }) {
     )
   }
 
+
   // portalRole not yet read from localStorage (pre-hydration) — render without sidebar
   return <>{children}</>
 }
