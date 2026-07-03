@@ -1,0 +1,56 @@
+name: Debug — check firm patch state and test internal endpoint
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Check patch state and test firm endpoints
+        run: |
+          SCRIPT='
+          echo "=== CASE-SERVICE patch check ==="
+          docker exec lawbridge-case-service-1 grep -n "internal=True\|auth_header=auth_header" /app/apps/cases/views.py | head -5
+
+          echo "=== LAWYER-SERVICE patch check ==="
+          docker exec lawbridge-lawyer-service-1 grep -n "user_uuid\|user_id=user_id" /app/apps/firms/views.py | head -5
+
+          echo "=== DB: FirmMembership user_uuid for Emmanuel ==="
+          docker exec lawbridge-postgres-1 psql -U lawbridge_user -d lawyer_db -c "SELECT fm.id, fm.firm_id, fm.role, fm.is_active, fm.user_uuid, u.username FROM firms_firmmembership fm JOIN auth_user u ON u.id=fm.user_id WHERE u.username='"'"'emmanuel.nji@nji-associates.cm'"'"';" 2>&1
+
+          echo "=== Internal endpoint test ==="
+          EMMANUEL_UUID=$(docker exec lawbridge-postgres-1 psql -U lawbridge_user -d auth_db -t -c "SELECT id FROM users_user WHERE email='"'"'emmanuel.nji@nji-associates.cm'"'"';" 2>&1 | tr -d " \n")
+          echo "EMMANUEL_UUID=$EMMANUEL_UUID"
+          curl -s -H "X-Internal-Api-Key: dev-internal-key" \
+            "http://localhost/api/v1/lawyers/firms/internal/users/$EMMANUEL_UUID/memberships/" 2>&1
+
+          echo "=== /firms/me/ with JWT ==="
+          TOKEN=$(curl -s -X POST http://localhost/api/v1/auth/login/ \
+            -H "Content-Type: application/json" \
+            -d '"'"'{"email":"emmanuel.nji@nji-associates.cm","password":"LawBridge@2024"}'"'"' \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('"'"'access'"'"','"'"'ERR'"'"'))")
+          echo "TOKEN=${TOKEN:0:30}..."
+          curl -s -H "Authorization: Bearer $TOKEN" \
+            "http://localhost/api/v1/lawyers/firms/me/" 2>&1
+          '
+          ENCODED=$(echo "$SCRIPT" | base64 -w 0)
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids i-031445edd3e88f5fe \
+            --document-name AWS-RunShellScript \
+            --parameters commands=["echo $ENCODED | base64 -d | bash"] \
+            --query Command.CommandId --output text)
+          echo "CMD: $CMD_ID"
+          sleep 30
+          aws ssm get-command-invocation \
+            --command-id "$CMD_ID" \
+            --instance-id i-031445edd3e88f5fe \
+            --query '[StandardOutputContent,StandardErrorContent]' \
+            --output text
