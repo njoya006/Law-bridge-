@@ -54,10 +54,10 @@ export default function AdminDashboard() {
           .then((data: SupportThread[]) => setThreads(data.slice(0, 8))),
         fetch('/api/v1/auth/admin/users/', { headers })
           .then(r => r.ok ? r.json() : { results: [], count: 0 })
-          .then((data: { count?: number; results?: unknown[] }) => setUserCount(data.count ?? data.results?.length ?? '?')),
+          .then((data: { count?: number; results?: unknown[] }) => setUserCount(data.count ?? data.results?.length ?? '…')),
         fetch('/api/v1/cases/?status=in_progress', { headers })
           .then(r => r.ok ? r.json() : { count: 0 })
-          .then((data: { count?: number }) => setActiveCases(data.count ?? '?')),
+          .then((data: { count?: number }) => setActiveCases(data.count ?? '…')),
       ])
       setLoading(false)
     }

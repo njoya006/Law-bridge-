@@ -28,7 +28,7 @@ export default function LawyerLoginPage() {
         setError('This login is for firm staff only. Please use the client login instead.')
         return
       }
-      applyRoleToSession(result.me, role === 'secretary' ? 'secretary' : role === 'support' || role === 'admin' ? 'support' : 'lawyer')
+      applyRoleToSession(result.me, role === 'secretary' ? undefined : 'lawyer')
       if (role === 'secretary') { router.push('/secretary/dashboard'); return }
       if (role === 'support' || role === 'admin') { router.push('/admin'); return }
       router.push('/lawyer/dashboard')
