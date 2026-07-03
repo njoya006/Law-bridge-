@@ -44,7 +44,6 @@ jobs:
           PYEOF
 
       - name: Deploy to Vercel (production)
-        working-directory: lawbridge-frontend
         run: |
           export VERCEL_TOKEN=$(cat /tmp/vt)
           vercel --prod --yes
