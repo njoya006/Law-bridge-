@@ -1,13 +1,14 @@
 'use client'
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import {
-  getMyFirmMemberships, getFirmMembers, getFirmPendingInvites,
+  getMyFirmMemberships, getFirmMembers, getFirmDetail, getFirmPendingInvites,
   getFirmActivity, inviteFirmMember, updateFirmMemberRole, removeFirmMember,
   cancelFirmInvite, createFirm,
   type FirmMembership, type FirmInvite, type FirmActionLog, type Firm,
 } from '../../../lib/firmsApi'
+import { uploadFirmLogo, validateImageFile } from '../../../lib/avatarApi'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -464,6 +465,81 @@ function MemberCard({ member, isAdmin, currentUserId, onRoleChange, onRemove }: 
   )
 }
 
+// ─── Firm logo uploader (owner / firm_admin only) ─────────────────────────────
+
+function FirmLogoUploader({ firmId, currentLogoUrl, onUploaded }: {
+  firmId: number
+  currentLogoUrl: string | null
+  onUploaded: (url: string) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [preview, setPreview] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
+
+  const displayUrl = preview ?? currentLogoUrl ?? null
+
+  const handleFile = async (file: File) => {
+    const err = validateImageFile(file)
+    if (err) { setError(err); return }
+    setError('')
+    setPreview(URL.createObjectURL(file))
+    setUploading(true)
+    try {
+      const token = localStorage.getItem('access') ?? ''
+      const { logo_url } = await uploadFirmLogo(firmId, file, token)
+      onUploaded(logo_url)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Upload failed')
+      setPreview(null)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-4">
+      <div
+        className="relative h-16 w-16 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer border border-neutral-700/50 hover:border-gold-400/50 transition-colors group bg-primary-800/40"
+        onClick={() => inputRef.current?.click()}
+        title="Click to upload firm logo"
+      >
+        {displayUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={displayUrl} alt="Firm logo" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-1">
+            <svg className="w-6 h-6 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M4.5 19.5h15a.75.75 0 00.75-.75V6a.75.75 0 00-.75-.75h-15A.75.75 0 003.75 6v12.75c0 .414.336.75.75.75z" />
+            </svg>
+            <span className="text-[10px] text-neutral-500">Add logo</span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          {uploading
+            ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+            : <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+          }
+        </div>
+      </div>
+      <div className="text-xs text-neutral-400 space-y-0.5">
+        <p className="font-medium text-neutral-300">Firm Logo</p>
+        <p>JPEG, PNG or WebP · max 5 MB</p>
+        <p>Only admins &amp; owners can change this</p>
+        {error && <p className="text-crimson-300">{error}</p>}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) void handleFile(f); e.target.value = '' }}
+      />
+    </div>
+  )
+}
+
+
 // ─── Create firm inline ────────────────────────────────────────────────────────
 
 function CreateFirmInline({ onCreated }: { onCreated: () => void }) {
@@ -514,7 +590,7 @@ type Tab = 'members' | 'invites' | 'activity'
 export default function LawyerTeamPage() {
   const [tab, setTab] = useState<Tab>('members')
   const [myMembership, setMyMembership] = useState<FirmMembership | null>(null)
-  const [firm, setFirm] = useState<{ id: number; name: string } | null>(null)
+  const [firm, setFirm] = useState<{ id: number; name: string; logo_url?: string | null } | null>(null)
   const [members, setMembers] = useState<FirmMembership[]>([])
   const [pendingInvites, setPendingInvites] = useState<FirmInvite[]>([])
   const [activityLog, setActivityLog] = useState<FirmActionLog[]>([])
@@ -544,16 +620,19 @@ export default function LawyerTeamPage() {
       }
 
       setMyMembership(primary)
-      setFirm({ id: primary.firm, name: '' })
       setCurrentUserId(primary.user)
 
-      const [mems] = await Promise.all([
+      const [mems, firmDetail] = await Promise.allSettled([
         getFirmMembers(primary.firm, token),
+        getFirmDetail(primary.firm, token),
       ])
-      setMembers(mems)
-
-      // Firm name from members response context (use first member's firm id to fetch)
-      // already have firm id; fetch name via detail if needed — skip for now, sidebar shows it
+      if (mems.status === 'fulfilled') setMembers(mems.value)
+      if (firmDetail.status === 'fulfilled') {
+        const fd = firmDetail.value
+        setFirm({ id: fd.id, name: fd.name, logo_url: fd.logo_url ?? null })
+      } else {
+        setFirm({ id: primary.firm, name: '' })
+      }
 
       if (primary.role === 'owner' || primary.role === 'firm_admin') {
         const [invites, logs] = await Promise.allSettled([
@@ -640,6 +719,18 @@ export default function LawyerTeamPage() {
 
       {err && (
         <Card className="p-4 border border-crimson-500/30 text-crimson-200 text-sm">{err}</Card>
+      )}
+
+      {/* Firm Logo — admin/owner only */}
+      {isAdmin && firm && (
+        <Card className="p-5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500 mb-3">Firm Identity</p>
+          <FirmLogoUploader
+            firmId={firm.id}
+            currentLogoUrl={firm.logo_url ?? null}
+            onUploaded={(url) => setFirm(prev => prev ? { ...prev, logo_url: url } : prev)}
+          />
+        </Card>
       )}
 
       {/* Tab nav */}
