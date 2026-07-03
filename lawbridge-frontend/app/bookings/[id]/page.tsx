@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { api } from '../../../lib/api'
 import { acceptBooking, declineBooking, STATUS_LABELS, CaseItem as Booking, BookingMeta } from '../../../lib/casesApi'
 import { buildWorkflow, LAWYER_ACTIONS } from '../../../lib/workflow'
-import { ClientCard, LawyerCard } from '../../../components/IdentityCards'
+import { ClientCard, LawyerCard, FirmCard } from '../../../components/IdentityCards'
 
 function formatDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) }
@@ -76,10 +76,12 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
         <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.color} border ${cfg.border}`}>{cfg.label}</span>
       </div>
 
-      {/* Lawyer identity card — always shown to client */}
-      {booking.assigned_lawyer_id && (
+      {/* Identity card — lawyer or firm depending on booking target */}
+      {booking.assigned_lawyer_id ? (
         <LawyerCard lawyerUserId={booking.assigned_lawyer_id} fallbackName={meta.target_name} />
-      )}
+      ) : meta.target_type === 'firm' && meta.target_id ? (
+        <FirmCard firmId={Number(meta.target_id)} fallbackName={meta.target_name} />
+      ) : null}
 
       {/* Booking Details */}
       <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6 space-y-4">

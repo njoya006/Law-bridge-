@@ -2,6 +2,7 @@ import { api } from './api'
 
 export type BookingMeta = {
   target_type?: 'lawyer' | 'firm'
+  target_id?: string
   target_name?: string
   consultation_type?: string
   /** Legacy single fee field — kept for backward compat */

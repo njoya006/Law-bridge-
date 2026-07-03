@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { getUserById, getLawyerProfile, type UserProfile, type LawyerProfile } from '../lib/casesApi'
+import { getFirmDetail, type FirmDiscovery } from '../lib/firmsApi'
 import { SERVICE_URLS } from '../lib/serviceUrls'
 
 function avatarUrl(userId: string) {
@@ -101,6 +102,69 @@ export function ClientCard({
               </svg>
             </a>
           )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Firm identity card (shown to clients when booking is with a firm) ──────────
+
+export function FirmCard({
+  firmId,
+  fallbackName,
+}: {
+  firmId: number
+  fallbackName?: string
+}) {
+  const [firm, setFirm] = useState<FirmDiscovery | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!firmId) { setLoading(false); return }
+    getFirmDetail(firmId)
+      .then(setFirm)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [firmId])
+
+  const name = firm?.name || fallbackName || '—'
+
+  return (
+    <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-4">
+      <p className="text-[10px] uppercase tracking-widest text-neutral-500 font-semibold mb-3">Your Firm</p>
+
+      {loading ? (
+        <div className="flex items-center gap-3 animate-pulse">
+          <div className="h-12 w-12 rounded-xl bg-primary-700/50 flex-shrink-0" />
+          <div className="space-y-2 flex-1">
+            <div className="h-3.5 w-1/2 rounded bg-primary-700/50" />
+            <div className="h-3 w-3/4 rounded bg-primary-700/40" />
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-xl overflow-hidden flex-shrink-0 border border-neutral-700/50 bg-primary-800/60 flex items-center justify-center">
+            {firm?.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={firm.logo_url} alt={name} className="h-full w-full object-cover" />
+            ) : (
+              <svg className="w-6 h-6 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+              </svg>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="font-heading text-sm font-semibold text-neutral-100 truncate">{name}</p>
+            {(firm?.city || firm?.country) && (
+              <p className="text-xs text-neutral-400 truncate mt-0.5">
+                {[firm.city, firm.country].filter(Boolean).join(', ')}
+              </p>
+            )}
+            <span className="inline-block mt-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-neutral-600/40 bg-neutral-800/30 text-neutral-400 uppercase tracking-wide">
+              Law Firm
+            </span>
+          </div>
         </div>
       )}
     </div>
