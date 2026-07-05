@@ -19,6 +19,7 @@ const NAV = [
   { label: 'AI Assistant',   href: '/ai',             icon: SparklesIcon },
   { label: 'Messages',       href: '/messages',       icon: ChatIcon },
   { label: 'Files',          href: '/documents',      icon: DocumentIcon },
+  { label: 'Upload',         href: '/upload',         icon: UploadIcon },
   { label: 'Matters',        href: '/cases',          icon: CaseIcon },
   { label: 'Billing',        href: '/payments',       icon: PaymentIcon },
   { label: 'Settings',       href: '/settings',       icon: SettingsIcon },
@@ -34,14 +35,14 @@ const BOTTOM_NAV = [
 
 // Items shown in the ··· More drawer
 const MORE_ITEMS = [
+  { label: 'Upload',         href: '/upload',         icon: UploadIcon },
+  { label: 'Files',          href: '/documents',      icon: DocumentIcon },
   { label: 'Bookings',       href: '/bookings',       icon: CaseIcon },
   { label: 'Alerts',         href: '/notifications',  icon: BellIcon },
   { label: 'AI Assistant',   href: '/ai',             icon: SparklesIcon },
-  { label: 'Files',          href: '/documents',      icon: DocumentIcon },
   { label: 'Billing',        href: '/payments',       icon: PaymentIcon },
   { label: 'Settings',       href: '/settings',       icon: SettingsIcon },
   { label: 'Profile',        href: '/profile',        icon: UserIcon },
-  { label: 'Upload',         href: '/upload',         icon: UploadIcon },
 ]
 
 // ── Desktop sidebar ───────────────────────────────────────────────────────────

@@ -7,7 +7,6 @@ from io import BytesIO
 from minio import Minio
 from minio.error import S3Error
 import jwt
-import json
 from decouple import config
 from .models import Document
 from .serializers import DocumentSerializer
@@ -166,17 +165,21 @@ class DocumentDownloadView(APIView):
     permission_classes = []
 
     def get(self, request, document_id):
-        if not is_internal_request(request):
-            auth_payload = extract_auth_payload(request)
-            user_id = auth_payload.get('user_id')
-            if not user_id:
-                return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        is_internal = is_internal_request(request)
+        caller_payload = extract_auth_payload(request) if not is_internal else {}
+        caller_id = caller_payload.get('user_id')
+        caller_role = caller_payload.get('role', '')
+
+        if not is_internal and not caller_id:
+            return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             document = Document.objects.get(id=document_id)
         except Document.DoesNotExist:
             return Response({'error': 'not found'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Case service is the single source of truth for access — it handles
+        # clients, assigned lawyers, other firm lawyers, secretaries, and firm admins.
         access = can_access_case(request, document.case_id)
         if access != 'ok':
             return _access_error_response(access)
@@ -184,39 +187,16 @@ class DocumentDownloadView(APIView):
         if not document.minio_path:
             return Response({'error': 'document not stored'}, status=status.HTTP_404_NOT_FOUND)
 
-        if document.password_hash:
+        # Firm staff bypass the password requirement — they manage the case
+        # and should not be blocked by client-set document passwords.
+        is_staff = caller_role in STAFF_ROLES
+        if document.password_hash and not is_internal and not is_staff:
             provided = request.META.get('HTTP_X_DOCUMENT_PASSWORD') or request.GET.get('password')
             if not provided:
                 return Response({'error': 'password required'}, status=status.HTTP_403_FORBIDDEN)
             check = hashlib.sha256((document.password_salt + provided).encode('utf-8')).hexdigest()
             if check != document.password_hash:
                 return Response({'error': 'invalid password'}, status=status.HTTP_403_FORBIDDEN)
-
-        if not is_internal_request(request):
-            auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-            base_url = settings.CASE_SERVICE_URL.rstrip('/')
-            case_url = f"{base_url}/{document.case_id}/"
-            try:
-                req = Request(case_url, headers={'Authorization': auth_header})
-                with urlopen(req, timeout=5) as resp:
-                    payload = resp.read().decode('utf-8')
-                    case_data = json.loads(payload) if payload else {}
-            except (HTTPError, URLError, ValueError):
-                return Response(
-                    {'error': 'Unable to verify case access. Please try again shortly.'},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                )
-
-            caller_payload = extract_auth_payload(request)
-            caller_id = caller_payload.get('user_id')
-            caller_role = caller_payload.get('role')
-
-            if str(case_data.get('client_id')) == str(caller_id):
-                pass
-            elif caller_role in STAFF_ROLES and str(case_data.get('assigned_lawyer_id')) == str(caller_id):
-                pass
-            else:
-                return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         try:
             client = get_minio_client()

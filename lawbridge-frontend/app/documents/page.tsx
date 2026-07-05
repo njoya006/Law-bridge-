@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { getMyCases } from '../../lib/casesApi'
 import { listDocuments, fetchDocumentBlob, downloadDocument, type DocumentItem } from '../../lib/documentsApi'
 
@@ -124,7 +125,8 @@ export default function DocumentsPage() {
 
   const handleAction = (document: DocumentItem, action: 'open' | 'download') => {
     setError('')
-    if (document.is_password_protected) {
+    // Lawyers and firm staff skip the password modal — backend grants access without it
+    if (document.is_password_protected && portalRole !== 'lawyer') {
       setPendingDocument(document); setPendingAction(action); setPassword(''); setPasswordError('')
       return
     }
@@ -163,10 +165,27 @@ export default function DocumentsPage() {
   return (
     <div className="space-y-6 pb-24">
       <div>
-        <h1 className="font-display text-2xl font-bold text-neutral-50">My Documents</h1>
-        <p className="mt-1 text-sm text-neutral-500">
-          Documents are grouped by matter. Access is limited to {portalRole === 'lawyer' ? 'lawyer and firm' : 'case-linked'} accounts.
-        </p>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold text-neutral-50">My Documents</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              Documents are grouped by matter. Access is limited to {portalRole === 'lawyer' ? 'lawyer and firm' : 'case-linked'} accounts.
+            </p>
+          </div>
+          {portalRole !== 'lawyer' && (
+            <Link
+              href="/upload"
+              className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="16 16 12 12 8 16"/>
+                <line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+              </svg>
+              Upload
+            </Link>
+          )}
+        </div>
       </div>
 
       {error && (
