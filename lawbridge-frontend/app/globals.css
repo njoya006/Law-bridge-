@@ -213,9 +213,19 @@ html.light-mode body {
     --sidebar-width: 0rem;
   }
 
-  /* Push content above the bottom nav bar */
+  /* Push content above the bottom nav bar (4rem) + safe area + normal gutter (1.5rem) */
   main {
-    padding-bottom: calc(4rem + env(safe-area-inset-bottom)) !important;
+    padding-bottom: calc(4rem + env(safe-area-inset-bottom) + 1.5rem) !important;
+  }
+}
+
+/* Chat panel height: full viewport minus header, adjusted for mobile bottom nav */
+:root {
+  --chat-height: calc(100dvh - 5rem);
+}
+@media (max-width: 1023px) {
+  :root {
+    --chat-height: calc(100dvh - 9rem);
   }
 }
 

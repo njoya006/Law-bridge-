@@ -66,39 +66,55 @@ def is_internal_request(request):
     return request.META.get('HTTP_X_INTERNAL_API_KEY') == config('INTERNAL_API_KEY', default='dev-internal-key')
 
 
+# Returns 'ok', 'forbidden', 'unauthorized', or 'service_error'
 def can_access_case(request, case_id):
     if is_internal_request(request):
-        return True
+        return 'ok'
 
     auth_header = request.META.get('HTTP_AUTHORIZATION', '')
     if not auth_header.startswith('Bearer '):
-        return False
+        return 'unauthorized'
 
     base_url = settings.CASE_SERVICE_URL.rstrip('/')
     url = f'{base_url}/{case_id}/'
     try:
         req = Request(url, headers={'Authorization': auth_header})
         with urlopen(req, timeout=5) as response:
-            return response.status == 200
-    except (HTTPError, URLError, ValueError):
-        return False
+            return 'ok' if response.status == 200 else 'forbidden'
+    except HTTPError as e:
+        return 'forbidden' if e.code in (403, 404) else 'service_error'
+    except (URLError, ValueError):
+        return 'service_error'
+
+
+def _access_error_response(access_result):
+    """Convert a non-ok access result into a DRF Response."""
+    if access_result == 'service_error':
+        return Response(
+            {'error': 'Unable to verify case access. The case service is temporarily unavailable. Please try again shortly.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return Response(
+        {'error': 'You do not have access to this matter. Please check that the matter exists and is assigned to you.'},
+        status=status.HTTP_403_FORBIDDEN,
+    )
 
 
 class DocumentUploadView(APIView):
     """Upload a document for a case"""
-    
+
     def post(self, request, case_id):
-        """POST /api/v1/documents/upload/ - Upload document"""
-        if not can_access_case(request, case_id):
-            return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        access = can_access_case(request, case_id)
+        if access != 'ok':
+            return _access_error_response(access)
 
         file_obj = request.FILES.get('file')
         doc_type = request.data.get('type', 'other')
         user_id = extract_user_id_from_token(request)
-        
+
         if not file_obj:
             return Response({'error': 'file required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
         document = Document.objects.create(
             case_id=case_id,
             uploader_id=user_id,
@@ -109,7 +125,6 @@ class DocumentUploadView(APIView):
             status='pending_scan'
         )
 
-        # Optionally set a password for the document (firm or lawyer can set)
         password = request.data.get('password')
         if password:
             salt = os.urandom(16).hex()
@@ -136,8 +151,8 @@ class DocumentUploadView(APIView):
             document.save(update_fields=['minio_path', 'status', 'updated_at'])
         except Exception as exc:
             document.delete()
-            return Response({'error': f'failed to store document in MinIO: {exc}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+            return Response({'error': f'failed to store document: {exc}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         return Response(
             DocumentSerializer(document).data,
             status=status.HTTP_201_CREATED
@@ -145,16 +160,13 @@ class DocumentUploadView(APIView):
 
 
 class DocumentDownloadView(APIView):
-    """Download a document from MinIO for internal services."""
+    """Download a document from MinIO."""
 
     authentication_classes = []
     permission_classes = []
 
     def get(self, request, document_id):
-        # Allow internal service requests (using internal API key) or
-        # allow authenticated users (frontend) with a valid JWT.
         if not is_internal_request(request):
-            # Require a valid JWT for frontend requests
             auth_payload = extract_auth_payload(request)
             user_id = auth_payload.get('user_id')
             if not user_id:
@@ -165,15 +177,14 @@ class DocumentDownloadView(APIView):
         except Document.DoesNotExist:
             return Response({'error': 'not found'}, status=status.HTTP_404_NOT_FOUND)
 
-        if not can_access_case(request, document.case_id):
-            return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        access = can_access_case(request, document.case_id)
+        if access != 'ok':
+            return _access_error_response(access)
 
         if not document.minio_path:
             return Response({'error': 'document not stored'}, status=status.HTTP_404_NOT_FOUND)
 
-        # If document is password-protected, require the correct password
         if document.password_hash:
-            # password via header X-DOCUMENT-PASSWORD or query param ?password=
             provided = request.META.get('HTTP_X_DOCUMENT_PASSWORD') or request.GET.get('password')
             if not provided:
                 return Response({'error': 'password required'}, status=status.HTTP_403_FORBIDDEN)
@@ -181,9 +192,7 @@ class DocumentDownloadView(APIView):
             if check != document.password_hash:
                 return Response({'error': 'invalid password'}, status=status.HTTP_403_FORBIDDEN)
 
-        # Additional strict check: only allow download to the assigned lawyer or the case client
         if not is_internal_request(request):
-            # Fetch case details from case service using the caller's auth header
             auth_header = request.META.get('HTTP_AUTHORIZATION', '')
             base_url = settings.CASE_SERVICE_URL.rstrip('/')
             case_url = f"{base_url}/{document.case_id}/"
@@ -193,16 +202,17 @@ class DocumentDownloadView(APIView):
                     payload = resp.read().decode('utf-8')
                     case_data = json.loads(payload) if payload else {}
             except (HTTPError, URLError, ValueError):
-                return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+                return Response(
+                    {'error': 'Unable to verify case access. Please try again shortly.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                )
 
             caller_payload = extract_auth_payload(request)
             caller_id = caller_payload.get('user_id')
             caller_role = caller_payload.get('role')
 
-            # Allow if caller is the client
             if str(case_data.get('client_id')) == str(caller_id):
                 pass
-            # Allow if caller is a lawyer/firm_admin and is the assigned lawyer for the case
             elif caller_role in STAFF_ROLES and str(case_data.get('assigned_lawyer_id')) == str(caller_id):
                 pass
             else:
@@ -224,11 +234,11 @@ class DocumentDownloadView(APIView):
 
 class DocumentListView(APIView):
     """List documents for a case"""
-    
+
     def get(self, request, case_id):
-        """GET /api/v1/documents/ - List case documents"""
-        if not can_access_case(request, case_id):
-            return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        access = can_access_case(request, case_id)
+        if access != 'ok':
+            return _access_error_response(access)
 
         documents = Document.objects.filter(case_id=case_id)
         serializer = DocumentSerializer(documents, many=True)

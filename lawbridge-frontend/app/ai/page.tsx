@@ -548,7 +548,7 @@ export default function ClientAIPage() {
   }
 
   return (
-    <div className="flex flex-col" style={{ height: 'calc(100vh - 5rem)' }}>
+    <div className="flex flex-col" style={{ height: 'var(--chat-height)' }}>
       {/* Header */}
       <div className="px-4 pt-4 pb-0 flex-shrink-0">
         <div className="flex items-center gap-3 mb-4">
