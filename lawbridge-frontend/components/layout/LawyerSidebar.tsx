@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { DashboardIcon, CaseIcon, BriefcaseIcon, DocumentIcon, CalendarIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon } from '../icons/Icons'
+import { DashboardIcon, CaseIcon, BriefcaseIcon, DocumentIcon, CalendarIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon, BookOpenIcon } from '../icons/Icons'
 import { getFirmMembers, getMyFirmMemberships, type FirmMembership } from '../../lib/firmsApi'
 import { getReportRequests } from '../../lib/monitoringApi'
 import { clearSession } from '../../lib/authSession'
@@ -17,6 +17,8 @@ const nav = [
   { label: 'Clients', href: '/lawyer/clients', icon: BriefcaseIcon },
   { label: 'Team', href: '/lawyer/team', icon: UserIcon },
   { label: 'Documents', href: '/lawyer/documents', icon: DocumentIcon },
+  { label: 'Library', href: '/library', icon: BookOpenIcon },
+  { label: 'My Publications', href: '/lawyer/library', icon: BookOpenIcon },
   { label: 'AI Assistant', href: '/lawyer/ai', icon: LawIcon },
   { label: 'Case Triage', href: '/lawyer/triage', icon: LawIcon },
   { label: 'Calendar', href: '/lawyer/calendar', icon: CalendarIcon },

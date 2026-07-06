@@ -70,6 +70,7 @@ services:
       - auth-service
       - case-service
       - lawyer-service
+      - library-service
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
       interval: 30s
@@ -206,6 +207,16 @@ services:
       DB_NAME: messaging_db
       REDIS_URL: redis://redis:6379/0
       AI_SERVICE_URL: http://ai-assistant-service:8011
+
+  library-service:
+    <<: *django-common
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/library-service:latest
+    expose: ["8013"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: library_db
+      REDIS_URL: redis://redis:6379/0
 
 networks:
   lawbridge:

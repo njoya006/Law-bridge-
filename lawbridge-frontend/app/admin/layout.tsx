@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { DashboardIcon, UsersIcon, InboxIcon, LogoutIcon, ShieldIcon } from '../../components/icons/Icons'
+import { DashboardIcon, UsersIcon, InboxIcon, LogoutIcon, ShieldIcon, BookOpenIcon } from '../../components/icons/Icons'
 import { clearSession } from '../../lib/authSession'
 
 const ADMIN_NAV = [
-  { label: 'Dashboard',     href: '/admin',         icon: DashboardIcon },
-  { label: 'Users',         href: '/admin/users',   icon: UsersIcon },
-  { label: 'Support Inbox', href: '/admin/support', icon: InboxIcon },
+  { label: 'Dashboard',     href: '/admin',           icon: DashboardIcon },
+  { label: 'Users',         href: '/admin/users',     icon: UsersIcon },
+  { label: 'Support Inbox', href: '/admin/support',   icon: InboxIcon },
+  { label: 'Content',       href: '/admin/content',   icon: BookOpenIcon },
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -6,6 +6,7 @@ import {
   DashboardIcon, UploadIcon, AnalysisIcon, ChatIcon, DocumentIcon,
   CaseIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon,
   SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon, BellIcon, GridIcon, SparklesIcon,
+  BookOpenIcon,
 } from '../icons/Icons'
 import { clearSession } from '../../lib/authSession'
 
@@ -18,6 +19,7 @@ const NAV = [
   { label: 'Notifications',  href: '/notifications',  icon: BellIcon },
   { label: 'AI Assistant',   href: '/ai',             icon: SparklesIcon },
   { label: 'Messages',       href: '/messages',       icon: ChatIcon },
+  { label: 'Library',        href: '/library',         icon: BookOpenIcon },
   { label: 'Files',          href: '/documents',      icon: DocumentIcon },
   { label: 'Upload',         href: '/upload',         icon: UploadIcon },
   { label: 'Matters',        href: '/cases',          icon: CaseIcon },
@@ -36,6 +38,7 @@ const BOTTOM_NAV = [
 // Items shown in the ··· More drawer
 const MORE_ITEMS = [
   { label: 'Upload',         href: '/upload',         icon: UploadIcon },
+  { label: 'Library',        href: '/library',        icon: BookOpenIcon },
   { label: 'Files',          href: '/documents',      icon: DocumentIcon },
   { label: 'Bookings',       href: '/bookings',       icon: CaseIcon },
   { label: 'Alerts',         href: '/notifications',  icon: BellIcon },

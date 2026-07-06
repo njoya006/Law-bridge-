@@ -244,3 +244,10 @@ export const ChevronDownIcon = ({ className = 'w-4 h-4', width = 16, height = 16
     <polyline points="6 9 12 15 18 9" />
   </svg>
 )
+
+export const BookOpenIcon = ({ className = 'w-5 h-5', width = 20, height = 20 }: IconProps) => (
+  <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </svg>
+)
