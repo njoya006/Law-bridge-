@@ -10,5 +10,5 @@ def health(request):
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/library/', include('apps.books.urls')),
-    path('api/v1/health/', health),
+    path('api/v1/library/health/', health),
 ]
