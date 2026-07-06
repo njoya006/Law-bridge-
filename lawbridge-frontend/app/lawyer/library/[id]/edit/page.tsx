@@ -3,13 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getBook, updateBook, submitBook, type BookItem, type BookTier } from '../../../../../lib/libraryApi'
-
-const LEGAL_AREAS = [
-  'Contract Law', 'Tort Law', 'Criminal Law', 'Constitutional Law',
-  'Commercial Law', 'Property Law', 'Family Law', 'Labour Law',
-  'Administrative Law', 'OHADA', 'International Law', 'Tax Law',
-]
+import { getBook, updateBook, submitBook, listCategories, type BookItem, type BookTier, type BookCategory } from '../../../../../lib/libraryApi'
 
 export default function EditBookPage() {
   const params = useParams()
@@ -22,6 +16,7 @@ export default function EditBookPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState(false)
+  const [categories, setCategories] = useState<BookCategory[]>([])
 
   const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
@@ -32,6 +27,10 @@ export default function EditBookPage() {
   const [jurisdiction, setJurisdiction] = useState('Cameroon')
   const [language, setLanguage] = useState('en')
   const [selectedAreas, setSelectedAreas] = useState<string[]>([])
+
+  useEffect(() => {
+    listCategories().then(setCategories).catch(() => setCategories([]))
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -249,14 +248,14 @@ export default function EditBookPage() {
             <div className="rounded-xl bg-white/3 border border-white/8 p-4">
               <p className="text-xs font-semibold text-white/30 uppercase tracking-wider mb-3">Legal Areas</p>
               <div className="flex flex-wrap gap-1.5">
-                {LEGAL_AREAS.map(area => (
-                  <button key={area} onClick={() => toggleArea(area)}
+                {categories.map(c => (
+                  <button key={c.slug} onClick={() => toggleArea(c.name)}
                     className={`rounded-md px-2.5 py-1 text-[11px] font-medium border transition-all ${
-                      selectedAreas.includes(area)
+                      selectedAreas.includes(c.name)
                         ? 'bg-gold-500/15 border-gold-500/30 text-gold-400'
                         : 'bg-white/3 border-white/6 text-white/35 hover:bg-white/6'
                     }`}>
-                    {area}
+                    {c.name}
                   </button>
                 ))}
               </div>

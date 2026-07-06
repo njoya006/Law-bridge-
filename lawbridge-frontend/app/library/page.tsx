@@ -2,13 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { listBooks, type BookItem, type BookTier } from '../../lib/libraryApi'
-
-const LEGAL_AREAS = [
-  'Contract Law', 'Tort Law', 'Criminal Law', 'Constitutional Law',
-  'Commercial Law', 'Property Law', 'Family Law', 'Labour Law',
-  'Administrative Law', 'OHADA', 'International Law', 'Tax Law',
-]
+import { listBooks, listCategories, type BookItem, type BookTier, type BookCategory } from '../../lib/libraryApi'
 
 const TIER_LABELS: Record<BookTier, string> = {
   general: 'General Library',
@@ -104,6 +98,7 @@ function EmptyState({ search }: { search: string }) {
 export default function LibraryPage() {
   const [books, setBooks] = useState<BookItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [categories, setCategories] = useState<BookCategory[]>([])
   const [search, setSearch] = useState('')
   const [selectedArea, setSelectedArea] = useState('')
   const [selectedTier, setSelectedTier] = useState<BookTier | ''>('')
@@ -116,6 +111,7 @@ export default function LibraryPage() {
     const fid = localStorage.getItem('firmId')
     setIsLawyer(role === 'lawyer')
     setFirmId(fid)
+    listCategories().then(setCategories).catch(() => setCategories([]))
   }, [])
 
   const load = useCallback(async () => {
@@ -225,8 +221,8 @@ export default function LibraryPage() {
             className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm text-white/60 focus:outline-none focus:border-gold-500/40 cursor-pointer"
           >
             <option value="">All Areas</option>
-            {LEGAL_AREAS.map(a => (
-              <option key={a} value={a} className="bg-primary-900">{a}</option>
+            {categories.map(c => (
+              <option key={c.slug} value={c.name} className="bg-primary-900">{c.name}</option>
             ))}
           </select>
         </div>

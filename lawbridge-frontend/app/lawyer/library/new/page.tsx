@@ -1,15 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createBook, submitBook, type BookTier } from '../../../../lib/libraryApi'
-
-const LEGAL_AREAS = [
-  'Contract Law', 'Tort Law', 'Criminal Law', 'Constitutional Law',
-  'Commercial Law', 'Property Law', 'Family Law', 'Labour Law',
-  'Administrative Law', 'OHADA', 'International Law', 'Tax Law',
-]
+import { createBook, submitBook, listCategories, type BookTier, type BookCategory } from '../../../../lib/libraryApi'
 
 export default function NewBookPage() {
   const router = useRouter()
@@ -17,6 +11,11 @@ export default function NewBookPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [preview, setPreview] = useState(false)
+  const [categories, setCategories] = useState<BookCategory[]>([])
+
+  useEffect(() => {
+    listCategories().then(setCategories).catch(() => setCategories([]))
+  }, [])
 
   const [title, setTitle] = useState('')
   const [subtitle, setSubtitle] = useState('')
@@ -247,17 +246,17 @@ export default function NewBookPage() {
             <div className="rounded-xl bg-white/3 border border-white/8 p-4">
               <p className="text-xs font-semibold text-white/30 uppercase tracking-wider mb-3">Legal Areas</p>
               <div className="flex flex-wrap gap-1.5">
-                {LEGAL_AREAS.map(area => (
+                {categories.map(c => (
                   <button
-                    key={area}
-                    onClick={() => toggleArea(area)}
+                    key={c.slug}
+                    onClick={() => toggleArea(c.name)}
                     className={`rounded-md px-2.5 py-1 text-[11px] font-medium border transition-all ${
-                      selectedAreas.includes(area)
+                      selectedAreas.includes(c.name)
                         ? 'bg-gold-500/15 border-gold-500/30 text-gold-400'
                         : 'bg-white/3 border-white/6 text-white/35 hover:bg-white/6 hover:text-white/55'
                     }`}
                   >
-                    {area}
+                    {c.name}
                   </button>
                 ))}
               </div>
