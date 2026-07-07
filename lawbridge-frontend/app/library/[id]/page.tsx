@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getBook, getBookVersions, type BookItem, type BookVersion } from '../../../lib/libraryApi'
@@ -91,6 +91,29 @@ function MiniCover({ book }: { book: BookItem }) {
         </div>
       </div>
     </div>
+  )
+}
+
+// ─── Watermark overlay ───────────────────────────────────────────────────────
+
+function WatermarkOverlay() {
+  const [label, setLabel] = useState('')
+  useEffect(() => {
+    const name = localStorage.getItem('userName') || localStorage.getItem('userEmail') || 'CamLex'
+    setLabel(name)
+  }, [])
+  if (!label) return null
+  const text = encodeURIComponent(`${label} · CamLex`)
+  const svgUri = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Ctext x='50%25' y='50%25' transform='rotate(-30 160 90)' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif' font-size='13' fill='rgba(255,255,255,0.04)' font-weight='500' letter-spacing='1'%3E${text}%3C/text%3E%3C/svg%3E")`
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute', inset: 0, backgroundImage: svgUri,
+        backgroundRepeat: 'repeat', backgroundSize: '320px 180px',
+        pointerEvents: 'none', zIndex: 2, userSelect: 'none',
+      }}
+    />
   )
 }
 
@@ -393,7 +416,8 @@ export default function BookDetailPage() {
 
             {/* Full content */}
             {book.content ? (
-              <div className="mt-2 max-w-[72ch]">
+              <div className="relative mt-2 max-w-[72ch]">
+                <WatermarkOverlay />
                 <ContentRenderer content={book.content} />
               </div>
             ) : (
