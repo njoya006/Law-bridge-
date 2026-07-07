@@ -59,6 +59,8 @@ class Book(models.Model):
     # Bibliographic metadata
     year = models.PositiveIntegerField(null=True, blank=True)
     edition = models.PositiveIntegerField(default=1)
+    publisher = models.CharField(max_length=300, blank=True, default='')
+    pages = models.PositiveIntegerField(null=True, blank=True)
     language = models.CharField(max_length=10, default='en')
     jurisdiction = models.CharField(max_length=100, default='Cameroon')
     legal_areas = models.JSONField(default=list)

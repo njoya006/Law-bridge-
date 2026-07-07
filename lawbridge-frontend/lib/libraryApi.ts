@@ -23,6 +23,8 @@ export interface BookItem {
   content?: string
   year: number | null
   edition: number
+  publisher: string
+  pages: number | null
   language: string
   jurisdiction: string
   legal_areas: string[]

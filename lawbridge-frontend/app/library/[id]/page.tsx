@@ -144,10 +144,12 @@ export default function BookDetailPage() {
               )}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-4 text-sm text-white/40">
                 <span>By <span className="text-white/70 font-medium">{book.author_name}</span></span>
+                {book.publisher && <span className="text-white/50">{book.publisher}</span>}
                 {book.year && <span className="tabular-nums">{book.year}</span>}
-                {book.edition > 1 && <span>{book.edition}th edition</span>}
+                {book.edition >= 1 && <span>{book.edition === 1 ? '1st' : book.edition === 2 ? '2nd' : book.edition === 3 ? '3rd' : `${book.edition}th`} edition</span>}
+                {book.pages && <span>{book.pages} pages</span>}
                 <span>{book.jurisdiction}</span>
-                <span className="capitalize">{book.language === 'fr' ? 'French' : 'English'}</span>
+                <span>{book.language === 'fr' ? 'French' : 'English'}</span>
               </div>
             </div>
 

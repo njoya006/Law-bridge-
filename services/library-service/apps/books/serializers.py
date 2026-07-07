@@ -24,7 +24,8 @@ class BookListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'subtitle', 'author_id', 'author_name',
             'firm_id', 'tier', 'status',
-            'abstract', 'year', 'edition', 'language', 'jurisdiction',
+            'abstract', 'year', 'edition', 'publisher', 'pages',
+            'language', 'jurisdiction',
             'legal_areas', 'categories', 'version_number',
             'published_at', 'created_at', 'updated_at',
         ]
@@ -46,7 +47,7 @@ class BookDetailSerializer(serializers.ModelSerializer):
             'id', 'title', 'subtitle', 'author_id', 'author_name',
             'firm_id', 'tier', 'status',
             'abstract', 'content',
-            'year', 'edition', 'language', 'jurisdiction',
+            'year', 'edition', 'publisher', 'pages', 'language', 'jurisdiction',
             'legal_areas', 'categories', 'category_ids', 'version_number',
             'submitted_at', 'reviewed_by_id', 'reviewed_at', 'rejection_reason',
             'published_at', 'created_at', 'updated_at',
