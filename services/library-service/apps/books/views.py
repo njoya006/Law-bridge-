@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import AllowAny
 
 from .models import Book, BookVersion, Category
 from .serializers import BookListSerializer, BookDetailSerializer, BookVersionSerializer, CategorySerializer
@@ -12,6 +13,8 @@ from .permissions import (
 
 
 class BookListCreateView(APIView):
+    permission_classes = []  # GET is public; POST self-enforces via can_create_book
+
     def get(self, request):
         caller_id, caller_role, caller_firm_id = get_caller(request)
 
@@ -75,6 +78,8 @@ class BookListCreateView(APIView):
 
 
 class BookDetailView(APIView):
+    permission_classes = []  # access enforced by can_view_book
+
     def _get_book(self, pk, caller_id, caller_role, caller_firm_id):
         try:
             book = Book.objects.get(pk=pk)
@@ -179,6 +184,8 @@ class BookRejectView(APIView):
 
 
 class BookVersionListView(APIView):
+    permission_classes = []  # access enforced by can_view_book
+
     def get(self, request, pk):
         caller_id, caller_role, caller_firm_id = get_caller(request)
         try:
