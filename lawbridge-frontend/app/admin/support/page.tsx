@@ -117,30 +117,42 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
       )
       .catch(() => {})
 
-    // WebSocket
-    const wsBase = (process.env.NEXT_PUBLIC_API_GATEWAY_URL ?? 'http://32.197.83.70').replace(/^http/, 'ws')
-    const ws = new WebSocket(`${wsBase}/ws/messages/thread/${threadId}/?token=${token}`)
-    wsRef.current = ws
+    // WebSocket — use wss:// when page is HTTPS to avoid mixed-content SecurityError
+    try {
+      const base = process.env.NEXT_PUBLIC_API_GATEWAY_URL
+        ?? (typeof window !== 'undefined' && window.location.protocol === 'https:'
+          ? 'https://32.197.83.70'
+          : 'http://32.197.83.70')
+      const wsBase = base.replace(/^https/, 'wss').replace(/^http(?!s)/, 'ws')
+      const ws = new WebSocket(`${wsBase}/ws/messages/thread/${threadId}/?token=${token}`)
+      wsRef.current = ws
 
-    ws.onmessage = (e) => {
-      const data = JSON.parse(e.data ?? '{}')
-      if (data.type === 'history') {
-        setMessages(data.messages ?? [])
-      } else if (data.type === 'message') {
-        setMessages(prev => [...prev, {
-          id: data.id,
-          content: data.content,
-          sender_id: data.sender_id,
-          sender_name: data.sender_name,
-          sender_role: data.sender_role,
-          is_ai: data.is_ai ?? false,
-          is_system: false,
-          created_at: data.created_at,
-        }])
+      ws.onmessage = (e) => {
+        const data = JSON.parse(e.data ?? '{}') as {
+          type?: string; messages?: Message[]
+          id?: number; content?: string; sender_id?: string
+          sender_name?: string; sender_role?: string; is_ai?: boolean; created_at?: string
+        }
+        if (data.type === 'history') {
+          setMessages(data.messages ?? [])
+        } else if (data.type === 'message') {
+          setMessages(prev => [...prev, {
+            id: data.id ?? 0,
+            content: data.content ?? '',
+            sender_id: data.sender_id ?? '',
+            sender_name: data.sender_name ?? '',
+            sender_role: data.sender_role ?? '',
+            is_ai: data.is_ai ?? false,
+            is_system: false,
+            created_at: data.created_at ?? new Date().toISOString(),
+          }])
+        }
       }
+    } catch {
+      // WebSocket unavailable (e.g. mixed-content block); REST history already loaded above
     }
 
-    return () => { ws.close() }
+    return () => { wsRef.current?.close() }
   }, [threadId, token])
 
   useEffect(() => {
@@ -155,7 +167,7 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
     setError('')
 
     const ws = wsRef.current
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'message', content }))
       setSending(false)
     } else {
