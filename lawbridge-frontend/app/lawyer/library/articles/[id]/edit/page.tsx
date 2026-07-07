@@ -26,7 +26,7 @@ async function extractText(file: File): Promise<string> {
   if (ext === 'docx') {
     const mammoth = (await import('mammoth')).default
     const arrayBuffer = await file.arrayBuffer()
-    const result = await mammoth.extractRawValue({ arrayBuffer })
+    const result = await mammoth.extractRawText({ arrayBuffer })
     return result.value.replace(/\r?\n(?!\n)/g, '\n\n').replace(/\n{3,}/g, '\n\n').trim()
   }
   throw new Error(`Unsupported file type: .${ext}`)
@@ -62,14 +62,14 @@ export default function EditArticlePage() {
   useEffect(() => {
     async function fetchArticle() {
       try {
-        const token = localStorage.getItem('access') || undefined
+        const token = localStorage.getItem('access')
         const article = await getArticle(id, token)
         setTitle(article.title)
         setSummary(article.summary || '')
-        setContent(article.content)
+        setContent(article.content ?? '')
         setArticleType(article.article_type as ArticleType)
         setTier((article.tier as BookTier) || 'general')
-        setStatus(article.status as 'draft' | 'published' | 'archived')
+        setStatus((article.status ?? 'draft') as 'draft' | 'published' | 'archived')
         setJurisdiction(article.jurisdiction || 'Cameroon')
         setLanguage(article.language || 'en')
         setSelectedAreas(article.legal_areas || [])

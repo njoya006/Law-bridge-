@@ -22,7 +22,7 @@ async function extractText(file: File): Promise<string> {
   if (ext === 'docx') {
     const mammoth = (await import('mammoth')).default
     const arrayBuffer = await file.arrayBuffer()
-    const result = await mammoth.extractRawValue({ arrayBuffer })
+    const result = await mammoth.extractRawText({ arrayBuffer })
     // Convert line breaks to double-newlines for markdown paragraph blocks
     return result.value.replace(/\r?\n(?!\n)/g, '\n\n').replace(/\n{3,}/g, '\n\n').trim()
   }
