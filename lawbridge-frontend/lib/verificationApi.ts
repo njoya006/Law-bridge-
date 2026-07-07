@@ -21,24 +21,24 @@ export interface VerificationStatusResponse {
 }
 
 export function getMyVerificationStatus(token: string) {
-  return api.get<VerificationStatusResponse>('lawyer', '/verification/', token)
+  return api.get<VerificationStatusResponse>('lawyer', '/lawyers/verification/', token)
 }
 
 export function submitVerificationRequest(
   data: { bar_number: string; bar_council: string; year_called: number; notes?: string },
   token: string,
 ) {
-  return api.post<VerificationRequest>('lawyer', '/verification/', data, token)
+  return api.post<VerificationRequest>('lawyer', '/lawyers/verification/', data, token)
 }
 
 export function getVerificationQueue(token: string, status = 'pending') {
-  return api.get<{ count: number; results: VerificationRequest[] }>('lawyer', `/verification/queue/?status=${status}`, token)
+  return api.get<{ count: number; results: VerificationRequest[] }>('lawyer', `/lawyers/verification/queue/?status=${status}`, token)
 }
 
 export function approveVerification(id: string, token: string) {
-  return api.post<{ detail: string; request: VerificationRequest }>('lawyer', `/verification/${id}/approve/`, {}, token)
+  return api.post<{ detail: string; request: VerificationRequest }>('lawyer', `/lawyers/verification/${id}/approve/`, {}, token)
 }
 
 export function rejectVerification(id: string, reason: string, token: string) {
-  return api.post<{ detail: string; request: VerificationRequest }>('lawyer', `/verification/${id}/reject/`, { reason }, token)
+  return api.post<{ detail: string; request: VerificationRequest }>('lawyer', `/lawyers/verification/${id}/reject/`, { reason }, token)
 }
