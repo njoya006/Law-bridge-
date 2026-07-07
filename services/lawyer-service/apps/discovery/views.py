@@ -19,32 +19,94 @@ class LawyerBrowseView(APIView):
     
     def get(self, request):
         """
-        GET /api/v1/lawyers/ - Browse all active lawyers
+        GET /api/v1/lawyers/ - Browse and filter active lawyers
         Query params:
-          - specialization: filter by specialization
-          - circuit: anglophone/francophone/both
-          - page: pagination
+          - specialization: text search on specialization
+          - circuit: anglophone / francophone (bijural filter)
+          - practice_circuit: specific circuit name (Adamawa, Centre, etc.)
+          - availability: available / busy / on_leave (default: excludes inactive)
+          - mode: in_person / virtual / both
+          - bijural: common_law / civil_law / both
+          - max_fee: maximum consultation fee (XAF)
+          - min_rating: minimum average rating (0-5)
+          - sort: rating (default) / experience / fee_asc / fee_desc
+          - q: full-text search across name, specialization, bio
         """
-        queryset = LawyerProfile.objects.exclude(
-            availability_status='inactive'
-        ).order_by('-average_rating')
+        queryset = LawyerProfile.objects.exclude(availability_status='inactive')
 
-        # Filter by specialization if provided
-        specialization = request.query_params.get('specialization')
+        # Full-text search
+        q = request.query_params.get('q', '').strip()
+        if q:
+            queryset = queryset.filter(
+                Q(full_name__icontains=q) |
+                Q(specialization__icontains=q) |
+                Q(bio__icontains=q)
+            )
+
+        # Specialization
+        specialization = request.query_params.get('specialization', '').strip()
         if specialization:
             queryset = queryset.filter(specialization__icontains=specialization)
 
-        # Filter by circuit if provided
-        circuit = request.query_params.get('circuit')
-        if circuit:
-            if circuit == 'anglophone':
-                queryset = queryset.filter(
-                    Q(bijural_flag='common_law') | Q(bijural_flag='both')
-                )
-            elif circuit == 'francophone':
-                queryset = queryset.filter(
-                    Q(bijural_flag='civil_law') | Q(bijural_flag='both')
-                )
+        # Bijural tradition filter
+        circuit = request.query_params.get('circuit', '').strip()
+        if circuit == 'anglophone':
+            queryset = queryset.filter(Q(bijural_flag='common_law') | Q(bijural_flag='both'))
+        elif circuit == 'francophone':
+            queryset = queryset.filter(Q(bijural_flag='civil_law') | Q(bijural_flag='both'))
+
+        bijural = request.query_params.get('bijural', '').strip()
+        if bijural in ('common_law', 'civil_law', 'both'):
+            queryset = queryset.filter(bijural_flag=bijural)
+
+        # Practice circuit (region)
+        practice_circuit = request.query_params.get('practice_circuit', '').strip()
+        if practice_circuit:
+            queryset = queryset.filter(
+                Q(practice_circuit__iexact=practice_circuit) | Q(practice_circuit__iexact='National')
+            )
+
+        # Availability status
+        availability = request.query_params.get('availability', '').strip()
+        if availability in ('available', 'busy', 'on_leave'):
+            queryset = queryset.filter(availability_status=availability)
+
+        # Consultation mode
+        mode = request.query_params.get('mode', '').strip()
+        if mode in ('in_person', 'virtual'):
+            queryset = queryset.filter(Q(consultation_mode=mode) | Q(consultation_mode='both'))
+        elif mode == 'both':
+            queryset = queryset.filter(consultation_mode='both')
+
+        # Max fee
+        max_fee = request.query_params.get('max_fee', '').strip()
+        if max_fee:
+            try:
+                queryset = queryset.filter(consultation_fee__lte=float(max_fee))
+            except ValueError:
+                pass
+
+        # Min rating
+        min_rating = request.query_params.get('min_rating', '').strip()
+        if min_rating:
+            try:
+                queryset = queryset.filter(average_rating__gte=float(min_rating))
+            except ValueError:
+                pass
+
+        # Accepts urgent cases
+        if request.query_params.get('urgent') == 'true':
+            queryset = queryset.filter(accepts_urgent_cases=True)
+
+        # Sort order
+        sort = request.query_params.get('sort', 'rating')
+        sort_map = {
+            'rating':      '-average_rating',
+            'experience':  '-years_of_experience',
+            'fee_asc':     'consultation_fee',
+            'fee_desc':    '-consultation_fee',
+        }
+        queryset = queryset.order_by(sort_map.get(sort, '-average_rating'))
 
         try:
             serializer = LawyerDiscoverySerializer(queryset, many=True)

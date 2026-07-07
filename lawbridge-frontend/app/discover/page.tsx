@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { browseLawyers, browseFirms, type LawyerDiscovery } from '../../lib/discoveryApi'
+import { browseLawyers, browseFirms, type LawyerDiscovery, type LawyerBrowseFilters } from '../../lib/discoveryApi'
 import { getMyFirmMemberships, type FirmDiscovery } from '../../lib/firmsApi'
 import { search } from '../../lib/searchApi'
 import { getOpenCases, applyForCase, type CaseItem } from '../../lib/casesApi'
@@ -251,6 +251,8 @@ function OpenCaseCard({ caseItem, token }: { caseItem: CaseItem; token: string }
   )
 }
 
+const CIRCUITS = ['Adamawa', 'Centre', 'East', 'Far North', 'Littoral', 'North', 'Northwest', 'South', 'Southwest', 'West']
+
 export default function DiscoverPage() {
   const [query, setQuery] = useState('')
   const [lawyers, setLawyers] = useState<LawyerDiscovery[]>([])
@@ -262,10 +264,12 @@ export default function DiscoverPage() {
   const [token, setToken] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'lawyers' | 'firms' | 'open-cases'>('lawyers')
   const [ownFirmIds, setOwnFirmIds] = useState<Set<string>>(new Set())
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState<LawyerBrowseFilters>({ sort: 'rating' })
 
   const matchText = (value: string | undefined, q: string) => (value ?? '').toLowerCase().includes(q)
 
-  const load = async (nextQuery = '') => {
+  const load = useCallback(async (nextQuery = '', currentFilters: LawyerBrowseFilters = filters) => {
     setError('')
     setLoading(true)
     const tk = typeof window !== 'undefined' ? localStorage.getItem('access') : null
@@ -308,7 +312,10 @@ export default function DiscoverPage() {
       } catch { /* fall back */ }
 
       try {
-        const [lr, fr] = await Promise.allSettled([browseLawyers(tk), browseFirms(tk)])
+        const [lr, fr] = await Promise.allSettled([
+          browseLawyers(tk, { ...currentFilters, q: nextQuery }),
+          browseFirms(tk),
+        ])
         const allLawyers = lr.status === 'fulfilled' ? (lr.value.results ?? []) : []
         const allFirms = fr.status === 'fulfilled' ? (fr.value.results ?? []) : []
         setLawyers(allLawyers.filter(l =>
@@ -323,7 +330,10 @@ export default function DiscoverPage() {
     }
 
     try {
-      const [lr, fr] = await Promise.allSettled([browseLawyers(tk), browseFirms(tk)])
+      const [lr, fr] = await Promise.allSettled([
+        browseLawyers(tk, currentFilters),
+        browseFirms(tk),
+      ])
       setLawyers(lr.status === 'fulfilled' ? (lr.value.results ?? []) : [])
       setFirms(fr.status === 'fulfilled' ? (fr.value.results ?? []) : [])
       if (lr.status === 'rejected') setError(lr.reason instanceof Error ? lr.reason.message : 'Lawyers unavailable')
@@ -331,6 +341,12 @@ export default function DiscoverPage() {
       setError(cause instanceof Error ? cause.message : 'Failed to load')
     }
     setLoading(false)
+  }, [filters])
+
+  const updateFilter = (key: keyof LawyerBrowseFilters, value: string | number | boolean | undefined) => {
+    const next = { ...filters, [key]: value || undefined }
+    setFilters(next)
+    void load(query.trim(), next)
   }
 
   useEffect(() => { void load('') }, [])
@@ -374,7 +390,89 @@ export default function DiscoverPage() {
         >
           Search
         </button>
+        {activeTab === 'lawyers' && (
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            className={`rounded-xl px-4 py-3 border text-sm font-medium transition-colors ${
+              showFilters || !!(filters.availability || filters.practice_circuit || filters.bijural || filters.mode || filters.urgent)
+                ? 'bg-gold-500/10 border-gold-500/30 text-gold-400'
+                : 'bg-primary-800/40 border-neutral-700/40 text-neutral-400 hover:text-neutral-200'
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="inline mr-1.5">
+              <path d="M3 6h18M7 12h10M11 18h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Filters
+          </button>
+        )}
       </div>
+
+      {/* Filter panel */}
+      {activeTab === 'lawyers' && showFilters && (
+        <div className="rounded-xl bg-primary-800/30 border border-neutral-700/30 p-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div>
+              <label className="text-xs text-neutral-500 mb-1 block">Availability</label>
+              <select value={filters.availability || ''} onChange={e => updateFilter('availability', e.target.value)}
+                className="w-full rounded-lg bg-primary-800/60 border border-neutral-700/40 px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-gold-500/40">
+                <option value="">Any</option>
+                <option value="available">Available Now</option>
+                <option value="busy">Busy</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-neutral-500 mb-1 block">Region</label>
+              <select value={filters.practice_circuit || ''} onChange={e => updateFilter('practice_circuit', e.target.value)}
+                className="w-full rounded-lg bg-primary-800/60 border border-neutral-700/40 px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-gold-500/40">
+                <option value="">All Regions</option>
+                {CIRCUITS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-neutral-500 mb-1 block">Legal Tradition</label>
+              <select value={filters.bijural || ''} onChange={e => updateFilter('bijural', e.target.value)}
+                className="w-full rounded-lg bg-primary-800/60 border border-neutral-700/40 px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-gold-500/40">
+                <option value="">Any</option>
+                <option value="common_law">Common Law</option>
+                <option value="civil_law">Civil Law</option>
+                <option value="both">Bijural</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-neutral-500 mb-1 block">Consultation Mode</label>
+              <select value={filters.mode || ''} onChange={e => updateFilter('mode', e.target.value)}
+                className="w-full rounded-lg bg-primary-800/60 border border-neutral-700/40 px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-gold-500/40">
+                <option value="">Any</option>
+                <option value="virtual">Virtual Only</option>
+                <option value="in_person">In-Person Only</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-neutral-500 mb-1 block">Sort By</label>
+              <select value={filters.sort || 'rating'} onChange={e => updateFilter('sort', e.target.value)}
+                className="w-full rounded-lg bg-primary-800/60 border border-neutral-700/40 px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-gold-500/40">
+                <option value="rating">Highest Rated</option>
+                <option value="experience">Most Experienced</option>
+                <option value="fee_asc">Lowest Fee</option>
+                <option value="fee_desc">Highest Fee</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 mt-3 pt-3 border-t border-neutral-700/20">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={!!filters.urgent}
+                onChange={e => updateFilter('urgent', e.target.checked || undefined)}
+                className="rounded border-neutral-600 bg-primary-800 text-gold-500 focus:ring-gold-500/30" />
+              <span className="text-xs text-neutral-400">Accepts urgent cases</span>
+            </label>
+            <button onClick={() => { setFilters({ sort: 'rating' }); void load(query.trim(), { sort: 'rating' }) }}
+              className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors ml-auto">
+              Reset filters
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl border border-crimson-500/30 bg-crimson-900/10 p-4 text-crimson-300 text-sm">{error}</div>

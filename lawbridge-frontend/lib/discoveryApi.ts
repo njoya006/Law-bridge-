@@ -27,10 +27,33 @@ export type LawyerDiscovery = {
   is_stub?: boolean
 }
 
-export function browseLawyers(token?: string | null, specialization?: string, circuit?: string) {
+export interface LawyerBrowseFilters {
+  specialization?: string
+  circuit?: string            // anglophone / francophone
+  practice_circuit?: string   // specific region: Centre, Littoral, etc.
+  bijural?: string            // common_law / civil_law / both
+  availability?: string       // available / busy / on_leave
+  mode?: string               // in_person / virtual / both
+  max_fee?: number
+  min_rating?: number
+  urgent?: boolean
+  sort?: 'rating' | 'experience' | 'fee_asc' | 'fee_desc'
+  q?: string
+}
+
+export function browseLawyers(token?: string | null, filters?: LawyerBrowseFilters) {
   const params = new URLSearchParams()
-  if (specialization) params.set('specialization', specialization)
-  if (circuit) params.set('circuit', circuit)
+  if (filters?.specialization) params.set('specialization', filters.specialization)
+  if (filters?.circuit) params.set('circuit', filters.circuit)
+  if (filters?.practice_circuit) params.set('practice_circuit', filters.practice_circuit)
+  if (filters?.bijural) params.set('bijural', filters.bijural)
+  if (filters?.availability) params.set('availability', filters.availability)
+  if (filters?.mode) params.set('mode', filters.mode)
+  if (filters?.max_fee) params.set('max_fee', String(filters.max_fee))
+  if (filters?.min_rating) params.set('min_rating', String(filters.min_rating))
+  if (filters?.urgent) params.set('urgent', 'true')
+  if (filters?.sort) params.set('sort', filters.sort)
+  if (filters?.q) params.set('q', filters.q)
   const suffix = params.toString() ? `?${params.toString()}` : ''
   return api.get<{ count: number; results: LawyerDiscovery[] }>('lawyer', `/lawyers/${suffix}`, token)
 }
