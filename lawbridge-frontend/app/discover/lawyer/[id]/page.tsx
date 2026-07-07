@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { getLawyerById, type LawyerDiscovery, type AvailabilitySlot } from '../../../../lib/discoveryApi'
+import { getReviews, submitReview, type Review, type ReviewsResponse } from '../../../../lib/reviewsApi'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -28,11 +29,64 @@ function InfoChip({ label }: { label: string }) {
   )
 }
 
+function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const [hovered, setHovered] = useState(0)
+  return (
+    <span className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map(i => (
+        <button
+          key={i}
+          type="button"
+          onMouseEnter={() => setHovered(i)}
+          onMouseLeave={() => setHovered(0)}
+          onClick={() => onChange(i)}
+          className="focus:outline-none"
+        >
+          <svg className={`w-7 h-7 transition-colors ${i <= (hovered || value) ? 'text-gold-400' : 'text-neutral-700'}`} fill="currentColor" viewBox="0 0 20 20">
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+          </svg>
+        </button>
+      ))}
+    </span>
+  )
+}
+
+function RatingBar({ rating, total }: { rating: number; total: number }) {
+  const counts = [5, 4, 3, 2, 1].map(star => ({
+    star,
+    pct: total > 0 ? Math.round((rating === star ? 1 : 0) * 100) : 0,
+  }))
+  return null // placeholder — real histogram needs aggregated data
+}
+
 export default function LawyerDetailPage() {
   const params = useParams<{ id: string }>()
   const [lawyer, setLawyer] = useState<(LawyerDiscovery & { availability_slots?: AvailabilitySlot[] }) | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [reviews, setReviews] = useState<ReviewsResponse | null>(null)
+  const [reviewRating, setReviewRating] = useState(0)
+  const [reviewComment, setReviewComment] = useState('')
+  const [submittingReview, setSubmittingReview] = useState(false)
+  const [reviewError, setReviewError] = useState('')
+  const [reviewDone, setReviewDone] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+  const [showReviewForm, setShowReviewForm] = useState(false)
+
+  const loadReviews = useCallback(async (id: string) => {
+    try {
+      const token = localStorage.getItem('access')
+      const data = await getReviews(id, token)
+      setReviews(data)
+    } catch {
+      // non-fatal
+    }
+  }, [])
+
+  useEffect(() => {
+    const role = localStorage.getItem('portalRole')
+    setIsClient(!role || role === 'client')
+  }, [])
 
   useEffect(() => {
     const run = async () => {
@@ -40,6 +94,7 @@ export default function LawyerDetailPage() {
       try {
         const data = await getLawyerById(params.id, token)
         setLawyer(data)
+        void loadReviews(params.id)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load lawyer profile')
       } finally {
@@ -47,7 +102,23 @@ export default function LawyerDetailPage() {
       }
     }
     if (params.id) void run()
-  }, [params.id])
+  }, [params.id, loadReviews])
+
+  const handleSubmitReview = async () => {
+    if (reviewRating === 0) { setReviewError('Please select a star rating'); return }
+    setSubmittingReview(true); setReviewError('')
+    try {
+      const token = localStorage.getItem('access') || ''
+      await submitReview(params.id, { rating: reviewRating, comment: reviewComment }, token)
+      setReviewDone(true)
+      setShowReviewForm(false)
+      void loadReviews(params.id)
+    } catch (e) {
+      setReviewError(e instanceof Error ? e.message : 'Failed to submit review')
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
 
   if (loading) return (
     <div className="max-w-4xl mx-auto space-y-4 animate-pulse">
@@ -210,22 +281,104 @@ export default function LawyerDetailPage() {
             </div>
           )}
 
-          {/* Reviews placeholder */}
+          {/* Reviews */}
           <div className="rounded-xl border border-neutral-700/40 bg-primary-800/40 p-6">
-            <h2 className="font-heading text-body-lg text-neutral-50 mb-3">Reviews</h2>
-            {lawyer.rating_count > 0 ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-4">
-                  <div className="text-4xl font-bold text-gold-400">{(Number(lawyer.average_rating) || 0).toFixed(1)}</div>
-                  <div>
-                    <StarRating rating={lawyer.average_rating} />
-                    <p className="text-neutral-500 text-xs mt-1">{lawyer.rating_count} reviews</p>
-                  </div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-heading text-body-lg text-neutral-50">Reviews</h2>
+              {isClient && !reviewDone && !showReviewForm && (
+                <button
+                  onClick={() => setShowReviewForm(true)}
+                  className="text-xs text-gold-400 border border-gold-500/30 bg-gold-500/8 px-3 py-1 rounded-full hover:bg-gold-500/15 transition-colors"
+                >
+                  Write a review
+                </button>
+              )}
+              {reviewDone && (
+                <span className="text-xs text-emerald-400 border border-emerald-500/30 bg-emerald-500/8 px-3 py-1 rounded-full">
+                  Review submitted
+                </span>
+              )}
+            </div>
+
+            {/* Summary */}
+            {(reviews?.count ?? lawyer.rating_count) > 0 && (
+              <div className="flex items-center gap-4 mb-5 pb-5 border-b border-neutral-700/30">
+                <div className="text-4xl font-bold text-gold-400">
+                  {(reviews?.average_rating ?? Number(lawyer.average_rating) ?? 0).toFixed(1)}
                 </div>
-                <p className="text-neutral-500 text-sm">Individual reviews are displayed after consultations are completed.</p>
+                <div>
+                  <StarRating rating={reviews?.average_rating ?? lawyer.average_rating} />
+                  <p className="text-neutral-500 text-xs mt-1">
+                    {reviews?.count ?? lawyer.rating_count} review{(reviews?.count ?? lawyer.rating_count) !== 1 ? 's' : ''}
+                  </p>
+                </div>
               </div>
-            ) : (
+            )}
+
+            {/* Review submission form */}
+            {showReviewForm && (
+              <div className="mb-5 rounded-xl bg-white/3 border border-white/8 p-4 space-y-3">
+                <p className="text-sm font-medium text-white/70">Your review</p>
+                <StarPicker value={reviewRating} onChange={setReviewRating} />
+                <textarea
+                  placeholder="Share your experience (optional)…"
+                  value={reviewComment}
+                  onChange={e => setReviewComment(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg bg-white/5 border border-white/8 px-3 py-2 text-sm text-white/70 placeholder:text-white/25 focus:outline-none focus:border-gold-500/30 resize-none"
+                />
+                {reviewError && <p className="text-xs text-red-400">{reviewError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSubmitReview}
+                    disabled={submittingReview}
+                    className="flex-1 rounded-lg bg-gold-500 text-primary-950 text-sm font-semibold py-2 hover:bg-gold-400 disabled:opacity-50 transition-colors"
+                  >
+                    {submittingReview ? 'Submitting…' : 'Submit Review'}
+                  </button>
+                  <button
+                    onClick={() => { setShowReviewForm(false); setReviewError('') }}
+                    className="px-4 rounded-lg bg-white/5 text-sm text-white/40 py-2 hover:bg-white/8 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Individual reviews */}
+            {reviews && reviews.results.length > 0 ? (
+              <div className="space-y-4">
+                {reviews.results.map(review => (
+                  <div key={review.id} className="border-b border-neutral-700/20 last:border-0 pb-4 last:pb-0">
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-gold-500/30 to-gold-600/30 flex items-center justify-center text-[10px] font-bold text-gold-400 flex-shrink-0">
+                          {(review.client_name || 'C').charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-sm font-medium text-neutral-300">
+                          {review.client_name || 'Client'}
+                        </span>
+                      </div>
+                      <span className="text-xs text-neutral-600 flex-shrink-0">
+                        {new Date(review.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <StarRating rating={review.rating} />
+                    {review.comment && (
+                      <p className="text-sm text-neutral-400 mt-2 leading-relaxed">{review.comment}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : reviews && reviews.count === 0 ? (
               <p className="text-neutral-500 text-sm">No reviews yet. Be the first to work with this lawyer.</p>
+            ) : (
+              <p className="text-neutral-500 text-sm">
+                {lawyer.rating_count > 0
+                  ? `${lawyer.rating_count} review${lawyer.rating_count !== 1 ? 's' : ''}`
+                  : 'No reviews yet. Be the first to work with this lawyer.'}
+              </p>
             )}
           </div>
         </div>

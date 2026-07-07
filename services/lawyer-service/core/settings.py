@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'apps.lawyers',
     'apps.discovery',
     'apps.firms',
+    'apps.reviews',
 ]
 
 MIDDLEWARE = [

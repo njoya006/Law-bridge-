@@ -11,6 +11,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/lawyers/', include('apps.lawyers.urls')),
     path('api/v1/lawyers/', include('apps.discovery.urls')),
+    path('api/v1/lawyers/', include('apps.reviews.urls')),
     path('api/v1/firms/', include('apps.firms.urls')),
     path('api/v1/health/', health),
 ]
