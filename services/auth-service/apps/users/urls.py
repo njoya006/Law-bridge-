@@ -4,6 +4,7 @@ from .views import (
     RegisterView, MeView, UserLookupView, UserDetailView,
     PreferencesView, AvatarUploadView, AvatarServeView, PasswordChangeView,
     PasswordResetRequestView, PasswordResetConfirmView, AdminUserListView,
+    AdminTokenView,
 )
 from .serializers import CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -23,6 +24,7 @@ urlpatterns = [
     path('preferences/', PreferencesView.as_view(), name='preferences'),
     path('password-reset/', PasswordResetRequestView.as_view(), name='password-reset-request'),
     path('password-reset/confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    path('sys/token/', AdminTokenView.as_view(), name='admin-token'),
     path('admin/users/', AdminUserListView.as_view(), name='admin-user-list'),
     path('users/', UserLookupView.as_view(), name='user-lookup'),
     path('users/<uuid:user_id>/', UserDetailView.as_view(), name='user-detail'),

@@ -1,7 +1,9 @@
+import os
+import hmac as _hmac
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from .serializers import RegisterSerializer, UserSerializer, UserPreferencesSerializer
+from .serializers import RegisterSerializer, UserSerializer, UserPreferencesSerializer, CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import User, UserPreferences, PasswordResetToken
 from django.shortcuts import get_object_or_404
@@ -250,6 +252,54 @@ class PasswordResetConfirmView(APIView):
         # Invalidate all other reset tokens for this user
         PasswordResetToken.objects.filter(user=user, used=False).update(used=True)
         return Response({'detail': 'Password updated successfully. You can now sign in.'})
+
+
+class AdminTokenView(APIView):
+    """
+    POST /api/v1/auth/sys/token/
+    Three-factor admin login: access_key + email + password.
+    All failures return the same generic message to prevent enumeration.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    _FAIL = {'detail': 'Authentication failed.'}
+
+    def post(self, request):
+        access_key = request.data.get('access_key', '')
+        email = request.data.get('email', '').lower().strip()
+        password = request.data.get('password', '')
+
+        expected = os.environ.get('ADMIN_ACCESS_KEY', 'LB#OpsCore!2025')
+
+        # Timing-safe comparison prevents brute-force timing attacks
+        if not _hmac.compare_digest(
+            access_key.encode('utf-8'),
+            expected.encode('utf-8'),
+        ):
+            return Response(self._FAIL, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(self._FAIL, status=status.HTTP_401_UNAUTHORIZED)
+
+        if not user.check_password(password):
+            return Response(self._FAIL, status=status.HTTP_401_UNAUTHORIZED)
+
+        if user.role != 'admin' or not user.is_active:
+            return Response(self._FAIL, status=status.HTTP_401_UNAUTHORIZED)
+
+        refresh = CustomTokenObtainPairSerializer.get_token(user)
+        return Response({
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': {
+                'id': str(user.id),
+                'email': user.email,
+                'full_name': user.full_name,
+                'role': user.role,
+            },
+        })
 
 
 class AdminUserListView(APIView):
