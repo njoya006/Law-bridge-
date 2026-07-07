@@ -2,7 +2,51 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { listBooks, listCategories, type BookItem, type BookTier, type BookCategory } from '../../lib/libraryApi'
+import { listBooks, listArticles, listCategories, ARTICLE_TYPE_LABELS, type BookItem, type BookTier, type BookCategory, type ArticleItem, type ArticleType } from '../../lib/libraryApi'
+
+const ARTICLE_TYPE_COLORS: Record<string, string> = {
+  case_summary: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  legal_alert:  'text-red-400 bg-red-500/10 border-red-500/20',
+  analysis:     'text-purple-400 bg-purple-500/10 border-purple-500/20',
+  commentary:   'text-amber-400 bg-amber-500/10 border-amber-500/20',
+  explainer:    'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+  news:         'text-sky-400 bg-sky-500/10 border-sky-500/20',
+}
+
+function ArticleCard({ article }: { article: ArticleItem }) {
+  const typeCls = ARTICLE_TYPE_COLORS[article.article_type] || ARTICLE_TYPE_COLORS.analysis
+  const pubDate = article.published_at
+    ? new Date(article.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null
+
+  return (
+    <Link href={`/library/articles/${article.id}`} className="group block rounded-xl bg-white/[0.025] border border-white/8 hover:border-white/15 hover:bg-white/5 p-5 transition-all">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold flex-shrink-0 ${typeCls}`}>
+          {ARTICLE_TYPE_LABELS[article.article_type] || article.article_type}
+        </span>
+        <span className="text-[11px] text-white/25 flex-shrink-0">{article.reading_time} min read</span>
+      </div>
+      <h3 className="text-[14px] font-semibold text-white/80 group-hover:text-white leading-snug mb-2 line-clamp-2 transition-colors">
+        {article.title}
+      </h3>
+      {article.summary && (
+        <p className="text-[12px] text-white/40 leading-relaxed line-clamp-2 mb-3">{article.summary}</p>
+      )}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[11px] text-white/30 truncate">{article.author_name}</span>
+        {pubDate && <span className="text-[11px] text-white/20 flex-shrink-0">{pubDate}</span>}
+      </div>
+      {article.legal_areas.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {article.legal_areas.slice(0, 2).map(a => (
+            <span key={a} className="rounded bg-white/4 px-1.5 py-0.5 text-[10px] text-white/30">{a}</span>
+          ))}
+        </div>
+      )}
+    </Link>
+  )
+}
 
 // ─── Cover themes per legal area ────────────────────────────────────────────
 
@@ -269,11 +313,14 @@ function EmptyState({ search }: { search: string }) {
 
 export default function LibraryPage() {
   const [books, setBooks] = useState<BookItem[]>([])
+  const [articles, setArticles] = useState<ArticleItem[]>([])
   const [loading, setLoading] = useState(true)
   const [categories, setCategories] = useState<BookCategory[]>([])
   const [search, setSearch] = useState('')
   const [selectedArea, setSelectedArea] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | 'firm'>('all')
+  const [contentType, setContentType] = useState<'books' | 'articles'>('books')
+  const [articleTypeFilter, setArticleTypeFilter] = useState<ArticleType | ''>('')
   const [isLawyer, setIsLawyer] = useState(false)
 
   useEffect(() => {
@@ -287,19 +334,29 @@ export default function LibraryPage() {
     try {
       const token = localStorage.getItem('access')
       const fid = localStorage.getItem('firmId')
-      const data = await listBooks(token, {
-        tier: activeTab === 'firm' ? 'firm' : undefined,
-        search: search || undefined,
-        legal_area: selectedArea || undefined,
-        firm_id: fid || undefined,
-      })
-      setBooks(data)
+      if (contentType === 'books') {
+        const data = await listBooks(token, {
+          tier: activeTab === 'firm' ? 'firm' : undefined,
+          search: search || undefined,
+          legal_area: selectedArea || undefined,
+          firm_id: fid || undefined,
+        })
+        setBooks(data)
+      } else {
+        const data = await listArticles(token, {
+          tier: activeTab === 'firm' ? 'firm' : undefined,
+          search: search || undefined,
+          legal_area: selectedArea || undefined,
+          type: articleTypeFilter || undefined,
+        })
+        setArticles(data)
+      }
     } catch {
-      setBooks([])
+      setBooks([]); setArticles([])
     } finally {
       setLoading(false)
     }
-  }, [activeTab, search, selectedArea])
+  }, [activeTab, search, selectedArea, contentType, articleTypeFilter])
 
   useEffect(() => { load() }, [load])
 
@@ -340,48 +397,73 @@ export default function LibraryPage() {
             )}
           </div>
 
-          {/* Search + filter row */}
-          <div className="mt-7 flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1 max-w-xl">
-              <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none"
-                   width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-              <input
-                type="text"
-                placeholder="Search titles, authors, topics…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full rounded-xl bg-white/5 border border-white/8 pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-gold-500/40 focus:bg-white/8 transition-all"
-              />
+          {/* Content type + search + filter row */}
+          <div className="mt-7 space-y-3">
+            {/* Books / Articles toggle */}
+            <div className="flex gap-1 p-1 bg-white/4 rounded-xl w-fit">
+              {(['books', 'articles'] as const).map(ct => (
+                <button key={ct} onClick={() => setContentType(ct)}
+                  className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
+                    contentType === ct ? 'bg-gold-500 text-primary-950' : 'text-white/40 hover:text-white/70'
+                  }`}>
+                  {ct === 'books' ? 'Books' : 'Articles'}
+                </button>
+              ))}
             </div>
 
-            <select
-              value={selectedArea}
-              onChange={e => setSelectedArea(e.target.value)}
-              className="rounded-xl bg-white/5 border border-white/8 px-3 py-2.5 text-sm text-white/50 focus:outline-none focus:border-gold-500/30 cursor-pointer"
-            >
-              <option value="">All Areas of Law</option>
-              {categories.map(c => (
-                <option key={c.slug} value={c.name} className="bg-[#07111a]">{c.name}</option>
-              ))}
-            </select>
-
-            {isLawyer && (
-              <div className="flex gap-1 p-1 bg-white/4 rounded-xl self-start sm:self-auto">
-                {(['all', 'firm'] as const).map(tab => (
-                  <button key={tab} onClick={() => setActiveTab(tab)}
-                          className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
-                            activeTab === tab
-                              ? 'bg-gold-500 text-primary-950'
-                              : 'text-white/40 hover:text-white/70'
-                          }`}>
-                    {tab === 'all' ? 'All' : 'My Firm'}
-                  </button>
-                ))}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1 max-w-xl">
+                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none"
+                     width="15" height="15" viewBox="0 0 24 24" fill="none">
+                  <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5"/>
+                  <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+                <input
+                  type="text"
+                  placeholder={contentType === 'books' ? 'Search titles, authors, topics…' : 'Search articles…'}
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full rounded-xl bg-white/5 border border-white/8 pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-gold-500/40 focus:bg-white/8 transition-all"
+                />
               </div>
-            )}
+
+              <select
+                value={selectedArea}
+                onChange={e => setSelectedArea(e.target.value)}
+                className="rounded-xl bg-white/5 border border-white/8 px-3 py-2.5 text-sm text-white/50 focus:outline-none focus:border-gold-500/30 cursor-pointer"
+              >
+                <option value="">All Areas of Law</option>
+                {categories.map(c => (
+                  <option key={c.slug} value={c.name} className="bg-[#07111a]">{c.name}</option>
+                ))}
+              </select>
+
+              {contentType === 'articles' && (
+                <select
+                  value={articleTypeFilter}
+                  onChange={e => setArticleTypeFilter(e.target.value as ArticleType | '')}
+                  className="rounded-xl bg-white/5 border border-white/8 px-3 py-2.5 text-sm text-white/50 focus:outline-none focus:border-gold-500/30 cursor-pointer"
+                >
+                  <option value="">All Types</option>
+                  {(Object.entries(ARTICLE_TYPE_LABELS) as [ArticleType, string][]).map(([v, l]) => (
+                    <option key={v} value={v} className="bg-[#07111a]">{l}</option>
+                  ))}
+                </select>
+              )}
+
+              {isLawyer && (
+                <div className="flex gap-1 p-1 bg-white/4 rounded-xl self-start sm:self-auto">
+                  {(['all', 'firm'] as const).map(tab => (
+                    <button key={tab} onClick={() => setActiveTab(tab)}
+                            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
+                              activeTab === tab ? 'bg-gold-500 text-primary-950' : 'text-white/40 hover:text-white/70'
+                            }`}>
+                      {tab === 'all' ? 'All' : 'My Firm'}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -389,28 +471,64 @@ export default function LibraryPage() {
       {/* ── Collection ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
 
-        {!loading && books.length > 0 && (
-          <p className="text-xs text-white/25 mb-8">
-            {books.length} publication{books.length !== 1 ? 's' : ''} in the collection
-            {selectedArea && <> · <span className="text-white/40">{selectedArea}</span></>}
-          </p>
+        {contentType === 'books' ? (
+          <>
+            {!loading && books.length > 0 && (
+              <p className="text-xs text-white/25 mb-8">
+                {books.length} publication{books.length !== 1 ? 's' : ''} in the collection
+                {selectedArea && <> · <span className="text-white/40">{selectedArea}</span></>}
+              </p>
+            )}
+            <div
+              className="grid gap-6 sm:gap-8"
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', paddingRight: '12px' }}
+            >
+              {loading
+                ? Array.from({ length: 12 }).map((_, i) => <BookSkeleton key={i} />)
+                : books.length === 0
+                  ? <EmptyState search={search} />
+                  : books.map(book => <BookCover key={book.id} book={book} />)
+              }
+            </div>
+          </>
+        ) : (
+          <>
+            {!loading && articles.length > 0 && (
+              <p className="text-xs text-white/25 mb-6">
+                {articles.length} article{articles.length !== 1 ? 's' : ''}
+                {selectedArea && <> · <span className="text-white/40">{selectedArea}</span></>}
+              </p>
+            )}
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <div key={i} className="rounded-xl bg-white/3 border border-white/6 p-5 animate-pulse">
+                    <div className="h-4 bg-white/8 rounded w-1/3 mb-3" />
+                    <div className="h-4 bg-white/6 rounded w-full mb-2" />
+                    <div className="h-4 bg-white/5 rounded w-3/4 mb-4" />
+                    <div className="h-3 bg-white/4 rounded w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : articles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-24 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center mb-4">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white/25">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                    <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="1.5"/>
+                  </svg>
+                </div>
+                <p className="text-[15px] font-medium text-white/40">
+                  {search ? `No articles match "${search}"` : 'No articles published yet'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {articles.map(a => <ArticleCard key={a.id} article={a} />)}
+              </div>
+            )}
+          </>
         )}
-
-        {/* Extra right padding so page-edge layers don't get clipped on the last column */}
-        <div
-          className="grid gap-6 sm:gap-8"
-          style={{
-            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-            paddingRight: '12px',
-          }}
-        >
-          {loading
-            ? Array.from({ length: 12 }).map((_, i) => <BookSkeleton key={i} />)
-            : books.length === 0
-              ? <EmptyState search={search} />
-              : books.map(book => <BookCover key={book.id} book={book} />)
-          }
-        </div>
       </div>
     </div>
   )

@@ -134,3 +134,79 @@ export function listReviewQueue(token: string, firmId?: string | null) {
 export function listCategories() {
   return api.get<BookCategory[]>('library', '/categories/', null)
 }
+
+// ── Articles ──────────────────────────────────────────────────────────────────
+
+export type ArticleType = 'case_summary' | 'legal_alert' | 'analysis' | 'commentary' | 'explainer' | 'news'
+export type ArticleStatus = 'draft' | 'published' | 'archived'
+
+export interface ArticleItem {
+  id: string
+  title: string
+  summary: string
+  content?: string
+  article_type: ArticleType
+  author_id: string
+  author_name: string
+  firm_id: string | null
+  tier: BookTier
+  status: ArticleStatus
+  legal_areas: string[]
+  jurisdiction: string
+  language: string
+  reading_time: number
+  views: number
+  published_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export const ARTICLE_TYPE_LABELS: Record<ArticleType, string> = {
+  case_summary: 'Case Summary',
+  legal_alert: 'Legal Alert',
+  analysis: 'Analysis',
+  commentary: 'Commentary',
+  explainer: 'Explainer',
+  news: 'Legal News',
+}
+
+export function listArticles(token: string | null, params?: {
+  tier?: BookTier; search?: string; type?: ArticleType; legal_area?: string
+}) {
+  const qs = new URLSearchParams()
+  if (params?.tier) qs.set('tier', params.tier)
+  if (params?.search) qs.set('search', params.search)
+  if (params?.type) qs.set('type', params.type)
+  if (params?.legal_area) qs.set('legal_area', params.legal_area)
+  const query = qs.toString() ? `?${qs.toString()}` : ''
+  return api.get<ArticleItem[]>('library', `/articles/${query}`, token)
+}
+
+export function getArticle(id: string, token: string | null) {
+  return api.get<ArticleItem>('library', `/articles/${id}/`, token)
+}
+
+export function createArticle(data: Partial<ArticleItem>, token: string) {
+  return api.request<ArticleItem>('library', '/articles/', {
+    method: 'POST', token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export function updateArticle(id: string, data: Partial<ArticleItem>, token: string) {
+  return api.request<ArticleItem>('library', `/articles/${id}/`, {
+    method: 'PUT', token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+}
+
+export function deleteArticle(id: string, token: string) {
+  return api.request<void>('library', `/articles/${id}/`, { method: 'DELETE', token })
+}
+
+export function listMyArticles(token: string, status?: ArticleStatus) {
+  const query = status ? `?status=${status}` : ''
+  return api.get<ArticleItem[]>('library', `/my-articles/${query}`, token)
+}

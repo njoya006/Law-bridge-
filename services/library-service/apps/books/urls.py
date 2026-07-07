@@ -11,4 +11,8 @@ urlpatterns = [
     path('my-books/', views.MyBooksView.as_view()),
     path('review-queue/', views.ReviewQueueView.as_view()),
     path('categories/', views.CategoryListView.as_view()),
+    # Articles
+    path('articles/', views.ArticleListCreateView.as_view()),
+    path('articles/<uuid:pk>/', views.ArticleDetailView.as_view()),
+    path('my-articles/', views.MyArticlesView.as_view()),
 ]

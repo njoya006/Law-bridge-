@@ -91,6 +91,66 @@ class Book(models.Model):
         return self.title
 
 
+class Article(models.Model):
+    """Short-form legal content: case summaries, legal alerts, analysis, commentary.
+    Unlike Book, lawyers publish directly — no review workflow required."""
+
+    TYPE_CHOICES = [
+        ('case_summary', 'Case Summary'),
+        ('legal_alert', 'Legal Alert'),
+        ('analysis', 'Analysis'),
+        ('commentary', 'Commentary'),
+        ('explainer', 'Explainer'),
+        ('news', 'Legal News'),
+    ]
+    TIER_CHOICES = [
+        ('general', 'General'),
+        ('firm', 'Firm'),
+    ]
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('published', 'Published'),
+        ('archived', 'Archived'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=500)
+    summary = models.TextField(blank=True)
+    content = models.TextField()
+    article_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='analysis')
+    author_id = models.UUIDField(db_index=True)
+    author_name = models.CharField(max_length=200)
+    firm_id = models.UUIDField(null=True, blank=True, db_index=True)
+    tier = models.CharField(max_length=20, choices=TIER_CHOICES, default='general')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    legal_areas = models.JSONField(default=list)
+    jurisdiction = models.CharField(max_length=100, default='Cameroon')
+    language = models.CharField(max_length=10, default='en')
+    reading_time = models.PositiveSmallIntegerField(default=1, help_text='Minutes')
+    views = models.PositiveIntegerField(default=0)
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-published_at', '-created_at']
+        indexes = [
+            models.Index(fields=['status', 'tier']),
+            models.Index(fields=['author_id']),
+            models.Index(fields=['article_type', 'status']),
+        ]
+
+    def save(self, *args, **kwargs):
+        # Auto-compute reading time (~200 words/minute)
+        if self.content:
+            words = len(self.content.split())
+            self.reading_time = max(1, round(words / 200))
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.title
+
+
 class BookVersion(models.Model):
     """Immutable content snapshot — never updated, only appended. Enables stable citations."""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

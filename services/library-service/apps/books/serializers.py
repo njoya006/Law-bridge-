@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Book, BookVersion, Category
+from .models import Book, BookVersion, Category, Article
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -73,3 +73,26 @@ class BookDetailSerializer(serializers.ModelSerializer):
         if category_ids is not None:
             instance.categories.set(Category.objects.filter(id__in=category_ids))
         return instance
+
+
+class ArticleListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Article
+        fields = [
+            'id', 'title', 'summary', 'article_type', 'author_id', 'author_name',
+            'firm_id', 'tier', 'status', 'legal_areas', 'jurisdiction', 'language',
+            'reading_time', 'views', 'published_at', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'reading_time', 'views', 'published_at', 'created_at', 'updated_at']
+
+
+class ArticleDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Article
+        fields = [
+            'id', 'title', 'summary', 'content', 'article_type',
+            'author_id', 'author_name', 'firm_id', 'tier', 'status',
+            'legal_areas', 'jurisdiction', 'language',
+            'reading_time', 'views', 'published_at', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'reading_time', 'views', 'published_at', 'created_at', 'updated_at']

@@ -168,15 +168,26 @@ export default function LawyerLibraryPage() {
               <h1 className="text-xl sm:text-2xl font-bold text-white">My Publications</h1>
               <p className="text-sm text-white/35 mt-1">Manage your legal articles and publications</p>
             </div>
-            <Link
-              href="/lawyer/library/new"
-              className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors flex-shrink-0"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-              New Publication
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/lawyer/library/articles/new"
+                className="inline-flex items-center gap-2 rounded-xl bg-white/6 border border-white/10 px-4 py-2.5 text-sm font-medium text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors flex-shrink-0"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                New Article
+              </Link>
+              <Link
+                href="/lawyer/library/new"
+                className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors flex-shrink-0"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+                New Book
+              </Link>
+            </div>
           </div>
         </div>
       </div>

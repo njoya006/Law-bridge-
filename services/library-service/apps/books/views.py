@@ -4,8 +4,11 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 
-from .models import Book, BookVersion, Category
-from .serializers import BookListSerializer, BookDetailSerializer, BookVersionSerializer, CategorySerializer
+from .models import Book, BookVersion, Category, Article
+from .serializers import (
+    BookListSerializer, BookDetailSerializer, BookVersionSerializer, CategorySerializer,
+    ArticleListSerializer, ArticleDetailSerializer,
+)
 from .permissions import (
     get_caller, can_create_book, can_view_book,
     can_edit_book, can_submit_book, can_review_book,
@@ -233,3 +236,128 @@ class CategoryListView(APIView):
         from rest_framework.permissions import AllowAny
         categories = Category.objects.all()
         return Response(CategorySerializer(categories, many=True).data)
+
+
+# ── Articles ──────────────────────────────────────────────────────────────────
+
+class ArticleListCreateView(APIView):
+    permission_classes = []  # GET public; POST self-enforces
+
+    def get(self, request):
+        caller_id, caller_role, caller_firm_id = get_caller(request)
+        from django.db.models import Q
+
+        qs = Article.objects.filter(status='published')
+        tier = request.query_params.get('tier')
+        if tier == 'firm':
+            if not caller_firm_id:
+                return Response({'error': 'firm_id required'}, status=400)
+            qs = qs.filter(tier='firm', firm_id=caller_firm_id)
+        elif tier == 'general':
+            qs = qs.filter(tier='general')
+        else:
+            q = Q(tier='general')
+            if caller_firm_id:
+                q |= Q(tier='firm', firm_id=caller_firm_id)
+            qs = qs.filter(q)
+
+        search = request.query_params.get('search', '').strip()
+        if search:
+            qs = qs.filter(Q(title__icontains=search) | Q(summary__icontains=search) | Q(author_name__icontains=search))
+
+        article_type = request.query_params.get('type', '').strip()
+        if article_type:
+            qs = qs.filter(article_type=article_type)
+
+        legal_area = request.query_params.get('legal_area', '').strip()
+        if legal_area:
+            qs = qs.filter(legal_areas__contains=legal_area)
+
+        return Response(ArticleListSerializer(qs, many=True).data)
+
+    def post(self, request):
+        caller_id, caller_role, caller_firm_id = get_caller(request)
+        if not caller_id:
+            return Response({'error': 'Authentication required'}, status=401)
+        if caller_role not in ('lawyer', 'associate', 'partner', 'firm_admin', 'owner', 'admin'):
+            return Response({'error': 'Only lawyers can publish articles'}, status=403)
+
+        data = request.data.copy()
+        data['author_id'] = caller_id
+        if 'author_name' not in data or not data['author_name']:
+            data['author_name'] = getattr(request, 'auth_payload', {}).get('full_name', '')
+
+        ser = ArticleDetailSerializer(data=data)
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+
+        article = ser.save()
+        if article.status == 'published':
+            article.published_at = timezone.now()
+            article.save(update_fields=['published_at'])
+
+        return Response(ArticleDetailSerializer(article).data, status=201)
+
+
+class ArticleDetailView(APIView):
+    permission_classes = []
+
+    def _get_article(self, pk):
+        try:
+            return Article.objects.get(pk=pk)
+        except Article.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        article = self._get_article(pk)
+        if not article:
+            return Response({'error': 'Not found'}, status=404)
+        caller_id, _, caller_firm_id = get_caller(request)
+        if article.status != 'published':
+            if str(article.author_id) != caller_id:
+                return Response({'error': 'Not found'}, status=404)
+        if article.tier == 'firm' and str(article.firm_id) != str(caller_firm_id):
+            if article.status == 'published' and not caller_id:
+                return Response({'error': 'Access denied'}, status=403)
+        # Increment view count (non-author reads of published articles)
+        if article.status == 'published' and str(article.author_id) != caller_id:
+            Article.objects.filter(pk=pk).update(views=article.views + 1)
+        return Response(ArticleDetailSerializer(article).data)
+
+    def put(self, request, pk):
+        article = self._get_article(pk)
+        if not article:
+            return Response({'error': 'Not found'}, status=404)
+        caller_id, caller_role, _ = get_caller(request)
+        if str(article.author_id) != caller_id and caller_role != 'admin':
+            return Response({'error': 'Permission denied'}, status=403)
+        ser = ArticleDetailSerializer(article, data=request.data, partial=True)
+        if not ser.is_valid():
+            return Response(ser.errors, status=400)
+        updated = ser.save()
+        if updated.status == 'published' and not updated.published_at:
+            updated.published_at = timezone.now()
+            updated.save(update_fields=['published_at'])
+        return Response(ArticleDetailSerializer(updated).data)
+
+    def delete(self, request, pk):
+        article = self._get_article(pk)
+        if not article:
+            return Response({'error': 'Not found'}, status=404)
+        caller_id, caller_role, _ = get_caller(request)
+        if str(article.author_id) != caller_id and caller_role != 'admin':
+            return Response({'error': 'Permission denied'}, status=403)
+        article.delete()
+        return Response(status=204)
+
+
+class MyArticlesView(APIView):
+    def get(self, request):
+        caller_id, _, _ = get_caller(request)
+        if not caller_id:
+            return Response({'error': 'Authentication required'}, status=401)
+        qs = Article.objects.filter(author_id=caller_id)
+        status_filter = request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        return Response(ArticleListSerializer(qs, many=True).data)
