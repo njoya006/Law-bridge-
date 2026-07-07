@@ -154,6 +154,26 @@ export default function LawyerProfilePage() {
                       {me.full_name || me.email}
                     </h2>
                     <p className="text-primary-400 text-body-lg capitalize">{me.role}</p>
+                    {lawyerProfile && (
+                      <div className="mt-2">
+                        {lawyerProfile.verified_at ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                              <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                            Verified Lawyer · since {new Date(lawyerProfile.verified_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
+                          </span>
+                        ) : (
+                          <Link href="/lawyer/verify" className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/8 px-3 py-1 text-xs text-gold-400 hover:bg-gold-500/15 transition-all">
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
+                              <path d="M12 8v4l2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                            </svg>
+                            Get Verified — boost your visibility
+                          </Link>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {lawyerProfile && (
                     <div className="flex flex-col items-end gap-1.5 self-start flex-shrink-0">

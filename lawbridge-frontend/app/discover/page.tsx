@@ -115,8 +115,13 @@ function FirmCard({ firm, isStaff, isOwnFirm }: { firm: FirmDiscovery; isStaff: 
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-heading text-body-md text-neutral-50 truncate">{firm.name}</h3>
+            {firm.is_verified && (
+              <svg className="w-4 h-4 text-gold-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+              </svg>
+            )}
             {isOwnFirm && (
               <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-gold-500/15 border border-gold-500/30 text-gold-400 font-semibold">Your Firm</span>
             )}
@@ -266,10 +271,11 @@ export default function DiscoverPage() {
   const [ownFirmIds, setOwnFirmIds] = useState<Set<string>>(new Set())
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState<LawyerBrowseFilters>({ sort: 'rating' })
+  const [firmVerifiedOnly, setFirmVerifiedOnly] = useState(false)
 
   const matchText = (value: string | undefined, q: string) => (value ?? '').toLowerCase().includes(q)
 
-  const load = useCallback(async (nextQuery = '', currentFilters: LawyerBrowseFilters = filters) => {
+  const load = useCallback(async (nextQuery = '', currentFilters: LawyerBrowseFilters = filters, firmVO = false) => {
     setError('')
     setLoading(true)
     const tk = typeof window !== 'undefined' ? localStorage.getItem('access') : null
@@ -314,7 +320,7 @@ export default function DiscoverPage() {
       try {
         const [lr, fr] = await Promise.allSettled([
           browseLawyers(tk, { ...currentFilters, q: nextQuery }),
-          browseFirms(tk),
+          browseFirms(tk, undefined, firmVO),
         ])
         const allLawyers = lr.status === 'fulfilled' ? (lr.value.results ?? []) : []
         const allFirms = fr.status === 'fulfilled' ? (fr.value.results ?? []) : []
@@ -332,7 +338,7 @@ export default function DiscoverPage() {
     try {
       const [lr, fr] = await Promise.allSettled([
         browseLawyers(tk, currentFilters),
-        browseFirms(tk),
+        browseFirms(tk, undefined, firmVO),
       ])
       setLawyers(lr.status === 'fulfilled' ? (lr.value.results ?? []) : [])
       setFirms(fr.status === 'fulfilled' ? (fr.value.results ?? []) : [])
@@ -459,12 +465,18 @@ export default function DiscoverPage() {
               </select>
             </div>
           </div>
-          <div className="flex items-center gap-4 mt-3 pt-3 border-t border-neutral-700/20">
+          <div className="flex items-center gap-4 mt-3 pt-3 border-t border-neutral-700/20 flex-wrap">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={!!filters.urgent}
                 onChange={e => updateFilter('urgent', e.target.checked || undefined)}
                 className="rounded border-neutral-600 bg-primary-800 text-gold-500 focus:ring-gold-500/30" />
               <span className="text-xs text-neutral-400">Accepts urgent cases</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={!!filters.verified_only}
+                onChange={e => updateFilter('verified_only', e.target.checked || undefined)}
+                className="rounded border-neutral-600 bg-primary-800 text-gold-500 focus:ring-gold-500/30" />
+              <span className="text-xs text-neutral-400">Verified lawyers only</span>
             </label>
             <button onClick={() => { setFilters({ sort: 'rating' }); void load(query.trim(), { sort: 'rating' }) }}
               className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors ml-auto">
@@ -519,6 +531,21 @@ export default function DiscoverPage() {
       {/* Firms */}
       {activeTab === 'firms' && (
         <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={firmVerifiedOnly}
+                onChange={e => {
+                  const next = e.target.checked
+                  setFirmVerifiedOnly(next)
+                  void load(query.trim(), filters, next)
+                }}
+                className="rounded border-neutral-600 bg-primary-800 text-gold-500 focus:ring-gold-500/30"
+              />
+              <span className="text-xs text-neutral-400">Verified firms only</span>
+            </label>
+          </div>
           {loading ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {[1,2].map(i => (

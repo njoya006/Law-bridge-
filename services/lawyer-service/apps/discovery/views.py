@@ -1,5 +1,5 @@
 import logging
-from django.db.models import Q
+from django.db.models import Q, F
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
@@ -98,7 +98,11 @@ class LawyerBrowseView(APIView):
         if request.query_params.get('urgent') == 'true':
             queryset = queryset.filter(accepts_urgent_cases=True)
 
-        # Sort order
+        # Verified only
+        if request.query_params.get('verified_only') == 'true':
+            queryset = queryset.filter(verified_at__isnull=False)
+
+        # Sort order — verified lawyers always surface first, then by chosen criterion
         sort = request.query_params.get('sort', 'rating')
         sort_map = {
             'rating':      '-average_rating',
@@ -106,7 +110,10 @@ class LawyerBrowseView(APIView):
             'fee_asc':     'consultation_fee',
             'fee_desc':    '-consultation_fee',
         }
-        queryset = queryset.order_by(sort_map.get(sort, '-average_rating'))
+        queryset = queryset.order_by(
+            F('verified_at').desc(nulls_last=True),
+            sort_map.get(sort, '-average_rating'),
+        )
 
         try:
             serializer = LawyerDiscoverySerializer(queryset, many=True)

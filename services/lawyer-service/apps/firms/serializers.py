@@ -7,19 +7,23 @@ User = get_user_model()
 
 class FirmSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
+    is_verified = serializers.SerializerMethodField()
 
     class Meta:
         model = Firm
         fields = [
             'id', 'name', 'logo_url', 'description', 'website',
             'office_address', 'city', 'country', 'phone', 'contact_email',
-            'year_established', 'specializations', 'created_at', 'updated_at',
+            'year_established', 'specializations', 'is_verified', 'created_at', 'updated_at',
         ]
 
     def get_logo_url(self, obj):
         if obj.logo:
             return f'/api/v1/firms/logo/{obj.id}/'
         return None
+
+    def get_is_verified(self, obj):
+        return obj.verified_at is not None
 
 
 class FirmPartnershipPolicySerializer(serializers.ModelSerializer):

@@ -37,6 +37,7 @@ export interface LawyerBrowseFilters {
   max_fee?: number
   min_rating?: number
   urgent?: boolean
+  verified_only?: boolean
   sort?: 'rating' | 'experience' | 'fee_asc' | 'fee_desc'
   q?: string
 }
@@ -52,6 +53,7 @@ export function browseLawyers(token?: string | null, filters?: LawyerBrowseFilte
   if (filters?.max_fee) params.set('max_fee', String(filters.max_fee))
   if (filters?.min_rating) params.set('min_rating', String(filters.min_rating))
   if (filters?.urgent) params.set('urgent', 'true')
+  if (filters?.verified_only) params.set('verified_only', 'true')
   if (filters?.sort) params.set('sort', filters.sort)
   if (filters?.q) params.set('q', filters.q)
   const suffix = params.toString() ? `?${params.toString()}` : ''
@@ -79,8 +81,11 @@ export function matchLawyers(payload: { case_type: string; circuit: string; lang
   return api.post<{ matches: Array<{ lawyer: LawyerDiscovery; score: number; match_factors: Record<string, unknown> }>; count: number }>('lawyer', '/lawyers/match/', payload, token)
 }
 
-export function browseFirms(token?: string | null, query?: string) {
-  const suffix = query ? `?q=${encodeURIComponent(query)}` : ''
+export function browseFirms(token?: string | null, query?: string, verifiedOnly?: boolean) {
+  const params = new URLSearchParams()
+  if (query) params.set('q', query)
+  if (verifiedOnly) params.set('verified_only', 'true')
+  const suffix = params.toString() ? `?${params.toString()}` : ''
   return api.get<{ count: number; results: FirmDiscovery[] }>('firms', `/${suffix}`, token)
 }
 

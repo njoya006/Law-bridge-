@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.core.validators import MinValueValidator, MaxValueValidator
 import uuid
 
 User = get_user_model()
@@ -26,6 +27,7 @@ class Firm(models.Model):
     year_established = models.PositiveIntegerField(null=True, blank=True)
     specializations = models.JSONField(default=list, blank=True,
         help_text='List of practice areas this firm covers')
+    verified_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -138,3 +140,44 @@ class FirmActionLog(models.Model):
 
     def __str__(self):
         return f"{self.action} by {self.performed_by_email} in {self.firm}"
+
+
+class FirmVerificationRequest(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_APPROVED = 'approved'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_APPROVED, 'Approved'),
+        (STATUS_REJECTED, 'Rejected'),
+    ]
+    FIRM_TYPE_CHOICES = [
+        ('sole_practice', 'Sole Practice'),
+        ('partnership', 'Partnership'),
+        ('incorporated', 'Incorporated Law Firm'),
+        ('government', 'Government / Public Sector'),
+        ('ngo', 'NGO / Non-profit'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    firm = models.OneToOneField(Firm, on_delete=models.CASCADE, related_name='verification_request')
+    registration_number = models.CharField(max_length=100)
+    firm_type = models.CharField(max_length=50, choices=FIRM_TYPE_CHOICES)
+    founding_year = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1900), MaxValueValidator(2100)],
+    )
+    number_of_partners = models.PositiveSmallIntegerField(default=1)
+    notes = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True)
+    submitted_by_id = models.UUIDField()
+    reviewed_by_id = models.UUIDField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'FirmVerificationRequest({self.firm_id}, {self.status})'

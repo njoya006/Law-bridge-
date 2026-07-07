@@ -171,13 +171,18 @@ class FirmBrowseView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        from django.db.models import Count, Q
+        from django.db.models import Count, Q, F
         name = request.query_params.get('q', '').strip()
+        verified_only = request.query_params.get('verified_only') == 'true'
         query = Firm.objects.annotate(
             member_count=Count('members', filter=Q(members__is_active=True))
-        ).order_by('name')
+        )
         if name:
             query = query.filter(name__icontains=name)
+        if verified_only:
+            query = query.filter(verified_at__isnull=False)
+        # Verified firms surface first, then alphabetical
+        query = query.order_by(F('verified_at').desc(nulls_last=True), 'name')
         paginator = StandardPagination()
         page = paginator.paginate_queryset(query, request)
         results = [{**FirmSerializer(firm).data, 'member_count': firm.member_count} for firm in page]
@@ -188,13 +193,14 @@ class FirmSearchView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        from django.db.models import Count, Q
+        from django.db.models import Count, Q, F
         name = request.query_params.get('q', '').strip()
         query = Firm.objects.annotate(
             member_count=Count('members', filter=Q(members__is_active=True))
-        ).order_by('name')
+        )
         if name:
             query = query.filter(name__icontains=name)
+        query = query.order_by(F('verified_at').desc(nulls_last=True), 'name')
         paginator = StandardPagination()
         page = paginator.paginate_queryset(query, request)
         results = [{**FirmSerializer(firm).data, 'member_count': firm.member_count} for firm in page]

@@ -1,4 +1,9 @@
 from django.urls import path
+from .verification_views import (
+    FirmVerificationSubmitView,
+    FirmVerificationQueueView,
+    FirmVerificationActionView,
+)
 from .views import (
     FirmBrowseView,
     FirmSearchView,
@@ -48,4 +53,8 @@ urlpatterns = [
     path('<int:firm_id>/partnership-request/', PartnershipRequestCreateView.as_view(), name='firm-partnership-request-create'),
     path('<int:firm_id>/partnership-requests/', PartnershipRequestListView.as_view(), name='firm-partnership-requests'),
     path('partnership-requests/<int:pk>/', PartnershipRequestRespondView.as_view(), name='partnership-request-respond'),
+    # Firm verification
+    path('verification/', FirmVerificationSubmitView.as_view(), name='firm-verification-submit'),
+    path('verification/queue/', FirmVerificationQueueView.as_view(), name='firm-verification-queue'),
+    path('verification/<uuid:pk>/<str:action>/', FirmVerificationActionView.as_view(), name='firm-verification-action'),
 ]

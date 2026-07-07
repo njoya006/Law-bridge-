@@ -13,6 +13,7 @@ export type Firm = {
   contact_email?: string
   year_established?: number | null
   specializations?: string[]
+  is_verified?: boolean
   created_at: string
   updated_at?: string
 }
