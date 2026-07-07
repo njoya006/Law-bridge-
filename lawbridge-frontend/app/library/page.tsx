@@ -50,21 +50,13 @@ function ordinal(n: number) {
 function ScalesIcon({ color }: { color: string }) {
   return (
     <svg viewBox="0 0 48 48" fill="none" className="w-full h-full" aria-hidden>
-      {/* Beam */}
       <line x1="8" y1="14" x2="40" y2="14" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-      {/* Center post */}
       <line x1="24" y1="8" x2="24" y2="40" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-      {/* Top ornament */}
       <circle cx="24" cy="8" r="2" fill={color} />
-      {/* Base */}
       <line x1="16" y1="40" x2="32" y2="40" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-      {/* Left chain */}
       <line x1="8" y1="14" x2="8" y2="26" stroke={color} strokeWidth="1" strokeLinecap="round" strokeDasharray="2 2" />
-      {/* Left pan */}
       <path d="M2 26 Q8 32 14 26" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" />
-      {/* Right chain */}
       <line x1="40" y1="14" x2="40" y2="22" stroke={color} strokeWidth="1" strokeLinecap="round" strokeDasharray="2 2" />
-      {/* Right pan (slightly lower = balanced) */}
       <path d="M34 22 Q40 28 46 22" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" />
     </svg>
   )
@@ -77,91 +69,141 @@ function BookCover({ book }: { book: BookItem }) {
 
   return (
     <Link href={`/library/${book.id}`} className="group block focus:outline-none">
-      {/* Wrapper adds subtle lift on hover */}
-      <div className="relative transition-all duration-300 group-hover:-translate-y-1.5 group-hover:shadow-2xl"
-           style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}>
+      <div className="relative transition-transform duration-300 group-hover:-translate-y-2">
 
-        {/* Book body: spine + cover side by side */}
-        <div className="flex rounded-sm overflow-hidden" style={{ aspectRatio: '5/7' }}>
+        {/* ── Pages-edge effect: three cream layers behind the cover ── */}
+        {/* Layer 3 – darkest, furthest back */}
+        <div
+          className="absolute inset-y-0 pointer-events-none"
+          style={{
+            right: '-9px', width: '14px',
+            background: '#a09880',
+            borderRadius: '0 3px 3px 0',
+            zIndex: 0,
+          }}
+        />
+        {/* Layer 2 */}
+        <div
+          className="absolute inset-y-0 pointer-events-none"
+          style={{
+            right: '-6px', width: '11px',
+            background: '#c4baa0',
+            borderRadius: '0 3px 3px 0',
+            zIndex: 0,
+          }}
+        />
+        {/* Layer 1 – closest, lightest */}
+        <div
+          className="absolute inset-y-0 pointer-events-none"
+          style={{
+            right: '-3px', width: '8px',
+            background: 'linear-gradient(to right, #d8d0b8, #eee8d4, #d8d0b8)',
+            borderRadius: '0 2px 2px 0',
+            zIndex: 0,
+          }}
+        />
 
-          {/* Spine */}
-          <div className="w-[10%] flex-shrink-0 flex flex-col items-center justify-center py-3 gap-1"
-               style={{ background: theme.spine }}>
-            <div className="w-px flex-1" style={{ background: theme.accent + '40' }} />
-            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: theme.accent + '60' }} />
-            <div className="w-px flex-1" style={{ background: theme.accent + '40' }} />
+        {/* ── Main cover ── */}
+        <div
+          className="relative overflow-hidden rounded-l-sm rounded-r-[1px]"
+          style={{
+            aspectRatio: '5/7',
+            background: theme.bg,
+            zIndex: 1,
+            boxShadow: [
+              '3px 4px 18px rgba(0,0,0,0.65)',
+              'inset -2px 0 8px rgba(0,0,0,0.28)',
+              'inset 0 1px 0 rgba(255,255,255,0.04)',
+            ].join(', '),
+          }}
+        >
+          {/* Spine strip */}
+          <div
+            className="absolute left-0 top-0 bottom-0 flex flex-col items-center justify-center gap-0.5"
+            style={{ width: '11%', background: theme.spine }}
+          >
+            <div className="flex-1 w-px mt-3" style={{ background: theme.accent + '55' }} />
+            <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: theme.accent + '80' }} />
+            <div className="flex-1 w-px mb-3" style={{ background: theme.accent + '55' }} />
           </div>
 
-          {/* Main cover */}
-          <div className="flex-1 flex flex-col overflow-hidden" style={{ background: theme.bg }}>
-
-            {/* Top decorative band */}
-            <div className="relative flex-shrink-0 flex items-center justify-center overflow-hidden"
-                 style={{ height: '30%', background: theme.accent + '18' }}>
-              {/* Thin rule lines */}
-              <div className="absolute top-2 left-3 right-3 h-px" style={{ background: theme.accent + '30' }} />
-              <div className="absolute bottom-2 left-3 right-3 h-px" style={{ background: theme.accent + '30' }} />
-              {/* Scales icon */}
-              <div className="w-10 h-10 opacity-25">
-                <ScalesIcon color={theme.accent} />
+          {/* Top decoration band */}
+          <div
+            className="absolute top-0 left-[11%] right-0 flex items-center justify-center"
+            style={{ height: '30%', background: theme.accent + '18' }}
+          >
+            <div className="absolute top-2 left-2 right-2 h-px" style={{ background: theme.accent + '35' }} />
+            <div className="absolute bottom-2 left-2 right-2 h-px" style={{ background: theme.accent + '35' }} />
+            <div className="opacity-[0.18]" style={{ width: '36px', height: '36px' }}>
+              <ScalesIcon color={theme.accent} />
+            </div>
+            {book.tier === 'firm' && (
+              <div
+                className="absolute top-1.5 right-2 rounded px-1 py-0.5 text-[8px] font-bold tracking-wider uppercase"
+                style={{ background: theme.accent + '28', color: theme.accent }}
+              >
+                FIRM
               </div>
-              {/* Tier badge top-right */}
-              {book.tier === 'firm' && (
-                <div className="absolute top-2 right-2 rounded px-1.5 py-0.5 text-[9px] font-bold tracking-widest uppercase"
-                     style={{ background: theme.accent + '30', color: theme.accent }}>
-                  FIRM
-                </div>
-              )}
-            </div>
-
-            {/* Title area */}
-            <div className="flex-1 flex flex-col justify-center px-3 py-2">
-              <h3 className="font-bold leading-snug text-white line-clamp-4"
-                  style={{ fontSize: 'clamp(10px, 2.2vw, 15px)' }}>
-                {book.title}
-              </h3>
-              {book.subtitle && (
-                <p className="mt-1 text-white/45 leading-snug line-clamp-2"
-                   style={{ fontSize: 'clamp(8px, 1.5vw, 11px)' }}>
-                  {book.subtitle}
-                </p>
-              )}
-            </div>
-
-            {/* Bottom metadata strip */}
-            <div className="flex-shrink-0 px-3 pb-3">
-              <div className="h-px mb-2" style={{ background: theme.accent + '35' }} />
-              <p className="font-semibold text-white/70 truncate"
-                 style={{ fontSize: 'clamp(8px, 1.4vw, 11px)' }}>
-                {book.author_name}
-              </p>
-              <p className="text-white/35 truncate mt-0.5"
-                 style={{ fontSize: 'clamp(7px, 1.2vw, 10px)' }}>
-                {book.publisher || 'LawBridge Press'}
-              </p>
-              <div className="flex items-center gap-1 mt-1" style={{ fontSize: 'clamp(7px, 1.1vw, 10px)' }}>
-                <span className="text-white/30">{ordinal(book.edition)} Ed.</span>
-                {book.year && <><span className="text-white/20">·</span><span className="text-white/30">{book.year}</span></>}
-                {book.pages && <><span className="text-white/20">·</span><span className="text-white/30">{book.pages}pp</span></>}
-              </div>
-            </div>
+            )}
           </div>
+
+          {/* Title area */}
+          <div
+            className="absolute left-[11%] right-1.5 overflow-hidden flex flex-col justify-center px-2.5"
+            style={{ top: '30%', bottom: '30%' }}
+          >
+            <h3 className="text-[12px] font-bold leading-snug text-white line-clamp-4">
+              {book.title}
+            </h3>
+            {book.subtitle && (
+              <p className="text-[9px] mt-1 leading-snug text-white/40 line-clamp-2">
+                {book.subtitle}
+              </p>
+            )}
+          </div>
+
+          {/* Bottom author/publisher strip */}
+          <div
+            className="absolute left-[11%] right-0 bottom-0 px-2.5 pb-2.5"
+            style={{ height: '30%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}
+          >
+            <div className="h-px mb-1.5" style={{ background: theme.accent + '30' }} />
+            <p className="text-[10px] font-semibold text-white/75 truncate">{book.author_name}</p>
+            <p className="text-[8px] text-white/30 truncate mt-0.5">
+              {book.publisher || 'LawBridge Press'}{book.year ? ` · ${book.year}` : ''}
+            </p>
+            <p className="text-[8px] text-white/20 truncate mt-0.5">
+              {ordinal(book.edition)} Ed.{book.pages ? ` · ${book.pages}pp` : ''}
+            </p>
+          </div>
+
+          {/* Hover glow */}
+          <div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+            style={{ background: `linear-gradient(135deg, ${theme.accent}14 0%, transparent 55%)` }}
+          />
         </div>
 
-        {/* Gold border glow on hover */}
-        <div className="absolute inset-0 rounded-sm border border-transparent transition-all duration-300 pointer-events-none"
-             style={{ borderColor: 'transparent' }}
-             onMouseEnter={e => (e.currentTarget.style.borderColor = theme.accent + '60')}
-             onMouseLeave={e => (e.currentTarget.style.borderColor = 'transparent')} />
+        {/* Ground shadow */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            bottom: '-6px', left: '8px', right: '14px', height: '12px',
+            background: 'rgba(0,0,0,0.35)',
+            filter: 'blur(6px)',
+            borderRadius: '50%',
+            zIndex: -1,
+          }}
+        />
       </div>
 
-      {/* Title below card */}
-      <div className="mt-2.5 px-0.5">
-        <p className="text-[11px] font-medium text-white/50 group-hover:text-white/80 transition-colors leading-snug line-clamp-2">
+      {/* Caption below */}
+      <div className="mt-3 px-0.5">
+        <p className="text-[11px] font-medium text-white/45 group-hover:text-white/75 transition-colors leading-snug line-clamp-2">
           {book.title}
         </p>
         {book.legal_areas.length > 0 && (
-          <p className="text-[10px] text-white/25 mt-0.5 truncate">{book.legal_areas[0]}</p>
+          <p className="text-[10px] text-white/22 mt-0.5 truncate">{book.legal_areas[0]}</p>
         )}
       </div>
     </Link>
@@ -173,21 +215,28 @@ function BookCover({ book }: { book: BookItem }) {
 function BookSkeleton() {
   return (
     <div className="animate-pulse">
-      <div className="flex rounded-sm overflow-hidden bg-white/5" style={{ aspectRatio: '5/7' }}>
-        <div className="w-[10%] bg-white/8" />
-        <div className="flex-1 p-3 flex flex-col gap-2">
-          <div className="h-[30%] bg-white/6 rounded" />
-          <div className="flex-1 space-y-2 pt-2">
-            <div className="h-3 bg-white/8 rounded w-4/5" />
-            <div className="h-3 bg-white/6 rounded w-3/5" />
+      <div className="relative">
+        {/* Fake pages edge */}
+        <div className="absolute inset-y-0 right-[-3px] w-2 bg-white/6 rounded-r" />
+        <div
+          className="overflow-hidden rounded-l-sm bg-white/5"
+          style={{ aspectRatio: '5/7' }}
+        >
+          <div className="h-[10%] bg-white/6" style={{ width: '11%' }} />
+          <div className="absolute top-0 left-[11%] right-0 h-[30%] bg-white/4" />
+          <div className="absolute left-[11%] right-2 top-[33%] space-y-2 px-2.5">
+            <div className="h-2.5 bg-white/8 rounded w-4/5" />
+            <div className="h-2.5 bg-white/6 rounded w-full" />
+            <div className="h-2.5 bg-white/5 rounded w-3/5" />
           </div>
-          <div className="space-y-1">
-            <div className="h-2 bg-white/5 rounded w-full" />
-            <div className="h-2 bg-white/4 rounded w-2/3" />
+          <div className="absolute left-[11%] right-0 bottom-0 h-[28%] px-2.5 pb-2.5 flex flex-col justify-end gap-1">
+            <div className="h-px bg-white/6" />
+            <div className="h-2 bg-white/8 rounded w-3/4" />
+            <div className="h-1.5 bg-white/5 rounded w-1/2" />
           </div>
         </div>
       </div>
-      <div className="mt-2 space-y-1">
+      <div className="mt-3 space-y-1">
         <div className="h-2.5 bg-white/6 rounded w-4/5" />
         <div className="h-2 bg-white/4 rounded w-1/2" />
       </div>
@@ -260,7 +309,6 @@ export default function LibraryPage() {
       {/* ── Hero ── */}
       <div className="relative border-b border-white/6 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-gold-500/4 via-transparent to-transparent pointer-events-none" />
-        {/* Subtle bookshelf line decoration */}
         <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold-500/20 to-transparent" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
@@ -341,15 +389,21 @@ export default function LibraryPage() {
       {/* ── Collection ── */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
 
-        {/* Results label */}
         {!loading && books.length > 0 && (
-          <p className="text-xs text-white/25 mb-6">
+          <p className="text-xs text-white/25 mb-8">
             {books.length} publication{books.length !== 1 ? 's' : ''} in the collection
             {selectedArea && <> · <span className="text-white/40">{selectedArea}</span></>}
           </p>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5 sm:gap-6">
+        {/* Extra right padding so page-edge layers don't get clipped on the last column */}
+        <div
+          className="grid gap-6 sm:gap-8"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+            paddingRight: '12px',
+          }}
+        >
           {loading
             ? Array.from({ length: 12 }).map((_, i) => <BookSkeleton key={i} />)
             : books.length === 0
