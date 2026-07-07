@@ -29,12 +29,15 @@ function statusColor(status: string) {
 
 function notifIcon(type: string) {
   switch (type) {
-    case 'case_updated': return '📋'
+    case 'case_created': return '📋'
     case 'case_assigned': return '⚖️'
-    case 'hearing_scheduled': return '📅'
-    case 'payment_confirmed': return '✅'
-    case 'document_uploaded': return '📄'
-    case 'analysis_ready': return '🔍'
+    case 'case_updated': return '📝'
+    case 'case_closed': return '✅'
+    case 'case_rejected': return '❌'
+    case 'booking_received': return '📅'
+    case 'verification_approved': return '✓'
+    case 'verification_rejected': return '⚠️'
+    case 'review_received': return '⭐'
     default: return '🔔'
   }
 }
@@ -64,7 +67,7 @@ export default function DashboardPage() {
       const [casesRes, unreadRes, notifsRes] = await Promise.allSettled([
         getMyCases(access),
         unreadNotificationCount(access),
-        listNotifications(access, 6),
+        listNotifications(access),
       ])
 
       let caseList: CaseItem[] = []
@@ -239,11 +242,11 @@ export default function DashboardPage() {
                 ) : (
                   <div className="space-y-2">
                     {notifications.map(n => (
-                      <div key={n.id} className={`flex gap-3 p-3 rounded-lg border transition-colors ${n.read ? 'border-neutral-700/30 bg-primary-900/20' : 'border-gold-500/20 bg-gold-500/5'}`}>
-                        <span className="text-base flex-shrink-0">{notifIcon(n.event_type)}</span>
+                      <div key={n.id} className={`flex gap-3 p-3 rounded-lg border transition-colors ${n.is_read ? 'border-neutral-700/30 bg-primary-900/20' : 'border-gold-500/20 bg-gold-500/5'}`}>
+                        <span className="text-base flex-shrink-0">{notifIcon(n.notification_type)}</span>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium truncate ${n.read ? 'text-neutral-300' : 'text-neutral-100'}`}>{n.title}</p>
-                          <p className="text-xs text-neutral-500 mt-0.5 truncate">{n.message}</p>
+                          <p className={`text-sm font-medium truncate ${n.is_read ? 'text-neutral-300' : 'text-neutral-100'}`}>{n.title}</p>
+                          <p className="text-xs text-neutral-500 mt-0.5 truncate">{n.body}</p>
                           <p className="text-[10px] text-neutral-600 mt-0.5">{formatRelative(n.created_at)}</p>
                         </div>
                       </div>
