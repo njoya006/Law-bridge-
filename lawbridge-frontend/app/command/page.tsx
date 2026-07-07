@@ -17,6 +17,10 @@ function Blink() {
 function TermLine({ text, delay = 0, onDone }: { text: string; delay?: number; onDone?: () => void }) {
   const [shown, setShown] = useState('')
   useEffect(() => {
+    if (!text) {
+      const t = setTimeout(() => onDone?.(), delay)
+      return () => clearTimeout(t)
+    }
     let i = 0
     const t = setTimeout(() => {
       const interval = setInterval(() => {
@@ -31,7 +35,7 @@ function TermLine({ text, delay = 0, onDone }: { text: string; delay?: number; o
     }, delay)
     return () => clearTimeout(t)
   }, [text, delay, onDone])
-  return <span>{shown}</span>
+  return <p className="min-h-[1.25rem]">{shown || ' '}</p>
 }
 
 export default function CommandPage() {
@@ -135,7 +139,7 @@ export default function CommandPage() {
       <div className="w-full max-w-xl">
         {/* Boot sequence */}
         {step === 'boot' && (
-          <div className="space-y-1 text-sm leading-6">
+          <div className="text-sm leading-5">
             <TermLine text="LawBridge OS v2.0.3 (build 20250629)" delay={0} />
             <TermLine text="Copyright (c) LawBridge Technologies Ltd." delay={300} />
             <TermLine text="" delay={500} />
