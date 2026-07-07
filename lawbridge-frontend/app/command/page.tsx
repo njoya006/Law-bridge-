@@ -53,6 +53,16 @@ export default function CommandPage() {
   const keyRef = useRef<HTMLInputElement>(null)
   const emailRef = useRef<HTMLInputElement>(null)
 
+  const skipBoot = () => {
+    if (step === 'boot') { setBootDone(true); setStep('key') }
+  }
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (step === 'boot') skipBoot() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [step])
+
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
@@ -139,7 +149,7 @@ export default function CommandPage() {
       <div className="w-full max-w-xl">
         {/* Boot sequence */}
         {step === 'boot' && (
-          <div className="text-sm leading-5">
+          <div className="text-sm leading-5 cursor-pointer" onClick={skipBoot}>
             <TermLine text="LawBridge OS v2.0.3 (build 20250629)" delay={0} />
             <TermLine text="Copyright (c) LawBridge Technologies Ltd." delay={300} />
             <TermLine text="" delay={500} />
@@ -162,6 +172,7 @@ export default function CommandPage() {
               delay={3500}
               onDone={() => setTimeout(() => { setBootDone(true); setStep('key') }, 400)}
             />
+            <p className="mt-4 text-[#00ff88]/20 text-xs animate-pulse">press any key or click to skip</p>
           </div>
         )}
 
