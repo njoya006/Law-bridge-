@@ -164,13 +164,24 @@ class ThreadConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def save_message(self, content):
+        # Admin messages show as support bubbles in the client's chat
+        stored_role = 'support' if self.user_role == 'admin' else self.user_role
+        thread = Thread.objects.get(id=self.thread_id)
         msg = Message.objects.create(
-            thread_id=self.thread_id,
+            thread=thread,
             sender_id=self.user_id,
             sender_name=self.display_name,
-            sender_role=self.user_role,
+            sender_role=stored_role,
             content=content,
         )
+        thread.updated_at = timezone.now()
+        thread.save(update_fields=['updated_at'])
+
+        # Trigger AI reply only for client messages, never for admin/support
+        if stored_role == 'client' and thread.is_ai_support and not thread.escalated_to_human:
+            from .views import _fetch_ai_reply
+            _fetch_ai_reply(thread, content)
+
         return {
             'id': msg.id,
             'content': msg.content,

@@ -101,7 +101,34 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
   const [error, setError] = useState('')
   const [aiDrafting, setAiDrafting] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const latestMsgIdRef = useRef<number>(0)
+
+  function startPolling() {
+    if (pollRef.current) return
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/v1/messages/threads/${threadId}/messages/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) return
+        const data = await res.json() as Message[] | { results?: Message[] }
+        const msgs = Array.isArray(data) ? data : (data.results ?? [])
+        if (msgs.length > 0) {
+          const newest = msgs[msgs.length - 1]
+          if (newest.id > latestMsgIdRef.current) {
+            latestMsgIdRef.current = newest.id
+            setMessages(msgs)
+          }
+        }
+      } catch { /* silently skip */ }
+    }, 3000)
+  }
+
+  function stopPolling() {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
+  }
 
   async function handleAiDraft() {
     if (aiDrafting || messages.length === 0) return
@@ -154,18 +181,23 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
     setMessages([])
     setInput('')
     setError('')
+    stopPolling()
+    latestMsgIdRef.current = 0
 
-    // Load history via REST
+    // Always load history via REST first
     fetch(`/api/v1/messages/threads/${threadId}/messages/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then((data: Message[] | { results?: Message[] }) =>
-        setMessages(Array.isArray(data) ? data : (data.results ?? []))
-      )
+      .then((data: Message[] | { results?: Message[] }) => {
+        const msgs = Array.isArray(data) ? data : (data.results ?? [])
+        setMessages(msgs)
+        if (msgs.length > 0) latestMsgIdRef.current = msgs[msgs.length - 1].id
+      })
       .catch(() => {})
 
-    // WebSocket — use wss:// when page is HTTPS to avoid mixed-content SecurityError
+    // Try WebSocket for real-time updates
+    let wsConnected = false
     try {
       const base = process.env.NEXT_PUBLIC_API_GATEWAY_URL
         ?? (typeof window !== 'undefined' && window.location.protocol === 'https:'
@@ -175,6 +207,8 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
       const ws = new WebSocket(`${wsBase}/ws/messages/thread/${threadId}/?token=${token}`)
       wsRef.current = ws
 
+      ws.onopen = () => { wsConnected = true; stopPolling() }
+
       ws.onmessage = (e) => {
         const data = JSON.parse(e.data ?? '{}') as {
           type?: string; messages?: Message[]
@@ -182,9 +216,11 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
           sender_name?: string; sender_role?: string; is_ai?: boolean; created_at?: string
         }
         if (data.type === 'history') {
-          setMessages(data.messages ?? [])
+          const msgs = data.messages ?? []
+          setMessages(msgs)
+          if (msgs.length > 0) latestMsgIdRef.current = msgs[msgs.length - 1].id
         } else if (data.type === 'message') {
-          setMessages(prev => [...prev, {
+          const newMsg = {
             id: data.id ?? 0,
             content: data.content ?? '',
             sender_id: data.sender_id ?? '',
@@ -193,14 +229,30 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
             is_ai: data.is_ai ?? false,
             is_system: false,
             created_at: data.created_at ?? new Date().toISOString(),
-          }])
+          }
+          if (newMsg.id > latestMsgIdRef.current) latestMsgIdRef.current = newMsg.id
+          setMessages(prev => {
+            // Avoid duplicates (optimistic message already added)
+            if (prev.some(m => m.id === newMsg.id)) return prev
+            return [...prev, newMsg]
+          })
         }
       }
+
+      ws.onerror = () => { if (!wsConnected) startPolling() }
+      ws.onclose = () => { startPolling() }
+
+      // Start polling immediately as fallback; stop if WS connects within 3s
+      setTimeout(() => { if (!wsConnected) startPolling() }, 3000)
     } catch {
-      // WebSocket unavailable (e.g. mixed-content block); REST history already loaded above
+      startPolling()
     }
 
-    return () => { wsRef.current?.close() }
+    return () => {
+      wsRef.current?.close()
+      stopPolling()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, token])
 
   useEffect(() => {
@@ -214,6 +266,20 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
     setSending(true)
     setError('')
 
+    // Optimistic message — appears immediately regardless of WS/REST path
+    const tempId = -Date.now()
+    const optimistic: Message = {
+      id: tempId,
+      content,
+      sender_id: '',
+      sender_name: 'You',
+      sender_role: 'support',
+      is_ai: false,
+      is_system: false,
+      created_at: new Date().toISOString(),
+    }
+    setMessages(prev => [...prev, optimistic])
+
     const ws = wsRef.current
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'message', content }))
@@ -226,8 +292,16 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
         body: JSON.stringify({ content }),
       })
         .then(r => r.ok ? r.json() : Promise.reject(r.status))
-        .then((msg: Message) => setMessages(prev => [...prev, msg]))
-        .catch(e => setError(`Send failed (${e})`))
+        .then((msg: Message) => {
+          // Replace optimistic message with real one from server
+          if (msg.id > latestMsgIdRef.current) latestMsgIdRef.current = msg.id
+          setMessages(prev => prev.map(m => m.id === tempId ? msg : m))
+        })
+        .catch(e => {
+          // Remove optimistic message on failure
+          setMessages(prev => prev.filter(m => m.id !== tempId))
+          setError(`Send failed (${String(e)})`)
+        })
         .finally(() => setSending(false))
     }
   }
