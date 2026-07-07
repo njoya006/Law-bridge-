@@ -126,7 +126,11 @@ class MessageListView(APIView):
 
     def get(self, request, pk):
         uid = _user_id(request)
-        if not ThreadParticipant.objects.filter(thread_id=pk, user_id=uid, is_active=True).exists():
+        role = _role(request)
+        if role in ('admin', 'support'):
+            if not Thread.objects.filter(pk=pk).exists():
+                return Response({'error': 'Not found'}, status=404)
+        elif not ThreadParticipant.objects.filter(thread_id=pk, user_id=uid, is_active=True).exists():
             return Response({'error': 'Not found'}, status=404)
         msgs = Message.objects.filter(thread_id=pk, is_deleted=False).prefetch_related('reactions')
         before_id = request.query_params.get('before')
@@ -138,22 +142,26 @@ class MessageListView(APIView):
     def post(self, request, pk):
         """REST fallback for sending a message (WebSocket is preferred)."""
         uid = _user_id(request)
+        role = _role(request)
         try:
             thread = Thread.objects.get(pk=pk)
         except Thread.DoesNotExist:
             return Response({'error': 'Not found'}, status=404)
-        if not thread.participants.filter(user_id=uid, is_active=True).exists():
-            return Response({'error': 'Not found'}, status=404)
+        if role not in ('admin', 'support'):
+            if not thread.participants.filter(user_id=uid, is_active=True).exists():
+                return Response({'error': 'Not found'}, status=404)
 
         content = request.data.get('content', '').strip()
         if not content:
             return Response({'error': 'content required'}, status=400)
 
+        # Admin messages display as support-side bubbles in the client's chat
+        sender_role = 'support' if role == 'admin' else role
         msg = Message.objects.create(
             thread=thread,
             sender_id=uid,
             sender_name=_display_name(request),
-            sender_role=_role(request),
+            sender_role=sender_role,
             content=content,
         )
         thread.updated_at = timezone.now()
