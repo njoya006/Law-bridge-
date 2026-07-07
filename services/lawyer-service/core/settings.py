@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     'apps.discovery',
     'apps.firms',
     'apps.reviews',
+    'apps.verification',
 ]
 
 MIDDLEWARE = [
