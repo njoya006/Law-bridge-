@@ -9,8 +9,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import CaseProgressSnapshot, LawyerStats, ReportRequest
-from .serializers import CaseProgressSnapshotSerializer, LawyerStatsSerializer, ReportRequestSerializer
+from .models import CaseProgressSnapshot, LawyerStats, ReportRequest, Notification
+from .serializers import CaseProgressSnapshotSerializer, LawyerStatsSerializer, ReportRequestSerializer, NotificationSerializer
 
 
 def _get_firm_scope(auth_header):
@@ -366,3 +366,49 @@ class ReportRequestViewSet(viewsets.ModelViewSet):
         obj.status = new_status
         obj.save(update_fields=['status', 'updated_at'])
         return Response(self.get_serializer(obj).data)
+
+
+class NotificationListView(APIView):
+    """GET /notifications/ — returns the caller's notifications (most recent 50)"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_id = str(getattr(request, 'auth_payload', {}).get('user_id', ''))
+        if not user_id:
+            return Response({'count': 0, 'unread': 0, 'results': []})
+
+        qs = Notification.objects.filter(recipient_id=user_id).order_by('-created_at')[:50]
+        unread = Notification.objects.filter(recipient_id=user_id, is_read=False).count()
+        return Response({
+            'count': len(qs),
+            'unread': unread,
+            'results': NotificationSerializer(qs, many=True).data,
+        })
+
+
+class NotificationUnreadCountView(APIView):
+    """GET /notifications/unread-count/ — lightweight badge endpoint"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_id = str(getattr(request, 'auth_payload', {}).get('user_id', ''))
+        count = Notification.objects.filter(recipient_id=user_id, is_read=False).count() if user_id else 0
+        return Response({'unread': count})
+
+
+class NotificationMarkReadView(APIView):
+    """POST /notifications/{id}/read/ or POST /notifications/read-all/"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk=None):
+        user_id = str(getattr(request, 'auth_payload', {}).get('user_id', ''))
+        if pk == 'all':
+            Notification.objects.filter(recipient_id=user_id, is_read=False).update(is_read=True)
+            return Response({'detail': 'All notifications marked as read.'})
+        try:
+            notif = Notification.objects.get(pk=pk, recipient_id=user_id)
+            notif.is_read = True
+            notif.save(update_fields=['is_read'])
+            return Response(NotificationSerializer(notif).data)
+        except Notification.DoesNotExist:
+            return Response({'detail': 'Not found.'}, status=404)

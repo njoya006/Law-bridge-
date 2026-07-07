@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     CaseProgressViewSet, LawyerStatsViewSet, InternalCaseSyncView,
     ReportRequestViewSet, CaseRiskView, FirmIntelligenceView,
+    NotificationListView, NotificationUnreadCountView, NotificationMarkReadView,
 )
 
 router = DefaultRouter()
@@ -15,4 +16,7 @@ urlpatterns = [
     path('internal/sync/', InternalCaseSyncView.as_view(), name='internal-case-sync'),
     path('case-risks/', CaseRiskView.as_view(), name='case-risks'),
     path('firm-intelligence/', FirmIntelligenceView.as_view(), name='firm-intelligence'),
+    path('notifications/', NotificationListView.as_view(), name='notifications'),
+    path('notifications/unread-count/', NotificationUnreadCountView.as_view(), name='notification-unread-count'),
+    path('notifications/<str:pk>/read/', NotificationMarkReadView.as_view(), name='notification-mark-read'),
 ]

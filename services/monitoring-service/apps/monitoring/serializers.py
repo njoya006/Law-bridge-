@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CaseProgressSnapshot, LawyerStats, ReportRequest
+from .models import CaseProgressSnapshot, LawyerStats, ReportRequest, Notification
 
 
 class CaseProgressSnapshotSerializer(serializers.ModelSerializer):
@@ -25,3 +25,9 @@ class ReportRequestSerializer(serializers.ModelSerializer):
         model = ReportRequest
         fields = ['id', 'firm_id', 'requester_id', 'requester_name', 'report_type', 'period', 'notes', 'status', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'notification_type', 'title', 'body', 'case_id', 'is_read', 'created_at']

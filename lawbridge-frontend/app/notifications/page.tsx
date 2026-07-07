@@ -1,15 +1,18 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
-import { listNotifications, markNotificationRead, type NotificationItem } from '../../lib/notificationsApi'
+import { listNotifications, markNotificationRead, markAllNotificationsRead, type NotificationItem } from '../../lib/notificationsApi'
 
-const EVENT_ICONS: Record<string, string> = {
-  booking_accepted: '✅',
-  booking_declined: '❌',
-  case_status_updated: '📋',
-  payment_confirmed: '💳',
-  payment_declined: '⚠️',
+const TYPE_ICONS: Record<string, string> = {
+  case_created: '📋',
+  case_assigned: '⚖️',
   case_updated: '📝',
+  case_closed: '✅',
+  case_rejected: '❌',
+  booking_received: '📅',
+  verification_approved: '✓',
+  verification_rejected: '⚠️',
+  review_received: '⭐',
 }
 
 function timeAgo(iso: string) {
@@ -32,7 +35,7 @@ export default function NotificationsPage() {
     const access = localStorage.getItem('access')
     if (!access) { setError('Not authenticated'); setLoading(false); return }
     try {
-      const res = await listNotifications(access, 50)
+      const res = await listNotifications(access)
       setItems(res.results)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load notifications')
@@ -48,7 +51,7 @@ export default function NotificationsPage() {
     if (!access) return
     try {
       await markNotificationRead(id, access)
-      setItems(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
+      setItems(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
     } catch {
       // silently update optimistically; backend may still have processed it
     }
@@ -58,13 +61,15 @@ export default function NotificationsPage() {
     const access = localStorage.getItem('access')
     if (!access) return
     setMarkingAll(true)
-    const unread = items.filter(n => !n.read)
-    await Promise.allSettled(unread.map(n => markNotificationRead(n.id, access)))
-    setItems(prev => prev.map(n => ({ ...n, read: true })))
+    await markAllNotificationsRead(access).catch(() => {
+      const unread = items.filter(n => !n.is_read)
+      return Promise.allSettled(unread.map(n => markNotificationRead(n.id, access)))
+    })
+    setItems(prev => prev.map(n => ({ ...n, is_read: true })))
     setMarkingAll(false)
   }
 
-  const unreadCount = items.filter(n => !n.read).length
+  const unreadCount = items.filter(n => !n.is_read).length
 
   // Group by date
   const grouped = items.reduce<Record<string, NotificationItem[]>>((acc, n) => {
@@ -124,21 +129,21 @@ export default function NotificationsPage() {
                   {dayItems.map(n => (
                     <button
                       key={n.id}
-                      onClick={() => !n.read && handleMarkRead(n.id)}
+                      onClick={() => !n.is_read && handleMarkRead(n.id)}
                       className={`w-full text-left rounded-xl border p-4 transition-all ${
-                        n.read
+                        n.is_read
                           ? 'border-white/5 bg-white/3 opacity-60'
                           : 'border-white/10 bg-white/5 hover:border-gold-400/20 hover:bg-white/8'
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <span className="text-xl flex-shrink-0 mt-0.5">{EVENT_ICONS[n.event_type] ?? '🔔'}</span>
+                        <span className="text-xl flex-shrink-0 mt-0.5">{TYPE_ICONS[n.notification_type] ?? '🔔'}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
                             <p className="text-sm font-semibold text-neutral-100 truncate">{n.title}</p>
-                            {!n.read && <span className="h-2 w-2 rounded-full bg-gold-400 flex-shrink-0" />}
+                            {!n.is_read && <span className="h-2 w-2 rounded-full bg-gold-400 flex-shrink-0" />}
                           </div>
-                          <p className="text-xs text-neutral-400 leading-relaxed line-clamp-2">{n.message}</p>
+                          <p className="text-xs text-neutral-400 leading-relaxed line-clamp-2">{n.body}</p>
                           <p className="text-[10px] text-neutral-600 mt-1.5">{timeAgo(n.created_at)}</p>
                         </div>
                       </div>

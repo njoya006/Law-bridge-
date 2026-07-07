@@ -72,7 +72,7 @@ export default function DashboardPage() {
         caseList = casesRes.value.results
         setCases(caseList)
       }
-      if (unreadRes.status === 'fulfilled') setUnread(unreadRes.value.unread_count)
+      if (unreadRes.status === 'fulfilled') setUnread(unreadRes.value.unread ?? (unreadRes.value as unknown as {unread_count?: number}).unread_count ?? 0)
       if (notifsRes.status === 'fulfilled') setNotifications(notifsRes.value.results ?? [])
 
       if (caseList.length > 0) {

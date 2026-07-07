@@ -65,6 +65,104 @@ def _push_to_websocket(case_id, snapshot):
         logger.warning('WebSocket push failed for case %s: %s', case_id, exc)
 
 
+STATUS_LABELS = {
+    'filed': 'Filed', 'assigned': 'Assigned to Lawyer', 'under_review': 'Under Review',
+    'evidence_collection': 'Collecting Evidence', 'awaiting_court_date': 'Awaiting Court Date',
+    'in_progress': 'In Progress', 'hearing_scheduled': 'Hearing Scheduled',
+    'hearing_adjourned': 'Hearing Adjourned', 'mediation': 'In Mediation',
+    'appeal_filed': 'Appeal Filed', 'appeal_in_progress': 'Appeal In Progress',
+    'closed': 'Closed', 'dismissed': 'Dismissed', 'settled': 'Settled',
+    'verdict': 'Verdict Reached', 'archived': 'Archived', 'rejected': 'Rejected',
+}
+
+
+def _create_case_notifications(data, snapshot, created):
+    """Create Notification records for relevant case events."""
+    try:
+        from apps.monitoring.models import Notification
+        import uuid as uuid_mod
+
+        client_id_raw = data.get('client_id', '')
+        lawyer_id_raw = data.get('assigned_lawyer_id', '')
+        case_id = str(data.get('case_id', ''))
+        status = data.get('status', '')
+        title = data.get('title', 'your case')
+
+        def parse_uuid(val):
+            try:
+                return uuid_mod.UUID(str(val)) if val else None
+            except (ValueError, AttributeError):
+                return None
+
+        client_uuid = parse_uuid(client_id_raw)
+        lawyer_uuid = parse_uuid(lawyer_id_raw)
+
+        notifs = []
+
+        if created and client_uuid:
+            notifs.append(Notification(
+                recipient_id=client_uuid,
+                notification_type='case_created',
+                title='Case submitted successfully',
+                body=f'Your case "{title}" has been submitted and is awaiting assignment.',
+                case_id=case_id,
+            ))
+
+        elif not created:
+            status_label = STATUS_LABELS.get(status, status.replace('_', ' ').title())
+
+            if status == 'assigned' and client_uuid:
+                notifs.append(Notification(
+                    recipient_id=client_uuid,
+                    notification_type='case_assigned',
+                    title='Lawyer assigned to your case',
+                    body=f'A lawyer has been assigned to your case "{title}".',
+                    case_id=case_id,
+                ))
+
+            elif status in TERMINAL_STATUSES:
+                if client_uuid:
+                    notifs.append(Notification(
+                        recipient_id=client_uuid,
+                        notification_type='case_closed',
+                        title=f'Case {status_label.lower()}',
+                        body=f'Your case "{title}" has been {status_label.lower()}.',
+                        case_id=case_id,
+                    ))
+                if lawyer_uuid:
+                    notifs.append(Notification(
+                        recipient_id=lawyer_uuid,
+                        notification_type='case_closed',
+                        title=f'Case {status_label.lower()}',
+                        body=f'Case "{title}" has been {status_label.lower()}.',
+                        case_id=case_id,
+                    ))
+
+            elif status == 'rejected' and client_uuid:
+                notifs.append(Notification(
+                    recipient_id=client_uuid,
+                    notification_type='case_rejected',
+                    title='Case could not be processed',
+                    body=f'Unfortunately, your case "{title}" was not accepted.',
+                    case_id=case_id,
+                ))
+
+            elif client_uuid and status not in ('draft',):
+                notifs.append(Notification(
+                    recipient_id=client_uuid,
+                    notification_type='case_updated',
+                    title=f'Case update: {status_label}',
+                    body=f'Your case "{title}" has a new status: {status_label}.',
+                    case_id=case_id,
+                ))
+
+        if notifs:
+            Notification.objects.bulk_create(notifs, ignore_conflicts=True)
+
+    except Exception as exc:
+        logger.warning('Failed to create case notifications: %s', exc)
+
+
 class Command(BaseCommand):
     help = 'Subscribe to Redis case.updated pub/sub, write CaseProgressSnapshot, update LawyerStats, push to WebSocket'
 
@@ -114,6 +212,9 @@ class Command(BaseCommand):
 
                 # Push live update to connected WebSocket clients
                 _push_to_websocket(case_id, snapshot)
+
+                # Create in-app notifications
+                _create_case_notifications(data, snapshot, created)
 
             except Exception as exc:
                 logger.exception('Error processing case.updated message: %s', exc)

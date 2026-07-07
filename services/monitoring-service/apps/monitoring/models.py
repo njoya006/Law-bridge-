@@ -90,3 +90,35 @@ class ReportRequest(models.Model):
 
     def __str__(self):
         return f"ReportRequest(firm={self.firm_id}, type={self.report_type}, status={self.status})"
+
+
+class Notification(models.Model):
+    TYPE_CHOICES = [
+        ('case_created',   'Case Submitted'),
+        ('case_assigned',  'Case Assigned'),
+        ('case_updated',   'Case Status Updated'),
+        ('case_closed',    'Case Closed'),
+        ('case_rejected',  'Case Rejected'),
+        ('booking_received', 'Booking Received'),
+        ('verification_approved', 'Verification Approved'),
+        ('verification_rejected', 'Verification Rejected'),
+        ('review_received', 'New Review'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    recipient_id = models.UUIDField(db_index=True)
+    notification_type = models.CharField(max_length=40, choices=TYPE_CHOICES, db_index=True)
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True)
+    case_id = models.CharField(max_length=64, blank=True)
+    is_read = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recipient_id', 'is_read']),
+        ]
+
+    def __str__(self):
+        return f"Notification({self.notification_type} → {str(self.recipient_id)[:8]})"

@@ -134,7 +134,7 @@ export default function ProfilePage() {
       }).catch(() => {})
 
       void unreadNotificationCount(access)
-        .then(data => setUnreadUpdates(data.unread_count ?? 0))
+        .then(data => setUnreadUpdates(data.unread ?? (data as unknown as {unread_count?: number}).unread_count ?? 0))
         .catch(() => {})
     }
 
