@@ -412,3 +412,54 @@ class NotificationMarkReadView(APIView):
             return Response(NotificationSerializer(notif).data)
         except Notification.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=404)
+
+
+class AdminPlatformStatsView(APIView):
+    """GET /api/v1/monitoring/admin/platform-stats/ — platform-wide case stats for admin/support."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        auth = request.META.get('HTTP_AUTHORIZATION', '')
+        role = ''
+        if auth.startswith('Bearer '):
+            try:
+                from django.conf import settings as _s
+                token_str = auth.split(' ')[1]
+                payload = jwt.decode(token_str, _s.SIMPLE_JWT.get('SIGNING_KEY', _s.SECRET_KEY),
+                                     algorithms=['HS256'], options={'verify_aud': False})
+                role = payload.get('role', '')
+            except Exception:
+                pass
+        if role.lower() not in ('admin', 'support'):
+            return Response({'error': 'Admin access required'}, status=403)
+
+        from django.db.models import Count
+        from datetime import timedelta
+        from .models import TERMINAL_STATUSES
+
+        now = timezone.now()
+        thirty_days_ago = now - timedelta(days=30)
+        all_snaps = CaseProgressSnapshot.objects.all()
+
+        case_type_dist = {
+            (row['case_type'] or 'unknown'): row['count']
+            for row in all_snaps.values('case_type').annotate(count=Count('id')).order_by('-count')
+        }
+        status_dist = {
+            (row['status'] or 'unknown'): row['count']
+            for row in all_snaps.values('status').annotate(count=Count('id')).order_by('-count')
+        }
+
+        total = all_snaps.count()
+        active_count = all_snaps.filter(status__in=list(ACTIVE_STATUSES)).count()
+        closed_count = all_snaps.filter(status__in=list(TERMINAL_STATUSES)).count()
+        new_last_30 = all_snaps.filter(created_at__gte=thirty_days_ago).count()
+
+        return Response({
+            'total': total,
+            'active': active_count,
+            'closed': closed_count,
+            'new_last_30_days': new_last_30,
+            'case_type_distribution': case_type_dist,
+            'status_distribution': status_dist,
+        })

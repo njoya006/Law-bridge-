@@ -99,8 +99,56 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [aiDrafting, setAiDrafting] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+
+  async function handleAiDraft() {
+    if (aiDrafting || messages.length === 0) return
+    setAiDrafting(true)
+    setInput('')
+
+    const context = messages.slice(-5).map(m => {
+      const role = m.sender_role === 'support' || m.is_ai ? 'Support' : 'Client'
+      return `${role}: ${m.content}`
+    }).join('\n')
+
+    const prompt = `You are LawBridge Support. Draft a helpful, empathetic reply to this support conversation. Reply in the same language as the client. Reply with the message text only, no preamble.\n\n${context}\n\nSupport:`
+
+    try {
+      const res = await fetch('/api/v1/ai/chat/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ message: prompt, portal: 'lawyer', language: 'en' }),
+      })
+
+      if (!res.body) { setAiDrafting(false); return }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let draft = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value, { stream: true })
+        for (const line of chunk.split('\n')) {
+          if (line.startsWith('data: ')) {
+            try {
+              const json = JSON.parse(line.slice(6)) as { token?: string; text?: string; content?: string }
+              const tok = json.token ?? json.text ?? json.content ?? ''
+              draft += tok
+              setInput(draft)
+            } catch { /* non-JSON line, skip */ }
+          }
+        }
+      }
+    } catch {
+      // silently fail — textarea remains empty or with partial draft
+    } finally {
+      setAiDrafting(false)
+    }
+  }
 
   useEffect(() => {
     setMessages([])
@@ -234,6 +282,23 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
             placeholder="Reply as LawBridge Support…"
             className="flex-1 resize-none bg-transparent px-2 py-1 text-sm text-neutral-200 placeholder-neutral-500 outline-none max-h-28"
           />
+          <button
+            onClick={() => void handleAiDraft()}
+            disabled={aiDrafting || messages.length === 0}
+            title="AI Draft Reply"
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-700/60 text-neutral-400 transition-all hover:bg-gold-500/10 hover:text-gold-300 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+          >
+            {aiDrafting ? (
+              <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path d="M1 4v6h6M23 20v-6h-6M3.5 15a9 9 0 1 0 .5-4" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
+                <path d="M19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75L19 14z" />
+              </svg>
+            )}
+          </button>
           <button
             onClick={() => void send()}
             disabled={!input.trim() || sending}

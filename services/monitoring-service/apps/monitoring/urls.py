@@ -4,6 +4,7 @@ from .views import (
     CaseProgressViewSet, LawyerStatsViewSet, InternalCaseSyncView,
     ReportRequestViewSet, CaseRiskView, FirmIntelligenceView,
     NotificationListView, NotificationUnreadCountView, NotificationMarkReadView,
+    AdminPlatformStatsView,
 )
 
 router = DefaultRouter()
@@ -19,4 +20,5 @@ urlpatterns = [
     path('notifications/', NotificationListView.as_view(), name='notifications'),
     path('notifications/unread-count/', NotificationUnreadCountView.as_view(), name='notification-unread-count'),
     path('notifications/<str:pk>/read/', NotificationMarkReadView.as_view(), name='notification-mark-read'),
+    path('admin/platform-stats/', AdminPlatformStatsView.as_view(), name='admin-platform-stats'),
 ]
