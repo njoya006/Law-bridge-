@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { listMyBooks, listReviewQueue, publishBook, rejectBook, type BookItem, type BookStatus } from '../../../lib/libraryApi'
+import { listMyBooks, listMyArticles, listReviewQueue, publishBook, rejectBook, type BookItem, type BookStatus, type ArticleItem } from '../../../lib/libraryApi'
 
 const STATUS_CONFIG: Record<BookStatus, { label: string; color: string; dot: string }> = {
   draft:        { label: 'Draft',        color: 'text-white/40 bg-white/5 border-white/8',    dot: 'bg-white/30' },
@@ -93,6 +93,7 @@ function ReviewCard({ book, onApprove, onReject }: { book: BookItem; onApprove: 
 
 export default function LawyerLibraryPage() {
   const [myBooks, setMyBooks] = useState<BookItem[]>([])
+  const [myArticles, setMyArticles] = useState<ArticleItem[]>([])
   const [reviewQueue, setReviewQueue] = useState<BookItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeFilter, setActiveFilter] = useState<BookStatus | ''>('')
@@ -108,11 +109,13 @@ export default function LawyerLibraryPage() {
       const reviewer = ['partner', 'firm_admin', 'owner', 'admin'].includes(role)
       setIsReviewer(reviewer)
 
-      const [mine, queue] = await Promise.all([
+      const [mine, articles, queue] = await Promise.all([
         listMyBooks(token, activeFilter || undefined),
+        listMyArticles(token).catch(() => [] as ArticleItem[]),
         reviewer ? listReviewQueue(token, firmId).catch(() => [] as BookItem[]) : Promise.resolve([] as BookItem[]),
       ])
       setMyBooks(mine)
+      setMyArticles(articles)
       setReviewQueue(queue)
     } catch {
       setMyBooks([])
@@ -295,6 +298,68 @@ export default function LawyerLibraryPage() {
                         href={`/library/${book.id}`}
                         className="rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors"
                       >
+                        View
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* My Articles */}
+        <section>
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-sm font-semibold text-white/70">My Articles</h2>
+            <Link href="/lawyer/library/articles/new"
+              className="text-xs text-gold-400/70 hover:text-gold-400 transition-colors">
+              + New Article
+            </Link>
+          </div>
+          {loading ? (
+            <div className="space-y-2">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="rounded-xl bg-primary-900/60 border border-white/6 p-4 animate-pulse">
+                  <div className="h-3 bg-white/8 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : myArticles.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-white/8 p-8 text-center">
+              <p className="text-[13px] text-white/30">No articles yet</p>
+              <p className="text-xs text-white/20 mt-1 mb-4">Share short-form legal insights, case summaries, and alerts</p>
+              <Link href="/lawyer/library/articles/new"
+                className="inline-flex items-center gap-2 rounded-xl bg-white/6 border border-white/10 px-4 py-2 text-sm font-medium text-white/50 hover:text-white/80 transition-colors">
+                Write your first article
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {myArticles.map(article => (
+                <div key={article.id} className="group rounded-xl bg-primary-900/60 border border-white/8 px-5 py-4 hover:border-white/12 transition-all flex items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-white truncate">{article.title}</p>
+                    <p className="text-xs text-white/35 mt-0.5">
+                      {article.article_type?.replace('_', ' ')} ·{' '}
+                      {article.reading_time ? `${article.reading_time} min read · ` : ''}
+                      {article.status === 'published' ? (
+                        <span className="text-emerald-400/70">Published</span>
+                      ) : article.status === 'archived' ? (
+                        <span className="text-white/25">Archived</span>
+                      ) : (
+                        <span className="text-amber-400/70">Draft</span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Link href={`/lawyer/library/articles/${article.id}/edit`}
+                      className="rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors">
+                      Edit
+                    </Link>
+                    {article.status === 'published' && (
+                      <Link href={`/library/articles/${article.id}`}
+                        className="rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors">
                         View
                       </Link>
                     )}
