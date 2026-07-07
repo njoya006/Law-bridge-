@@ -98,6 +98,8 @@ export default function CommandPage() {
       })
 
       if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        console.error('[CMD] auth failed', res.status, body)
         const newAttempts = attempts + 1
         setAttempts(newAttempts)
         if (newAttempts >= 5) {
@@ -105,7 +107,7 @@ export default function CommandPage() {
           setAttempts(0)
           setErrorMsg('Too many failed attempts. Terminal locked for 60 seconds.')
         } else {
-          setErrorMsg(`Authentication failed. ${5 - newAttempts} attempt(s) remaining.`)
+          setErrorMsg(`Authentication failed [${res.status}]. ${5 - newAttempts} attempt(s) remaining.`)
         }
         setStep('error')
         return
@@ -125,8 +127,9 @@ export default function CommandPage() {
       localStorage.setItem('fullName', data.user.full_name)
 
       router.replace('/admin')
-    } catch {
-      setErrorMsg('Connection error. Check network and retry.')
+    } catch (err) {
+      console.error('[CMD] network error', err)
+      setErrorMsg('Connection error — check browser console (F12).')
       setStep('error')
     }
   }
