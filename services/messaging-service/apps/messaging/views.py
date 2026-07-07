@@ -167,8 +167,8 @@ class MessageListView(APIView):
         thread.updated_at = timezone.now()
         thread.save(update_fields=['updated_at'])
 
-        # If AI support thread and not escalated, get AI reply
-        if thread.is_ai_support and not thread.escalated_to_human:
+        # Only trigger AI reply for client messages — not for admin/support replies
+        if thread.is_ai_support and not thread.escalated_to_human and role not in ('admin', 'support'):
             _fetch_ai_reply(thread, content)
 
         return Response(MessageSerializer(msg).data, status=201)
