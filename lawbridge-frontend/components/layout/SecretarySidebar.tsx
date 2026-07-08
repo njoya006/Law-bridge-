@@ -3,19 +3,19 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { DashboardIcon, CaseIcon, BriefcaseIcon, DocumentIcon, PaymentIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, LawIcon, LogoutIcon, UserIcon } from '../icons/Icons'
+import { DashboardIcon, DocumentIcon, PaymentIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, LogoutIcon, UserIcon, SparklesIcon, ClipboardIcon, BookmarkIcon, BalanceIcon } from '../icons/Icons'
 import { getMyFirmMemberships } from '../../lib/firmsApi'
 import { getReportRequests } from '../../lib/monitoringApi'
 import { clearSession } from '../../lib/authSession'
 
 const secretaryNav = [
-  { label: 'Dashboard', href: '/secretary/dashboard', icon: DashboardIcon },
-  { label: 'Intelligence', href: '/secretary/intelligence', icon: LawIcon },
-  { label: 'Client Intake', href: '/secretary/intake', icon: CaseIcon },
-  { label: 'Payments', href: '/secretary/payments', icon: PaymentIcon },
-  { label: 'Reports', href: '/secretary/reports', icon: DocumentIcon },
-  { label: 'Members', href: '/secretary/members', icon: UserIcon },
-  { label: 'Bookings', href: '/secretary/bookings', icon: BriefcaseIcon },
+  { label: 'Dashboard',     href: '/secretary/dashboard',    icon: DashboardIcon },
+  { label: 'Intelligence',  href: '/secretary/intelligence', icon: SparklesIcon },
+  { label: 'Client Intake', href: '/secretary/intake',       icon: ClipboardIcon },
+  { label: 'Payments',      href: '/secretary/payments',     icon: PaymentIcon },
+  { label: 'Reports',       href: '/secretary/reports',      icon: DocumentIcon },
+  { label: 'Members',       href: '/secretary/members',      icon: UserIcon },
+  { label: 'Bookings',      href: '/secretary/bookings',     icon: BookmarkIcon },
 ]
 
 export default function SecretarySidebar() {
@@ -101,7 +101,7 @@ export default function SecretarySidebar() {
         <div className="flex items-center gap-3 relative">
           <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900 font-display font-bold text-sm shadow-lg shadow-gold-500/30">
             <span className="absolute inset-0 rounded-xl bg-white/30 animate-pulse-subtle" />
-            <span className="relative"><LawIcon width={18} height={18} /></span>
+            <span className="relative"><BalanceIcon width={18} height={18} /></span>
           </div>
           {!collapsed && (
             <div>

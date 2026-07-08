@@ -3,10 +3,10 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  DashboardIcon, UploadIcon, AnalysisIcon, ChatIcon, DocumentIcon,
-  CaseIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon,
-  SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon, BellIcon, GridIcon, SparklesIcon,
-  BookOpenIcon,
+  DashboardIcon, UploadIcon, ChatIcon, DocumentIcon,
+  PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon,
+  SunIcon, MoonIcon, UserIcon, LogoutIcon, BellIcon, GridIcon, SparklesIcon,
+  BookOpenIcon, BalanceIcon, CompassIcon, ClipboardIcon, BookmarkIcon,
 } from '../icons/Icons'
 import { clearSession } from '../../lib/authSession'
 
@@ -14,15 +14,15 @@ import { clearSession } from '../../lib/authSession'
 
 const NAV = [
   { label: 'Portal',         href: '/dashboard',     icon: DashboardIcon },
-  { label: 'Discover',       href: '/discover',       icon: LawIcon },
-  { label: 'Bookings',       href: '/bookings',       icon: CaseIcon },
+  { label: 'Discover',       href: '/discover',       icon: CompassIcon },
+  { label: 'Bookings',       href: '/bookings',       icon: BookmarkIcon },
   { label: 'Notifications',  href: '/notifications',  icon: BellIcon },
   { label: 'AI Assistant',   href: '/ai',             icon: SparklesIcon },
   { label: 'Messages',       href: '/messages',       icon: ChatIcon },
-  { label: 'Library',        href: '/library',         icon: BookOpenIcon },
+  { label: 'Library',        href: '/library',        icon: BookOpenIcon },
   { label: 'Files',          href: '/documents',      icon: DocumentIcon },
   { label: 'Upload',         href: '/upload',         icon: UploadIcon },
-  { label: 'Matters',        href: '/cases',          icon: CaseIcon },
+  { label: 'Matters',        href: '/cases',          icon: ClipboardIcon },
   { label: 'Billing',        href: '/payments',       icon: PaymentIcon },
   { label: 'Settings',       href: '/settings',       icon: SettingsIcon },
 ]
@@ -30,8 +30,8 @@ const NAV = [
 // Four core tabs + ··· More
 const BOTTOM_NAV = [
   { label: 'Portal',    href: '/dashboard',    icon: DashboardIcon },
-  { label: 'Discover',  href: '/discover',     icon: LawIcon },
-  { label: 'Matters',   href: '/cases',        icon: CaseIcon },
+  { label: 'Discover',  href: '/discover',     icon: CompassIcon },
+  { label: 'Matters',   href: '/cases',        icon: ClipboardIcon },
   { label: 'Messages',  href: '/messages',     icon: ChatIcon },
 ]
 
@@ -40,7 +40,7 @@ const MORE_ITEMS = [
   { label: 'Upload',         href: '/upload',         icon: UploadIcon },
   { label: 'Library',        href: '/library',        icon: BookOpenIcon },
   { label: 'Files',          href: '/documents',      icon: DocumentIcon },
-  { label: 'Bookings',       href: '/bookings',       icon: CaseIcon },
+  { label: 'Bookings',       href: '/bookings',       icon: BookmarkIcon },
   { label: 'Alerts',         href: '/notifications',  icon: BellIcon },
   { label: 'AI Assistant',   href: '/ai',             icon: SparklesIcon },
   { label: 'Billing',        href: '/payments',       icon: PaymentIcon },
@@ -122,7 +122,7 @@ function DesktopSidebar() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,146,58,0.18),transparent_42%)] pointer-events-none" />
         <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900 font-display font-bold text-sm shadow-lg shadow-gold-500/30 flex-shrink-0">
           <span className="absolute inset-0 rounded-xl bg-white/30 animate-pulse-subtle" />
-          <span className="relative">⚖</span>
+          <span className="relative"><BalanceIcon width={18} height={18} /></span>
         </div>
         {!collapsed && (
           <div>

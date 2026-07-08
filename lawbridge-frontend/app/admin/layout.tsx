@@ -3,18 +3,18 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { DashboardIcon, UsersIcon, InboxIcon, LogoutIcon, ShieldIcon, BookOpenIcon, LawIcon, SparklesIcon, ChartBarIcon } from '../../components/icons/Icons'
+import { DashboardIcon, UsersIcon, InboxIcon, LogoutIcon, ShieldIcon, BookOpenIcon, BadgeCheckIcon, SparklesIcon, ChartBarIcon, BarChart2Icon } from '../../components/icons/Icons'
 import { clearSession } from '../../lib/authSession'
 
 const ADMIN_NAV = [
   { label: 'Dashboard',    href: '/admin',               icon: DashboardIcon },
   { label: 'Intelligence', href: '/admin/intelligence',  icon: SparklesIcon },
   { label: 'Risk Monitor', href: '/admin/risks',         icon: ShieldIcon },
-  { label: 'Analytics',   href: '/admin/analytics',     icon: ChartBarIcon },
+  { label: 'Analytics',   href: '/admin/analytics',     icon: BarChart2Icon },
   { label: 'Users',        href: '/admin/users',         icon: UsersIcon },
   { label: 'Support Inbox',href: '/admin/support',       icon: InboxIcon },
   { label: 'Content',      href: '/admin/content',       icon: BookOpenIcon },
-  { label: 'Verification', href: '/admin/verification',  icon: LawIcon },
+  { label: 'Verification', href: '/admin/verification',  icon: BadgeCheckIcon },
 ]
 
 function MenuIcon() {

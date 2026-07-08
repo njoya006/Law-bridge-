@@ -7,6 +7,7 @@ import { Card } from '../../components/ui/Card'
 import { getMyCases, type CaseItem } from '../../lib/casesApi'
 import { unreadNotificationCount, listNotifications, type NotificationItem } from '../../lib/notificationsApi'
 import { listDocuments } from '../../lib/documentsApi'
+import { CaseIcon, BalanceIcon, PencilIcon, CheckCircleIcon, XCircleIcon, CalendarIcon, BadgeCheckIcon, AlertTriangleIcon, StarIcon, BellIcon, ClipboardIcon, DocumentIcon, PaymentIcon, SparklesIcon, CompassIcon, SettingsIcon } from '../../components/icons/Icons'
 
 function formatRelative(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -28,17 +29,18 @@ function statusColor(status: string) {
 }
 
 function notifIcon(type: string) {
+  const cls = 'flex-shrink-0'
   switch (type) {
-    case 'case_created': return '📋'
-    case 'case_assigned': return '⚖️'
-    case 'case_updated': return '📝'
-    case 'case_closed': return '✅'
-    case 'case_rejected': return '❌'
-    case 'booking_received': return '📅'
-    case 'verification_approved': return '✓'
-    case 'verification_rejected': return '⚠️'
-    case 'review_received': return '⭐'
-    default: return '🔔'
+    case 'case_created':          return <CaseIcon className={cls} width={16} height={16} />
+    case 'case_assigned':         return <BalanceIcon className={cls} width={16} height={16} />
+    case 'case_updated':          return <PencilIcon className={cls} width={16} height={16} />
+    case 'case_closed':           return <CheckCircleIcon className={cls} width={16} height={16} />
+    case 'case_rejected':         return <XCircleIcon className={cls} width={16} height={16} />
+    case 'booking_received':      return <CalendarIcon className={cls} width={16} height={16} />
+    case 'verification_approved': return <BadgeCheckIcon className={cls} width={16} height={16} />
+    case 'verification_rejected': return <AlertTriangleIcon className={cls} width={16} height={16} />
+    case 'review_received':       return <StarIcon className={cls} width={16} height={16} />
+    default:                      return <BellIcon className={cls} width={16} height={16} />
   }
 }
 
@@ -243,7 +245,7 @@ export default function DashboardPage() {
                   <div className="space-y-2">
                     {notifications.map(n => (
                       <div key={n.id} className={`flex gap-3 p-3 rounded-lg border transition-colors ${n.is_read ? 'border-neutral-700/30 bg-primary-900/20' : 'border-gold-500/20 bg-gold-500/5'}`}>
-                        <span className="text-base flex-shrink-0">{notifIcon(n.notification_type)}</span>
+                        <span className="flex-shrink-0 text-portal-accent flex items-center mt-0.5">{notifIcon(n.notification_type)}</span>
                         <div className="flex-1 min-w-0">
                           <p className={`text-sm font-medium truncate ${n.is_read ? 'text-neutral-300' : 'text-neutral-100'}`}>{n.title}</p>
                           <p className="text-xs text-neutral-500 mt-0.5 truncate">{n.body}</p>
@@ -260,16 +262,17 @@ export default function DashboardPage() {
                 <h3 className="text-sm font-semibold text-neutral-300 uppercase tracking-wide mb-3">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { label: '📋 All Matters', href: '/cases' },
-                    { label: '📄 Documents', href: '/documents' },
-                    { label: '💳 Payments', href: '/payments' },
-                    { label: '🤖 AI Assistant', href: '/chat' },
-                    { label: '⚖️ Find Lawyers', href: '/discover' },
-                    { label: '⚙️ Settings', href: '/settings' },
-                  ].map(({ label, href }) => (
+                    { label: 'All Matters',  href: '/cases',     Icon: ClipboardIcon },
+                    { label: 'Documents',    href: '/documents', Icon: DocumentIcon },
+                    { label: 'Payments',     href: '/payments',  Icon: PaymentIcon },
+                    { label: 'AI Assistant', href: '/chat',      Icon: SparklesIcon },
+                    { label: 'Find Lawyers', href: '/discover',  Icon: CompassIcon },
+                    { label: 'Settings',     href: '/settings',  Icon: SettingsIcon },
+                  ].map(({ label, href, Icon }) => (
                     <Link key={href} href={href}
-                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-neutral-700/40 bg-primary-900/30 hover:border-neutral-600/50 hover:bg-primary-900/50 text-sm text-neutral-300 hover:text-neutral-100 transition-colors"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-neutral-700/40 bg-primary-900/30 hover:border-portal hover:bg-portal-soft text-sm text-neutral-300 hover:text-neutral-100 transition-colors group"
                     >
+                      <Icon width={15} height={15} className="flex-shrink-0 text-neutral-500 group-hover:text-portal-accent transition-colors" />
                       {label}
                     </Link>
                   ))}

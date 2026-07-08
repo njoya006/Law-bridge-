@@ -3,29 +3,29 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { DashboardIcon, CaseIcon, BriefcaseIcon, DocumentIcon, CalendarIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon, BookOpenIcon } from '../icons/Icons'
+import { DashboardIcon, DocumentIcon, CalendarIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon, BookOpenIcon, SparklesIcon, UsersIcon, BuildingIcon, CompassIcon, ClipboardIcon, BookmarkIcon, BadgeCheckIcon, SlidersIcon, PencilIcon, BarChart2Icon, TeamIcon } from '../icons/Icons'
 import { getFirmMembers, getMyFirmMemberships, type FirmMembership } from '../../lib/firmsApi'
 import { getReportRequests } from '../../lib/monitoringApi'
 import { clearSession } from '../../lib/authSession'
 
 const nav = [
-  { label: 'My Office', href: '/lawyer/office/me', icon: CaseIcon },
-  { label: 'Dashboard', href: '/lawyer/dashboard', icon: DashboardIcon },
-  { label: 'Bookings', href: '/lawyer/bookings', icon: BriefcaseIcon },
-  { label: 'Discover', href: '/lawyer/discover', icon: LawIcon },
-  { label: 'Matters', href: '/lawyer/matters', icon: CaseIcon },
-  { label: 'Clients', href: '/lawyer/clients', icon: BriefcaseIcon },
-  { label: 'Team', href: '/lawyer/team', icon: UserIcon },
-  { label: 'Documents', href: '/lawyer/documents', icon: DocumentIcon },
-  { label: 'Library', href: '/library', icon: BookOpenIcon },
-  { label: 'My Publications', href: '/lawyer/library', icon: BookOpenIcon },
-  { label: 'Get Verified', href: '/lawyer/verify', icon: LawIcon },
-  { label: 'AI Assistant', href: '/lawyer/ai', icon: LawIcon },
-  { label: 'Case Triage', href: '/lawyer/triage', icon: LawIcon },
-  { label: 'Calendar', href: '/lawyer/calendar', icon: CalendarIcon },
-  { label: 'Billing', href: '/lawyer/billing', icon: PaymentIcon },
-  { label: 'Reports', href: '/lawyer/reports', icon: DocumentIcon },
-  { label: 'Settings', href: '/lawyer/settings', icon: SettingsIcon },
+  { label: 'My Office',       href: '/lawyer/office/me', icon: BuildingIcon },
+  { label: 'Dashboard',       href: '/lawyer/dashboard', icon: DashboardIcon },
+  { label: 'Bookings',        href: '/lawyer/bookings',  icon: BookmarkIcon },
+  { label: 'Discover',        href: '/lawyer/discover',  icon: CompassIcon },
+  { label: 'Matters',         href: '/lawyer/matters',   icon: ClipboardIcon },
+  { label: 'Clients',         href: '/lawyer/clients',   icon: UsersIcon },
+  { label: 'Team',            href: '/lawyer/team',      icon: TeamIcon },
+  { label: 'Documents',       href: '/lawyer/documents', icon: DocumentIcon },
+  { label: 'Library',         href: '/library',          icon: BookOpenIcon },
+  { label: 'My Publications', href: '/lawyer/library',   icon: PencilIcon },
+  { label: 'Get Verified',    href: '/lawyer/verify',    icon: BadgeCheckIcon },
+  { label: 'AI Assistant',    href: '/lawyer/ai',        icon: SparklesIcon },
+  { label: 'Case Triage',     href: '/lawyer/triage',    icon: SlidersIcon },
+  { label: 'Calendar',        href: '/lawyer/calendar',  icon: CalendarIcon },
+  { label: 'Billing',         href: '/lawyer/billing',   icon: PaymentIcon },
+  { label: 'Reports',         href: '/lawyer/reports',   icon: BarChart2Icon },
+  { label: 'Settings',        href: '/lawyer/settings',  icon: SettingsIcon },
 ]
 
 export default function LawyerSidebar() {
