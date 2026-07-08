@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { getMyCases, getIncomingBookings, type CaseItem } from '../../../lib/casesApi'
 import { getMyFirmMemberships, getFirmMembers, getFirmLawyers, type FirmMembership, type FirmLawyer } from '../../../lib/firmsApi'
 import { getReportRequests, acknowledgeReportRequest, type ReportRequestItem } from '../../../lib/monitoringApi'
+import { ClipboardIcon, PaymentIcon, UserIcon, BalanceIcon, CalendarIcon, BuildingIcon, BarChart2Icon, PrinterIcon } from '../../../components/icons/Icons'
 
 function fmtXAF(n: number) { return n > 0 ? `${n.toLocaleString()} XAF` : '0 XAF' }
 function fmtDate(iso: string) {
@@ -15,14 +16,15 @@ function fmtNow() {
 
 type ReportType = 'general' | 'financial' | 'clients' | 'lawyers' | 'activity' | 'full'
 type Period = 'current_month' | 'last_month' | 'ytd' | 'all_time'
+type IconComp = React.FC<{ className?: string; width?: number; height?: number }>
 
-const REPORT_TYPES: { id: ReportType; label: string; icon: string; desc: string }[] = [
-  { id: 'general',   label: 'General Report',        icon: '📋', desc: 'High-level overview: active cases, team, bookings' },
-  { id: 'financial', label: 'Financial Report',       icon: '💰', desc: 'Revenue, payment status, fee breakdown per booking' },
-  { id: 'clients',   label: 'Clients Report',         icon: '👤', desc: 'All clients, their matters, status, and contact info' },
-  { id: 'lawyers',   label: 'Lawyers Participation',  icon: '⚖️', desc: 'Case assignments, load, and performance by lawyer' },
-  { id: 'activity',  label: 'Activity Report',        icon: '📅', desc: 'Timeline of all firm events, status changes, and notes' },
-  { id: 'full',      label: 'Full Firm Report',       icon: '🏛️', desc: 'Complete report combining all sections above' },
+const REPORT_TYPES: { id: ReportType; label: string; Icon: IconComp; desc: string }[] = [
+  { id: 'general',   label: 'General Report',       Icon: ClipboardIcon, desc: 'High-level overview: active cases, team, bookings' },
+  { id: 'financial', label: 'Financial Report',      Icon: PaymentIcon,   desc: 'Revenue, payment status, fee breakdown per booking' },
+  { id: 'clients',   label: 'Clients Report',        Icon: UserIcon,      desc: 'All clients, their matters, status, and contact info' },
+  { id: 'lawyers',   label: 'Lawyers Participation', Icon: BalanceIcon,   desc: 'Case assignments, load, and performance by lawyer' },
+  { id: 'activity',  label: 'Activity Report',       Icon: CalendarIcon,  desc: 'Timeline of all firm events, status changes, and notes' },
+  { id: 'full',      label: 'Full Firm Report',      Icon: BuildingIcon,  desc: 'Complete report combining all sections above' },
 ]
 
 const PERIODS: { id: Period; label: string }[] = [
@@ -497,9 +499,11 @@ export default function LawyerReportsPage() {
               <button key={rt.id} onClick={() => setReportType(rt.id)}
                 className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${
                   reportType === rt.id
-                    ? 'border-gold-500/50 bg-gold-500/10'
+                    ? 'border-portal bg-portal-soft'
                     : 'border-neutral-700/40 hover:border-neutral-600/50 bg-primary-900/20'}`}>
-                <span className="text-xl flex-shrink-0">{rt.icon}</span>
+                <span className={`flex-shrink-0 ${reportType === rt.id ? 'text-portal-accent' : 'text-neutral-500'}`}>
+                  <rt.Icon width={20} height={20} />
+                </span>
                 <div>
                   <p className="text-sm font-medium text-neutral-100">{rt.label}</p>
                   <p className="text-xs text-neutral-500">{rt.desc}</p>
@@ -533,13 +537,21 @@ export default function LawyerReportsPage() {
                 <span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />
                 Generating…
               </span>
-            ) : '📊 Generate Report'}
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <BarChart2Icon width={16} height={16} />
+                Generate Report
+              </span>
+            )}
           </button>
 
           {data && (
             <button onClick={() => window.print()}
               className="w-full py-2.5 rounded-xl border border-neutral-700/40 text-neutral-300 hover:text-neutral-100 text-sm font-medium transition-colors">
-              🖨️ Print / Save as PDF
+              <span className="flex items-center justify-center gap-2">
+                <PrinterIcon width={14} height={14} />
+                Print / Save as PDF
+              </span>
             </button>
           )}
 
@@ -580,7 +592,9 @@ export default function LawyerReportsPage() {
 
       {!data && !loading && (
         <div className="rounded-2xl border border-neutral-700/40 bg-primary-900/20 p-12 text-center">
-          <p className="text-4xl mb-3">📊</p>
+          <div className="flex justify-center mb-4">
+            <BarChart2Icon width={48} height={48} className="text-neutral-700" />
+          </div>
           <p className="text-neutral-300 font-medium">Select a report type and period, then click Generate</p>
           <p className="text-neutral-500 text-sm mt-1">Reports pull live data from your firm's cases, bookings, and team.</p>
         </div>

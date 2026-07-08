@@ -8,7 +8,7 @@ import { getLawyerStats, type LawyerStats } from '../../../../lib/monitoringApi'
 import { listEventsForCases, type CalendarEvent } from '../../../../lib/calendarApi'
 import { getMyFirmMemberships, type FirmMembership } from '../../../../lib/firmsApi'
 import { createReportRequest, listReportRequests, updateReportRequestStatus, REPORT_TYPE_LABELS, PERIOD_LABELS, type ReportRequest } from '../../../../lib/reportRequestsApi'
-import { ChartBarIcon, SendIcon } from '../../../../components/icons/Icons'
+import { ChartBarIcon, SendIcon, AlertTriangleIcon, MapPinIcon, UsersIcon, CalendarIcon, DocumentIcon, SettingsIcon } from '../../../../components/icons/Icons'
 
 function formatRelative(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -251,7 +251,7 @@ export default function MyOfficePage() {
           {urgentCases.length > 0 && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-amber-400">⚠</span>
+                <AlertTriangleIcon width={16} height={16} className="text-amber-400 flex-shrink-0" />
                 <h4 className="text-sm font-semibold text-amber-300">Matters Needing Attention</h4>
                 <span className="ml-auto text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">{urgentCases.length}</span>
               </div>
@@ -319,7 +319,11 @@ export default function MyOfficePage() {
                           <span className="text-xs font-semibold text-gold-300">{ev.time?.slice(0, 5)}</span>
                           <span className="text-xs capitalize text-neutral-400">{ev.event_type}</span>
                         </div>
-                        {ev.location && <p className="text-xs text-neutral-500 mt-0.5 truncate">📍 {ev.location}</p>}
+                        {ev.location && (
+                          <p className="text-xs text-neutral-500 mt-0.5 truncate flex items-center gap-1">
+                            <MapPinIcon width={11} height={11} className="flex-shrink-0" />{ev.location}
+                          </p>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -358,12 +362,13 @@ export default function MyOfficePage() {
                 <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">Quick Links</h3>
                 <div className="space-y-1.5">
                   {[
-                    { label: '👥 Clients', href: '/lawyer/clients' },
-                    { label: '📅 Calendar', href: '/lawyer/calendar' },
-                    { label: '📄 Documents', href: '/documents' },
-                    { label: '⚙️ Settings', href: '/lawyer/settings' },
-                  ].map(({ label, href }) => (
-                    <Link key={href} href={href} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-700/30 text-sm text-neutral-400 hover:text-neutral-200 hover:border-neutral-600 transition-colors">
+                    { label: 'Clients',   href: '/lawyer/clients',   Icon: UsersIcon },
+                    { label: 'Calendar',  href: '/lawyer/calendar',  Icon: CalendarIcon },
+                    { label: 'Documents', href: '/documents',         Icon: DocumentIcon },
+                    { label: 'Settings',  href: '/lawyer/settings',  Icon: SettingsIcon },
+                  ].map(({ label, href, Icon }) => (
+                    <Link key={href} href={href} className="flex items-center gap-2.5 px-3 py-2 rounded-lg border border-neutral-700/30 text-sm text-neutral-400 hover:text-neutral-200 hover:border-neutral-600 hover:bg-portal-soft transition-colors group">
+                      <Icon width={15} height={15} className="flex-shrink-0 text-neutral-500 group-hover:text-portal-accent transition-colors" />
                       {label}
                     </Link>
                   ))}
