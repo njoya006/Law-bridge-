@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { listBooks, listArticles, listCategories, ARTICLE_TYPE_LABELS, type BookItem, type BookTier, type BookCategory, type ArticleItem, type ArticleType } from '../../lib/libraryApi'
+import { listBooks, listArticles, listCategories, listFeaturedBooks, ARTICLE_TYPE_LABELS, type BookItem, type BookTier, type BookCategory, type ArticleItem, type ArticleType } from '../../lib/libraryApi'
 
 const ARTICLE_TYPE_COLORS: Record<string, string> = {
   case_summary: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
@@ -181,13 +181,15 @@ function BookCover({ book }: { book: BookItem }) {
             <div className="opacity-[0.18]" style={{ width: '36px', height: '36px' }}>
               <ScalesIcon color={theme.accent} />
             </div>
-            {book.tier === 'firm' && (
-              <div
-                className="absolute top-1.5 right-2 rounded px-1 py-0.5 text-[8px] font-bold tracking-wider uppercase"
+            {book.tier === 'firm' && book.firm_id && (
+              <Link
+                href={`/library/firm/${book.firm_id}`}
+                onClick={e => e.stopPropagation()}
+                className="absolute top-1.5 right-2 rounded px-1 py-0.5 text-[8px] font-bold tracking-wider uppercase hover:opacity-80 transition-opacity"
                 style={{ background: theme.accent + '28', color: theme.accent }}
               >
                 FIRM
-              </div>
+              </Link>
             )}
           </div>
 
@@ -316,6 +318,7 @@ export default function LibraryPage() {
   const [articles, setArticles] = useState<ArticleItem[]>([])
   const [loading, setLoading] = useState(true)
   const [categories, setCategories] = useState<BookCategory[]>([])
+  const [featuredBooks, setFeaturedBooks] = useState<BookItem[]>([])
   const [search, setSearch] = useState('')
   const [selectedArea, setSelectedArea] = useState('')
   const [activeTab, setActiveTab] = useState<'all' | 'firm'>('all')
@@ -327,6 +330,8 @@ export default function LibraryPage() {
     const role = localStorage.getItem('portalRole')
     setIsLawyer(role === 'lawyer')
     listCategories().then(setCategories).catch(() => setCategories([]))
+    const token = localStorage.getItem('access')
+    listFeaturedBooks(token).then(setFeaturedBooks).catch(() => setFeaturedBooks([]))
   }, [])
 
   const load = useCallback(async () => {
@@ -473,6 +478,29 @@ export default function LibraryPage() {
 
         {contentType === 'books' ? (
           <>
+            {/* Featured resources strip */}
+            {!loading && featuredBooks.length > 0 && !search && !selectedArea && activeTab === 'all' && (
+              <div className="mb-10">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="h-px flex-1 bg-white/5" />
+                  <span className="text-[10px] font-bold tracking-[0.2em] text-gold-400/60 uppercase flex items-center gap-1.5">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" className="text-gold-400/80">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                    Featured Resources
+                  </span>
+                  <div className="h-px flex-1 bg-white/5" />
+                </div>
+                <div className="flex gap-6 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', paddingRight: '12px' }}>
+                  {featuredBooks.map(book => (
+                    <div key={book.id} className="flex-shrink-0" style={{ width: '140px' }}>
+                      <BookCover book={book} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {!loading && books.length > 0 && (
               <p className="text-xs text-white/25 mb-8">
                 {books.length} publication{books.length !== 1 ? 's' : ''} in the collection

@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { getArticle, ARTICLE_TYPE_LABELS, type ArticleItem } from '../../../../lib/libraryApi'
 
+const SYSTEM_AUTHOR_ID = '00000000-0000-0000-0000-000000000001'
+
 function WatermarkOverlay() {
   const [label, setLabel] = useState('')
   useEffect(() => {
@@ -39,13 +41,20 @@ export default function ArticleDetailPage() {
   const params = useParams()
   const id = params.id as string
   const [article, setArticle] = useState<ArticleItem | null>(null)
+  const [isAuthor, setIsAuthor] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     const token = localStorage.getItem('access')
+    const viewerId = localStorage.getItem('authUserId')
+    setIsLoggedIn(!!token)
     getArticle(id, token)
-      .then(setArticle)
+      .then(a => {
+        setArticle(a)
+        setIsAuthor(!!viewerId && viewerId === a.author_id)
+      })
       .catch(e => setError(e instanceof Error ? e.message : 'Failed to load article'))
       .finally(() => setLoading(false))
   }, [id])
@@ -129,6 +138,51 @@ export default function ArticleDetailPage() {
               <WatermarkOverlay />
               <div className="prose prose-invert max-w-none prose-p:text-white/65 prose-headings:text-white prose-headings:font-semibold prose-strong:text-white/80 prose-li:text-white/65 prose-blockquote:border-gold-500/30 prose-blockquote:text-white/50" style={{ whiteSpace: 'pre-wrap', zIndex: 1, position: 'relative' }}>
                 {article.content}
+              </div>
+            </div>
+          )}
+
+          {/* Consultation CTA */}
+          {!isAuthor && article.author_id !== SYSTEM_AUTHOR_ID && article.status === 'published' && (
+            <div className="mt-12 rounded-2xl bg-gold-500/5 border border-gold-500/15 p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-gold-500/12 border border-gold-500/20 flex items-center justify-center flex-shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-gold-400">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+                          stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-white/80">
+                    Questions about {article.legal_areas[0] || 'this topic'}?
+                  </p>
+                  <p className="text-xs text-white/40 mt-1">
+                    {article.author_name} is available for a one-on-one consultation.
+                  </p>
+                  <div className="mt-4">
+                    {isLoggedIn ? (
+                      <Link
+                        href={`/bookings/new?lawyer_id=${article.author_id}`}
+                        className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors"
+                      >
+                        Book a Consultation
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/auth/register"
+                        className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors"
+                      >
+                        Create a free account to book
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                          <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      </Link>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}

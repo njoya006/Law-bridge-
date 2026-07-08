@@ -15,4 +15,8 @@ urlpatterns = [
     path('articles/', views.ArticleListCreateView.as_view()),
     path('articles/<uuid:pk>/', views.ArticleDetailView.as_view()),
     path('my-articles/', views.MyArticlesView.as_view()),
+    # Engagement & discovery
+    path('books/<uuid:pk>/view/', views.BookIncrementViewView.as_view()),
+    path('books/firm/<uuid:firm_id>/', views.FirmBooksView.as_view()),
+    path('books/featured/', views.FeaturedBooksView.as_view()),
 ]

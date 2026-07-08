@@ -27,10 +27,12 @@ class BookListSerializer(serializers.ModelSerializer):
             'abstract', 'year', 'edition', 'publisher', 'pages',
             'language', 'jurisdiction',
             'legal_areas', 'categories', 'version_number',
+            'views', 'is_featured',
             'published_at', 'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'status', 'version_number', 'published_at', 'created_at', 'updated_at',
+            'id', 'status', 'version_number', 'views', 'is_featured',
+            'published_at', 'created_at', 'updated_at',
         ]
 
 
@@ -49,11 +51,12 @@ class BookDetailSerializer(serializers.ModelSerializer):
             'abstract', 'content',
             'year', 'edition', 'publisher', 'pages', 'language', 'jurisdiction',
             'legal_areas', 'categories', 'category_ids', 'version_number',
+            'views', 'is_featured',
             'submitted_at', 'reviewed_by_id', 'reviewed_at', 'rejection_reason',
             'published_at', 'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'status', 'version_number',
+            'id', 'status', 'version_number', 'views', 'is_featured',
             'submitted_at', 'reviewed_by_id', 'reviewed_at',
             'published_at', 'created_at', 'updated_at',
         ]

@@ -29,6 +29,8 @@ export interface BookItem {
   jurisdiction: string
   legal_areas: string[]
   categories: BookCategory[]
+  views: number
+  is_featured: boolean
   version_number: number
   submitted_at: string | null
   reviewed_by_id: string | null
@@ -209,4 +211,23 @@ export function deleteArticle(id: string, token: string) {
 export function listMyArticles(token: string, status?: ArticleStatus) {
   const query = status ? `?status=${status}` : ''
   return api.get<ArticleItem[]>('library', `/my-articles/${query}`, token)
+}
+
+// ── Engagement & Discovery ─────────────────────────────────────────────────────
+
+export function incrementBookView(id: string, token: string | null) {
+  return api.request<void>('library', `/books/${id}/view/`, {
+    method: 'POST',
+    token,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
+}
+
+export function listFirmContent(firmId: string, token: string | null) {
+  return api.get<BookItem[]>('library', `/books/firm/${firmId}/`, token)
+}
+
+export function listFeaturedBooks(token: string | null) {
+  return api.get<BookItem[]>('library', '/books/featured/', token)
 }

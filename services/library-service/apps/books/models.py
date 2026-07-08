@@ -66,6 +66,12 @@ class Book(models.Model):
     legal_areas = models.JSONField(default=list)
     categories = models.ManyToManyField(Category, blank=True)
 
+    # Engagement — view counter, mirrors Article.views
+    views = models.PositiveIntegerField(default=0)
+
+    # Editorial curation — admin marks books as featured for homepage showcase
+    is_featured = models.BooleanField(default=False, db_index=True)
+
     # Version counter — incremented on each publish
     version_number = models.PositiveIntegerField(default=1)
 

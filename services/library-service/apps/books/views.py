@@ -1,4 +1,5 @@
 from django.utils import timezone
+from django.db.models import F
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -361,3 +362,37 @@ class MyArticlesView(APIView):
         if status_filter:
             qs = qs.filter(status=status_filter)
         return Response(ArticleListSerializer(qs, many=True).data)
+
+
+class BookIncrementViewView(APIView):
+    """Atomically increment a book's view counter. Public; skips if caller is the author."""
+    permission_classes = []
+
+    def post(self, request, pk):
+        try:
+            book = Book.objects.get(pk=pk, status=Book.STATUS_PUBLISHED)
+        except Book.DoesNotExist:
+            return Response({'error': 'not found'}, status=404)
+        caller_id, _, _ = get_caller(request)
+        if caller_id and str(book.author_id) == caller_id:
+            return Response(status=204)
+        Book.objects.filter(pk=pk).update(views=F('views') + 1)
+        return Response(status=204)
+
+
+class FirmBooksView(APIView):
+    """All published books authored by lawyers in a given firm (both tiers)."""
+    permission_classes = []
+
+    def get(self, request, firm_id):
+        qs = Book.objects.filter(status=Book.STATUS_PUBLISHED, firm_id=firm_id)
+        return Response(BookListSerializer(qs, many=True).data)
+
+
+class FeaturedBooksView(APIView):
+    """Published books marked as featured for editorial homepage sections."""
+    permission_classes = []
+
+    def get(self, request):
+        qs = Book.objects.filter(status=Book.STATUS_PUBLISHED, is_featured=True).order_by('-published_at')[:8]
+        return Response(BookListSerializer(qs, many=True).data)
