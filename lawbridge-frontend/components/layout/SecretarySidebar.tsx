@@ -124,13 +124,13 @@ export default function SecretarySidebar() {
               key={item.href}
               href={item.href}
               className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 font-body text-sm border active:scale-[0.98]
-                ${isActive ? 'bg-gold-500/10 text-gold-300 border-gold-400/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]' : 'border-transparent text-neutral-300 hover:bg-white/5 hover:text-neutral-50 hover:border-white/5'}
+                ${isActive ? 'bg-portal-soft text-portal border-portal shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]' : 'border-transparent text-neutral-300 hover:bg-white/5 hover:text-neutral-50 hover:border-white/5'}
                 ${collapsed ? 'justify-center' : ''}`}
               title={collapsed ? item.label : undefined}
             >
-              <span className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 flex-shrink-0 ${isActive ? 'bg-gold-500/10' : 'bg-white/0 group-hover:bg-gold-500/10'} shadow-sm`}>
-                <span className={`absolute inset-0 rounded-lg bg-gold-400/0 blur-sm transition-colors duration-200 group-hover:bg-gold-400/20 ${isActive ? 'bg-gold-400/15' : ''}`} />
-                <span className={`relative transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110 ${isActive ? 'text-gold-300' : 'text-neutral-400 group-hover:text-gold-300'}`}>
+              <span className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 flex-shrink-0 ${isActive ? 'bg-portal-soft' : 'bg-white/0 group-hover:bg-portal-soft'} shadow-sm`}>
+                <span className={`absolute inset-0 rounded-lg blur-sm transition-colors duration-200 ${isActive ? 'bg-portal-soft' : 'bg-transparent group-hover:bg-portal-soft'}`} />
+                <span className={`relative transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110 ${isActive ? 'text-portal' : 'text-neutral-400 group-hover:text-portal'}`}>
                   <Icon width={18} height={18} />
                 </span>
                 {badge > 0 && (
@@ -145,7 +145,7 @@ export default function SecretarySidebar() {
                   {badge > 9 ? '9+' : badge}
                 </span>
               )}
-              {isActive && !collapsed && badge === 0 && <span className="ml-auto h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_12px_rgba(201,146,58,0.7)] animate-pulse-subtle" />}
+              {isActive && !collapsed && badge === 0 && <span className="ml-auto h-2 w-2 rounded-full dot-portal animate-pulse-subtle" />}
             </Link>
           )
         })}

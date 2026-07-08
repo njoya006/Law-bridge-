@@ -145,7 +145,7 @@ export default function AdminDashboard() {
 
         {loading ? (
           <div className="space-y-2">
-            {[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl bg-primary-800/30 animate-pulse" />)}
+            {[1, 2, 3].map(i => <div key={i} className="h-16 rounded-xl skeleton" />)}
           </div>
         ) : threads.length === 0 ? (
           <div className="rounded-xl border border-white/8 bg-primary-800/20 p-8 text-center text-neutral-500 text-sm">

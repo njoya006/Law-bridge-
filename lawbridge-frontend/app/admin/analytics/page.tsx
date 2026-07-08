@@ -22,7 +22,7 @@ type LawyerLoad = {
 type Tab = 'users' | 'cases' | 'lawyers'
 
 function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-primary-800/40 ${className}`} />
+  return <div className={`skeleton rounded-xl ${className}`} />
 }
 
 function DistributionTable({

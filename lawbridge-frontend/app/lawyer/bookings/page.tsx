@@ -222,7 +222,7 @@ export default function LawyerBookingsPage() {
 
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-40 rounded-xl bg-primary-800/30 animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-40 rounded-xl skeleton" />)}
         </div>
       ) : bookings[tab].length === 0 ? (
         <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-10 text-center">

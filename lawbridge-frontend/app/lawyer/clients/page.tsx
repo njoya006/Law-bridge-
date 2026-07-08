@@ -76,7 +76,7 @@ export default function LawyerClientsPage() {
 
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => <div key={i} className="h-40 rounded-xl bg-primary-800/30 animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-40 rounded-xl skeleton" />)}
         </div>
       )}
 

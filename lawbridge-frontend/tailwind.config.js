@@ -68,14 +68,15 @@ module.exports = {
         'label-sm':    ['0.625rem',{ lineHeight: '1.4', fontWeight: '600', letterSpacing: '0.08em' }],
       },
       boxShadow: {
-        'card':    '0 1px 3px rgba(11,20,38,0.06), 0 1px 2px rgba(11,20,38,0.04)',
-        'card-md': '0 4px 6px rgba(11,20,38,0.07), 0 2px 4px rgba(11,20,38,0.05)',
-        'card-lg': '0 10px 15px rgba(11,20,38,0.08), 0 4px 6px rgba(11,20,38,0.06)',
-        'card-xl': '0 20px 25px rgba(11,20,38,0.10), 0 8px 10px rgba(11,20,38,0.06)',
-        'gold':    '0 0 0 3px rgba(201,146,58,0.2)',
-        'focus':   '0 0 0 3px rgba(40,85,168,0.3)',
-        'modal':   '0 25px 50px rgba(11,20,38,0.25)',
-        'sidebar': '4px 0 24px rgba(11,20,38,0.15)',
+        'card':       '0 1px 3px rgba(11,20,38,0.06), 0 1px 2px rgba(11,20,38,0.04)',
+        'card-md':    '0 4px 6px rgba(11,20,38,0.07), 0 2px 4px rgba(11,20,38,0.05)',
+        'card-lg':    '0 10px 15px rgba(11,20,38,0.08), 0 4px 6px rgba(11,20,38,0.06)',
+        'card-xl':    '0 20px 25px rgba(11,20,38,0.10), 0 8px 10px rgba(11,20,38,0.06)',
+        'card-hover': '0 8px 32px rgba(0,0,0,0.3)',
+        'gold':       '0 0 0 3px rgba(201,146,58,0.2)',
+        'focus':      '0 0 0 3px rgba(40,85,168,0.3)',
+        'modal':      '0 25px 50px rgba(11,20,38,0.25)',
+        'sidebar':    '4px 0 24px rgba(11,20,38,0.15)',
       },
       borderRadius: {
         'xs': '2px', 'sm': '4px', 'md': '6px', 'lg': '8px', 'xl': '12px', '2xl':'16px', '3xl':'20px', '4xl':'24px'

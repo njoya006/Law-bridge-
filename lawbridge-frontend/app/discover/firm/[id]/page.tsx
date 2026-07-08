@@ -414,8 +414,8 @@ export default function FirmDetailPage() {
   }, [loading])
 
   if (loading) return (
-    <div className="max-w-5xl mx-auto space-y-4 animate-pulse">
-      <div className="h-40 rounded-xl bg-primary-800/30" />
+    <div className="max-w-5xl mx-auto space-y-4">
+      <div className="h-40 rounded-xl skeleton" />
       <div className="grid grid-cols-3 gap-4">
         {[1,2,3].map(i => <div key={i} className="h-32 rounded-xl bg-primary-800/30" />)}
       </div>

@@ -231,7 +231,7 @@ function SkeletonCards() {
   return (
     <div className="space-y-3">
       {[...Array(3)].map((_, i) => (
-        <div key={i} className="rounded-xl bg-white/[0.03] border border-white/8 p-5 animate-pulse">
+        <div key={i} className="rounded-xl border border-white/8 p-5 skeleton">
           <div className="h-4 bg-white/8 rounded w-1/2 mb-2" />
           <div className="h-3 bg-white/5 rounded w-2/3" />
         </div>

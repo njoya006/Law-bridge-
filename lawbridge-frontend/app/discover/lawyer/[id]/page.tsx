@@ -121,9 +121,9 @@ export default function LawyerDetailPage() {
   }
 
   if (loading) return (
-    <div className="max-w-4xl mx-auto space-y-4 animate-pulse">
-      <div className="h-48 rounded-xl bg-primary-800/30" />
-      <div className="h-32 rounded-xl bg-primary-800/30" />
+    <div className="max-w-4xl mx-auto space-y-4">
+      <div className="h-48 rounded-xl skeleton" />
+      <div className="h-32 rounded-xl skeleton" />
     </div>
   )
 

@@ -638,9 +638,9 @@ export default function BookingDetailPage() {
   }, [params.id, router])
 
   if (loading) return (
-    <div className="max-w-2xl mx-auto space-y-4 animate-pulse">
-      <div className="h-40 rounded-xl bg-primary-800/30" />
-      <div className="h-64 rounded-xl bg-primary-800/30" />
+    <div className="max-w-2xl mx-auto space-y-4">
+      <div className="h-40 rounded-xl skeleton" />
+      <div className="h-64 rounded-xl skeleton" />
     </div>
   )
 

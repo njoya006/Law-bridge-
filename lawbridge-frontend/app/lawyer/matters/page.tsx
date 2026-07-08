@@ -425,7 +425,7 @@ export default function LawyerMattersPage() {
 
       {loading && (
         <div className="mt-6 space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-14 rounded-xl bg-primary-800/30 animate-pulse" />)}
+          {[1, 2, 3].map(i => <div key={i} className="h-14 rounded-xl skeleton" />)}
         </div>
       )}
 

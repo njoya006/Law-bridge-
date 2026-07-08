@@ -143,14 +143,14 @@ function DesktopSidebar() {
               href={item.href}
               className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 border active:scale-[0.98] ${
                 active
-                  ? 'bg-gold-500/10 text-gold-300 border-gold-400/20'
+                  ? 'bg-portal-soft text-portal border-portal'
                   : 'border-transparent text-neutral-300 hover:bg-white/5 hover:text-neutral-50 hover:border-white/5'
               } ${collapsed ? 'justify-center' : ''}`}
               title={collapsed ? item.label : undefined}
             >
-              <span className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 flex-shrink-0 ${active ? 'bg-gold-500/10' : 'group-hover:bg-gold-500/10'}`}>
-                <span className={`absolute inset-0 rounded-lg blur-sm transition-colors duration-200 group-hover:bg-gold-400/20 ${active ? 'bg-gold-400/15' : 'bg-gold-400/0'}`} />
-                <span className={`relative transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110 ${active ? 'text-gold-300' : 'text-neutral-400 group-hover:text-gold-300'}`}>
+              <span className={`relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 flex-shrink-0 ${active ? 'bg-portal-soft' : 'group-hover:bg-portal-soft'}`}>
+                <span className={`absolute inset-0 rounded-lg blur-sm transition-colors duration-200 ${active ? 'bg-portal-soft' : 'bg-transparent group-hover:bg-portal-soft'}`} />
+                <span className={`relative transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110 ${active ? 'text-portal' : 'text-neutral-400 group-hover:text-portal'}`}>
                   <Icon width={18} height={18} />
                 </span>
               </span>
@@ -161,7 +161,7 @@ function DesktopSidebar() {
                 </span>
               )}
               {active && !collapsed && item.label !== 'Messages' && (
-                <span className="ml-auto h-2 w-2 rounded-full bg-gold-400 shadow-[0_0_12px_rgba(201,146,58,0.7)] animate-pulse-subtle" />
+                <span className="ml-auto h-2 w-2 rounded-full dot-portal animate-pulse-subtle" />
               )}
             </Link>
           )
@@ -279,13 +279,13 @@ function MobileBottomNav() {
                   href={item.href}
                   className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-150 active:scale-95 ${
                     active
-                      ? 'bg-gold-500/15 text-gold-300'
+                      ? 'bg-portal-soft text-portal'
                       : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-neutral-200'
                   }`}
                 >
                   <Icon width={22} height={22} />
                   <span className="text-[9px] font-semibold uppercase tracking-wider leading-none">{item.label}</span>
-                  {active && <span className="h-1 w-1 rounded-full bg-gold-400" />}
+                  {active && <span className="h-1 w-1 rounded-full dot-portal" />}
                 </Link>
               )
             })}
@@ -315,11 +315,11 @@ function MobileBottomNav() {
                 key={item.href}
                 href={item.href}
                 className={`relative flex-1 flex flex-col items-center justify-center gap-1 transition-colors duration-150 active:bg-white/5 ${
-                  active ? 'text-gold-400' : 'text-neutral-500'
+                  active ? 'text-portal-accent' : 'text-neutral-500'
                 }`}
               >
                 {active && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-gold-400 shadow-[0_0_8px_rgba(201,146,58,0.8)]" />
+                  <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-portal-accent shadow-portal-accent" />
                 )}
                 <span className={`relative flex items-center justify-center transition-transform duration-150 ${active ? 'scale-110' : ''}`}>
                   <Icon width={20} height={20} />
@@ -338,11 +338,11 @@ function MobileBottomNav() {
           <button
             onClick={() => setDrawerOpen(v => !v)}
             className={`relative flex-1 flex flex-col items-center justify-center gap-1 transition-colors duration-150 active:bg-white/5 ${
-              drawerOpen || moreActive ? 'text-gold-400' : 'text-neutral-500'
+              drawerOpen || moreActive ? 'text-portal-accent' : 'text-neutral-500'
             }`}
           >
             {(drawerOpen || moreActive) && (
-              <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-gold-400 shadow-[0_0_8px_rgba(201,146,58,0.8)]" />
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-portal-accent shadow-portal-accent" />
             )}
             <span className={`flex items-center justify-center transition-transform duration-200 ${drawerOpen ? 'rotate-90 scale-110' : ''}`}>
               <GridIcon width={20} height={20} />

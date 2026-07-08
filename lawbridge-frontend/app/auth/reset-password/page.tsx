@@ -49,7 +49,7 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="w-full rounded-[2rem] border border-white/10 bg-white/8 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8">
+    <div className="w-full rounded-[2rem] border border-white/10 bg-white/8 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8 animate-fade-up" style={{ animationFillMode: 'both' }}>
       {done ? (
         <div className="space-y-4 text-center py-6">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/30">
@@ -75,6 +75,7 @@ function ResetPasswordForm() {
             <Input
               label="New password"
               type="password"
+              showPasswordToggle
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
               placeholder="Enter new password"
@@ -83,6 +84,7 @@ function ResetPasswordForm() {
             <Input
               label="Confirm password"
               type="password"
+              showPasswordToggle
               value={confirm}
               onChange={e => setConfirm(e.target.value)}
               placeholder="Repeat new password"

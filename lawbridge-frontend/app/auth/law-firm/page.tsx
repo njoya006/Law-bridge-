@@ -189,7 +189,7 @@ export default function LawFirmRegisterPage() {
         </section>
 
         <section className="flex items-center px-6 pb-10 sm:px-10 lg:px-12 lg:py-14">
-          <div className="w-full rounded-[2rem] border border-white/10 bg-white/8 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8">
+          <div className="w-full rounded-[2rem] border border-white/10 bg-white/8 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8 animate-fade-up" style={{ animationFillMode: 'both' }}>
             <div className="mb-8 space-y-2">
               <p className="text-sm uppercase tracking-[0.28em] text-gold-300">Firm setup</p>
               <h2 className="font-display text-3xl text-neutral-50">Create firm account</h2>
@@ -294,8 +294,8 @@ export default function LawFirmRegisterPage() {
               <section className="space-y-5 rounded-[1.5rem] border border-white/10 bg-white/5 p-5">
                 <h3 className="font-display text-xl text-neutral-50">Security setup</h3>
                 <div className="grid gap-5 sm:grid-cols-2">
-                  <Input label="Password" type="password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Create a password" />
-                  <Input label="Confirm password" type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Repeat your password" />
+                  <Input label="Password" type="password" showPasswordToggle value={password} onChange={event => setPassword(event.target.value)} placeholder="Create a password" />
+                  <Input label="Confirm password" type="password" showPasswordToggle value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} placeholder="Repeat your password" />
                 </div>
                 <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-300">
                   <input type="checkbox" className="mt-1 h-4 w-4 rounded border-neutral-600 bg-transparent text-gold-400 focus:ring-gold-400" />

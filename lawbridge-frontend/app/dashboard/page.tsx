@@ -128,13 +128,13 @@ export default function DashboardPage() {
           {/* Stat tiles */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Open Matters', value: openCases.length, sub: `${cases.length} total`, href: '/cases', accent: 'text-gold-400' },
+              { label: 'Open Matters', value: openCases.length, sub: `${cases.length} total`, href: '/cases', accent: 'text-portal-accent' },
               { label: 'Unread Updates', value: unread ?? 0, sub: 'notifications', href: '/cases', accent: unread ? 'text-amber-400' : 'text-neutral-400' },
               { label: 'Documents', value: docCount ?? '—', sub: 'across all matters', href: '/documents', accent: 'text-blue-400' },
               { label: 'Pending Bookings', value: pendingBookings.length, sub: 'awaiting lawyer response', href: '/cases', accent: pendingBookings.length > 0 ? 'text-amber-400' : 'text-neutral-400' },
-            ].map(({ label, value, sub, href, accent }) => (
-              <Link key={label} href={href} className="block">
-                <div className="bg-primary-900/50 border border-neutral-700/40 rounded-xl p-4 hover:border-neutral-600/50 transition-colors">
+            ].map(({ label, value, sub, href, accent }, i) => (
+              <Link key={label} href={href} className="block animate-fade-up" style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}>
+                <div className="bg-primary-900/50 border border-neutral-700/40 rounded-xl p-4 hover:border-neutral-600/50 hover:-translate-y-0.5 hover:shadow-card-hover transition-all duration-200">
                   <p className={`text-3xl font-bold ${accent}`}>{value}</p>
                   <p className="text-sm text-neutral-300 mt-0.5 font-medium">{label}</p>
                   <p className="text-xs text-neutral-500 mt-0.5">{sub}</p>
@@ -186,7 +186,7 @@ export default function DashboardPage() {
                 <div className="space-y-2">
                   {activeCases.map(c => (
                     <Link key={c.id} href={`/cases/${c.id}`} className="block">
-                      <div className="flex items-center gap-3 p-3.5 rounded-xl border border-neutral-700/40 bg-primary-900/30 hover:border-neutral-600/50 hover:bg-primary-900/50 transition-colors">
+                      <div className="flex items-center gap-3 p-3.5 rounded-xl border border-neutral-700/40 border-l-2 border-l-[var(--portal-accent)] bg-primary-900/30 hover:border-neutral-600/50 hover:bg-primary-900/50 transition-colors">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-neutral-100 truncate">{c.title}</p>
                           <div className="flex items-center gap-2 mt-1">

@@ -513,7 +513,7 @@ export default function DiscoverPage() {
           {loading ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {[1,2,3].map(i => (
-                <div key={i} className="h-52 rounded-xl bg-primary-800/30 border border-neutral-700/20 animate-pulse" />
+                <div key={i} className="h-52 rounded-xl skeleton" />
               ))}
             </div>
           ) : lawyers.length === 0 ? (
@@ -549,7 +549,7 @@ export default function DiscoverPage() {
           {loading ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {[1,2].map(i => (
-                <div key={i} className="h-40 rounded-xl bg-primary-800/30 border border-neutral-700/20 animate-pulse" />
+                <div key={i} className="h-40 rounded-xl skeleton" />
               ))}
             </div>
           ) : firms.length === 0 ? (
@@ -570,7 +570,7 @@ export default function DiscoverPage() {
           {loading ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {[1,2].map(i => (
-                <div key={i} className="h-40 rounded-xl bg-primary-800/30 border border-neutral-700/20 animate-pulse" />
+                <div key={i} className="h-40 rounded-xl skeleton" />
               ))}
             </div>
           ) : openCases.length === 0 ? (

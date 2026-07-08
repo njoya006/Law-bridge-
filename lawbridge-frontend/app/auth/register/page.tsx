@@ -114,7 +114,7 @@ export default function RegisterPage() {
         </section>
 
         <section className="flex items-center px-6 pb-10 sm:px-10 lg:px-12 lg:py-14 lg:order-1">
-          <div className="w-full rounded-[2rem] border border-white/10 bg-white/8 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8">
+          <div className="w-full rounded-[2rem] border border-white/10 bg-white/8 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8 animate-fade-up" style={{ animationFillMode: 'both' }}>
             <div className="mb-8 space-y-2">
               <p className="text-sm uppercase tracking-[0.28em] text-gold-300">Start here</p>
               <h2 className="font-display text-3xl text-neutral-50">Sign up</h2>
@@ -173,6 +173,7 @@ export default function RegisterPage() {
                 <Input
                   label="Password"
                   type="password"
+                  showPasswordToggle
                   value={password}
                   onChange={event => setPassword(event.target.value)}
                   placeholder="Create a password"
@@ -180,6 +181,7 @@ export default function RegisterPage() {
                 <Input
                   label="Confirm password"
                   type="password"
+                  showPasswordToggle
                   value={confirmPassword}
                   onChange={event => setConfirmPassword(event.target.value)}
                   placeholder="Repeat your password"

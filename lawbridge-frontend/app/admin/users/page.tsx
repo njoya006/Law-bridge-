@@ -115,7 +115,7 @@ export default function AdminUsersPage() {
 
       {loading ? (
         <div className="space-y-2">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-14 rounded-xl bg-primary-800/30 animate-pulse" />)}
+          {[1,2,3,4,5].map(i => <div key={i} className="h-14 rounded-xl skeleton" />)}
         </div>
       ) : (
         <div className="rounded-xl border border-white/8 overflow-hidden">

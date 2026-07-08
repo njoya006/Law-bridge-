@@ -309,9 +309,9 @@ export default function CasesPage() {
 
       {/* Loading skeleton */}
       {loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 animate-pulse">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="rounded-2xl border border-neutral-700/30 bg-primary-800/30 h-64" />
+            <div key={i} className="rounded-2xl h-64 skeleton" />
           ))}
         </div>
       )}

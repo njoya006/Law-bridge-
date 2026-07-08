@@ -44,7 +44,7 @@ function getNarrative(data: IntelligenceData): string {
 }
 
 function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-primary-800/40 ${className}`} />
+  return <div className={`skeleton rounded-xl ${className}`} />
 }
 
 function KpiTile({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color: string }) {

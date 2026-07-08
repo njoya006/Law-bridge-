@@ -20,7 +20,7 @@ const RISK_CONFIG = {
 }
 
 function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-primary-800/40 ${className}`} />
+  return <div className={`skeleton rounded-xl ${className}`} />
 }
 
 function RiskCaseCard({ item }: { item: RiskItem }) {

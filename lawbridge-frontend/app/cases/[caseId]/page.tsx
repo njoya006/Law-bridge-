@@ -1985,7 +1985,7 @@ export default function CaseDetailPage() {
   if (loading) {
     return (
       <div className="max-w-3xl space-y-4">
-        {[1,2,3].map(i => <div key={i} className="h-32 rounded-2xl bg-primary-800/30 animate-pulse" />)}
+        {[1,2,3].map(i => <div key={i} className="h-32 rounded-2xl skeleton" />)}
       </div>
     )
   }

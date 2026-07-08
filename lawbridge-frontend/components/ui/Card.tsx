@@ -5,8 +5,9 @@ export function Card({ children, className=''}: { children: React.ReactNode, cla
   return (
     <div className={cn(
       `rounded-xl p-6 bg-primary-800/40 border border-neutral-700/30
-       hover:border-neutral-600/40 transition-all duration-300
-       hover:bg-primary-800/50 shadow-sm hover:shadow-md`,
+       transition-all duration-200
+       hover:border-neutral-600/40 hover:bg-primary-800/50
+       hover:-translate-y-0.5 hover:shadow-card-hover`,
       className
     )}>
       {children}
