@@ -17,6 +17,18 @@ function PortalShell({ children }: { children: React.ReactNode }) {
     }
   }, [pathname])
 
+  // Set portal accent on body so fixed-position sidebars also pick up CSS variables
+  useEffect(() => {
+    if (portalRole === 'client') {
+      document.body.dataset.portal = 'client'
+    } else if (portalRole === 'lawyer') {
+      // LawyerShell handles its own body.dataset.portal
+    }
+    return () => {
+      delete document.body.dataset.portal
+    }
+  }, [portalRole])
+
   if (portalRole === 'lawyer') {
     return <LawyerShell>{children}</LawyerShell>
   }
@@ -27,7 +39,6 @@ function PortalShell({ children }: { children: React.ReactNode }) {
         <Sidebar />
         <main
           key={pathname}
-          data-portal="client"
           className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8 transition-[margin] duration-300 max-w-[100vw] overflow-x-hidden animate-in fade-in duration-300"
           style={{ marginLeft: 'var(--sidebar-width)', width: 'calc(100vw - var(--sidebar-width))' }}
         >
@@ -36,7 +47,6 @@ function PortalShell({ children }: { children: React.ReactNode }) {
       </>
     )
   }
-
 
   // portalRole not yet read from localStorage (pre-hydration) — render without sidebar
   return <>{children}</>

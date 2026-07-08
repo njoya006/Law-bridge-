@@ -99,6 +99,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setMobileOpen(false)
   }, [pathname])
 
+  // Set portal accent on body so fixed sidebars pick up CSS variables
+  useEffect(() => {
+    document.body.dataset.portal = 'admin'
+    return () => { delete document.body.dataset.portal }
+  }, [])
+
   useEffect(() => {
     const raw = localStorage.getItem('userInfo') || localStorage.getItem('me')
     let role = ''
@@ -135,7 +141,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex min-h-screen bg-[#07111a] text-neutral-50">
+    <div data-portal="admin" className="flex min-h-screen bg-[#07111a] text-neutral-50">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 h-screen w-64 flex-col bg-gradient-to-b from-primary-800 via-primary-800 to-primary-900 border-r border-neutral-700/30 shadow-2xl z-40">
         <SidebarContent pathname={pathname} handleLogout={handleLogout} />
