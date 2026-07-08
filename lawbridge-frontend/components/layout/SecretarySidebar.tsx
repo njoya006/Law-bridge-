@@ -3,13 +3,15 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { DashboardIcon, DocumentIcon, PaymentIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, LogoutIcon, UserIcon, SparklesIcon, ClipboardIcon, BookmarkIcon, BalanceIcon } from '../icons/Icons'
+import { DashboardIcon, DocumentIcon, PaymentIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, LogoutIcon, UserIcon, SparklesIcon, ClipboardIcon, BookmarkIcon, BalanceIcon, ChatIcon, BellIcon } from '../icons/Icons'
 import { getMyFirmMemberships } from '../../lib/firmsApi'
 import { getReportRequests } from '../../lib/monitoringApi'
 import { clearSession } from '../../lib/authSession'
 
 const secretaryNav = [
   { label: 'Dashboard',     href: '/secretary/dashboard',    icon: DashboardIcon },
+  { label: 'Messages',      href: '/messages',               icon: ChatIcon },
+  { label: 'Notifications', href: '/notifications',          icon: BellIcon },
   { label: 'Intelligence',  href: '/secretary/intelligence', icon: SparklesIcon },
   { label: 'Client Intake', href: '/secretary/intake',       icon: ClipboardIcon },
   { label: 'Payments',      href: '/secretary/payments',     icon: PaymentIcon },

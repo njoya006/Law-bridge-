@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { DashboardIcon, DocumentIcon, CalendarIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon, BookOpenIcon, SparklesIcon, UsersIcon, BuildingIcon, CompassIcon, ClipboardIcon, BookmarkIcon, BadgeCheckIcon, SlidersIcon, PencilIcon, BarChart2Icon, TeamIcon } from '../icons/Icons'
+import { DashboardIcon, DocumentIcon, CalendarIcon, PaymentIcon, SettingsIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, UserIcon, LawIcon, LogoutIcon, BookOpenIcon, SparklesIcon, UsersIcon, BuildingIcon, CompassIcon, ClipboardIcon, BookmarkIcon, BadgeCheckIcon, SlidersIcon, PencilIcon, BarChart2Icon, TeamIcon, ChatIcon, BellIcon } from '../icons/Icons'
 import { getFirmMembers, getMyFirmMemberships, type FirmMembership } from '../../lib/firmsApi'
 import { getReportRequests } from '../../lib/monitoringApi'
 import { clearSession } from '../../lib/authSession'
@@ -12,6 +12,8 @@ const nav = [
   { label: 'My Office',       href: '/lawyer/office/me', icon: BuildingIcon },
   { label: 'Dashboard',       href: '/lawyer/dashboard', icon: DashboardIcon },
   { label: 'Bookings',        href: '/lawyer/bookings',  icon: BookmarkIcon },
+  { label: 'Messages',        href: '/messages',          icon: ChatIcon },
+  { label: 'Notifications',   href: '/notifications',     icon: BellIcon },
   { label: 'Discover',        href: '/lawyer/discover',  icon: CompassIcon },
   { label: 'Matters',         href: '/lawyer/matters',   icon: ClipboardIcon },
   { label: 'Clients',         href: '/lawyer/clients',   icon: UsersIcon },
@@ -46,6 +48,7 @@ export default function LawyerSidebar() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarInitials, setAvatarInitials] = useState('L')
   const [pendingReports, setPendingReports] = useState(0)
+  const [unreadMessages, setUnreadMessages] = useState(0)
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 1023px)')
@@ -135,8 +138,21 @@ export default function LawyerSidebar() {
 
     void loadAssociates()
 
+    // Fetch unread message count
+    const fetchUnread = () => {
+      fetch('/api/v1/messages/threads/', { headers: { Authorization: `Bearer ${accessToken}` } })
+        .then(r => r.ok ? r.json() : [])
+        .then((threads: Array<{ unread_count?: number }>) => {
+          if (!cancelled) setUnreadMessages(threads.reduce((s, t) => s + (t.unread_count ?? 0), 0))
+        })
+        .catch(() => {})
+    }
+    fetchUnread()
+    const unreadInterval = setInterval(fetchUnread, 30000)
+
     return () => {
       cancelled = true
+      clearInterval(unreadInterval)
       mediaQuery.removeEventListener('change', syncViewport)
       window.removeEventListener('lawbridge:avatar-updated', onAvatarUpdated)
     }
@@ -217,7 +233,8 @@ export default function LawyerSidebar() {
           const IconComponent = item.icon
           const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
           const isReports = item.href === '/lawyer/reports'
-          const badge = isReports && pendingReports > 0 ? pendingReports : 0
+          const isMessages = item.href === '/messages'
+          const badge = isReports && pendingReports > 0 ? pendingReports : isMessages && unreadMessages > 0 ? unreadMessages : 0
           return (
             <Link
               key={item.href}
