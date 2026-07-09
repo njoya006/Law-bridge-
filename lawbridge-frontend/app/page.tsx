@@ -233,7 +233,7 @@ function StatCounter({ val, suffix, label, active, delay }: { val: number; suffi
   const count = useCounter(val, active)
   return (
     <div className={`stagger-in ${active ? 'visible' : ''}`} style={{ transitionDelay: `${delay}ms` }}>
-      <div className="font-display text-5xl md:text-6xl font-bold gold-text-grad mb-2">{count}{suffix}</div>
+      <div className="font-display text-4xl sm:text-5xl md:text-6xl font-bold gold-text-grad mb-2">{count}{suffix}</div>
       <p className="text-sm pub-muted font-medium">{label}</p>
     </div>
   )
@@ -345,7 +345,7 @@ export default function Home() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[150px] bg-gold-500/3 pointer-events-none" />
 
           <div className="max-w-6xl mx-auto w-full relative">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
               {/* Left: copy */}
               <div>
                 {/* badge */}
@@ -354,12 +354,12 @@ export default function Home() {
                   <span className="relative text-xs font-semibold tracking-wider text-gold-400/90">{t.badge}</span>
                 </div>
 
-                <h1 className="slide-up-2 font-display text-5xl md:text-6xl xl:text-7xl font-bold leading-[1.05] mb-6 pub-heading">
+                <h1 className="slide-up-2 font-display text-3xl sm:text-5xl md:text-6xl xl:text-7xl font-bold leading-[1.05] mb-5 pub-heading">
                   {t.heroTitle1}<br />
                   <span className="gold-text-grad">{t.heroTitle2}</span>
                 </h1>
 
-                <p className="slide-up-3 text-lg md:text-xl pub-subtext leading-relaxed mb-10 max-w-lg">
+                <p className="slide-up-3 text-base md:text-xl pub-subtext leading-relaxed mb-8 max-w-lg">
                   {t.heroSub}
                 </p>
 
@@ -449,7 +449,7 @@ export default function Home() {
         <section className="py-6 border-y border-[var(--border-default)] overflow-hidden">
           <div className="max-w-6xl mx-auto px-6">
             <div className="flex flex-col sm:flex-row items-center gap-5 justify-center">
-              <span className="text-xs pub-muted font-medium tracking-wider uppercase whitespace-nowrap">{t.trustLabel}</span>
+              <span className="hidden sm:block text-xs pub-muted font-medium tracking-wider uppercase whitespace-nowrap">{t.trustLabel}</span>
               <div className="w-px h-5 bg-[var(--border-default)] hidden sm:block" />
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {['Common Law (Anglophone)', 'Civil Law (Francophone)', 'OHADA', 'MTN Mobile Money', 'Orange Money'].map(badge => (
@@ -467,11 +467,11 @@ export default function Home() {
         <section className="px-6 py-12 md:py-20">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10">
-              <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold mb-4">{t.forWhomTitle}</h2>
+              <h2 className="font-display text-2xl sm:text-3xl md:text-5xl pub-heading font-bold mb-4">{t.forWhomTitle}</h2>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
               {/* Lawyers */}
-              <div className="group relative pub-card rounded-2xl p-8 border border-emerald-500/20 hover:border-emerald-400/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-500/10 overflow-hidden">
+              <div className="group relative pub-card rounded-2xl p-5 sm:p-8 border border-emerald-500/20 hover:border-emerald-400/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-500/10 overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mb-5 shadow-lg shadow-emerald-500/25 text-xl">⚖️</div>
                 <h3 className="font-display text-2xl font-bold pub-heading mb-2">{t.forLawyerTitle}</h3>
@@ -493,7 +493,7 @@ export default function Home() {
               </div>
 
               {/* Clients */}
-              <div className="group relative pub-card rounded-2xl p-8 border border-gold-500/20 hover:border-gold-400/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-gold-500/10 overflow-hidden">
+              <div className="group relative pub-card rounded-2xl p-5 sm:p-8 border border-gold-500/20 hover:border-gold-400/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-gold-500/10 overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold-400/40 to-transparent" />
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold-500 to-gold-600 flex items-center justify-center mb-5 shadow-lg shadow-gold-500/25 text-xl">👤</div>
                 <h3 className="font-display text-2xl font-bold pub-heading mb-2">{t.forClientTitle}</h3>
@@ -524,7 +524,7 @@ export default function Home() {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-10">
               <span className="text-xs font-bold tracking-widest uppercase text-gold-400/70 mb-3 block">{lang === 'en' ? 'Platform Features' : 'Fonctionnalités'}</span>
-              <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold mb-4">{t.featuresTitle}</h2>
+              <h2 className="font-display text-2xl sm:text-3xl md:text-5xl pub-heading font-bold mb-4">{t.featuresTitle}</h2>
               <p className="text-lg pub-subtext max-w-2xl mx-auto">{t.featuresSub}</p>
             </div>
             <div ref={featuresSv.ref} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -556,29 +556,29 @@ export default function Home() {
           <div className="max-w-6xl mx-auto relative" ref={aiSv.ref}>
             <div className="text-center mb-10">
               <span className="text-xs font-bold tracking-widest uppercase text-emerald-400/70 mb-3 block">{lang === 'en' ? 'AI-Powered' : 'Propulsé par IA'}</span>
-              <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold mb-4">
+              <h2 className="font-display text-2xl sm:text-3xl md:text-5xl pub-heading font-bold mb-4">
                 {t.aiTitle} <span className="gold-text-grad">{t.aiTitleGold}</span>
               </h2>
               <p className="text-lg pub-subtext max-w-2xl mx-auto">{t.aiSub}</p>
             </div>
 
             {/* Tab switcher */}
-            <div className="tab-bar flex gap-1 sm:gap-2 mb-10 overflow-x-auto pb-px scrollbar-hide">
+            <div className="tab-bar flex gap-1 mb-8 overflow-x-auto pb-px scrollbar-hide -mx-1 px-1">
               {t.aiTabs.map((tab, i) => (
                 <button
                   key={i}
                   onClick={() => setAiTab(i)}
-                  className={`px-4 py-2.5 rounded-t-lg text-sm font-semibold whitespace-nowrap transition-all duration-200 border-b-2 ${aiTab === i ? 'text-gold-400 border-gold-400 bg-gold-500/8' : 'pub-muted border-transparent hover:text-[var(--text-primary)] hover:bg-white/4'}`}
+                  className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-t-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 border-b-2 ${aiTab === i ? 'text-gold-400 border-gold-400 bg-gold-500/8' : 'pub-muted border-transparent hover:text-[var(--text-primary)] hover:bg-white/4'}`}
                 >
                   {tab}
                 </button>
               ))}
             </div>
 
-            <div className={`grid lg:grid-cols-2 gap-8 items-center transition-all duration-500 ${aiSv.inView ? 'translate-y-0' : 'translate-y-4'}`}>
+            <div className={`grid lg:grid-cols-2 gap-6 lg:gap-10 items-start transition-all duration-500 ${aiSv.inView ? 'translate-y-0' : 'translate-y-4'}`}>
               {/* Left: content */}
               <div>
-                <h3 className="font-display text-2xl md:text-3xl pub-heading font-bold mb-3">{t.aiContent[aiTab].title}</h3>
+                <h3 className="font-display text-xl sm:text-2xl md:text-3xl pub-heading font-bold mb-3">{t.aiContent[aiTab].title}</h3>
                 <p className="pub-subtext mb-6 leading-relaxed">{t.aiContent[aiTab].sub}</p>
                 <ul className="space-y-3">
                   {t.aiContent[aiTab].points.map((p, i) => (
@@ -657,11 +657,11 @@ export default function Home() {
 
         {/* ── 6. CASE MANAGEMENT ── */}
         <section className="px-6 py-12 md:py-20 pub-section-alt" ref={caseSv.ref}>
-          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
             {/* Left: text */}
             <div className={`transition-all duration-700 ${caseSv.inView ? 'translate-x-0' : '-translate-x-4'}`}>
               <span className="text-xs font-bold tracking-widest uppercase text-gold-400/70 mb-3 block">{lang === 'en' ? 'Core Feature' : 'Fonctionnalité Principale'}</span>
-              <h2 className="font-display text-3xl md:text-4xl xl:text-5xl pub-heading font-bold mb-4 leading-tight">{t.caseTitle}</h2>
+              <h2 className="font-display text-2xl sm:text-3xl md:text-4xl xl:text-5xl pub-heading font-bold mb-4 leading-tight">{t.caseTitle}</h2>
               <p className="pub-subtext mb-8 leading-relaxed">{t.caseSub}</p>
               <ul className="space-y-3 mb-8">
                 {t.casePoints.map((p, i) => (
@@ -768,10 +768,10 @@ export default function Home() {
         {/* ── 8. CAMLEX LIBRARY ── */}
         <section className="px-6 py-12 md:py-20 pub-section-alt" ref={camSv.ref}>
           <div className="max-w-6xl mx-auto">
-            <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div className="grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
               {/* Left: book covers grid */}
               <div className={`transition-all duration-700 ${camSv.inView ? 'translate-x-0' : '-translate-x-4'}`}>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 max-w-sm mx-auto lg:max-w-none">
                   {BOOKS.map((book, i) => (
                     <div
                       key={i}
@@ -797,7 +797,7 @@ export default function Home() {
               {/* Right: text */}
               <div className={`transition-all duration-700 delay-200 ${camSv.inView ? 'translate-x-0' : 'translate-x-4'}`}>
                 <span className="text-xs font-bold tracking-widest uppercase text-purple-400/70 mb-3 block">{lang === 'en' ? 'Legal Knowledge Base' : 'Base de Connaissances Juridiques'}</span>
-                <h2 className="font-display text-3xl md:text-4xl xl:text-5xl pub-heading font-bold mb-4 leading-tight">{t.camTitle}</h2>
+                <h2 className="font-display text-2xl sm:text-3xl md:text-4xl xl:text-5xl pub-heading font-bold mb-4 leading-tight">{t.camTitle}</h2>
                 <p className="pub-subtext mb-8 leading-relaxed">{t.camSub}</p>
                 <ul className="space-y-4 mb-8">
                   {t.camPoints.map((p, i) => (
@@ -823,11 +823,11 @@ export default function Home() {
 
         {/* ── 9. FIRM HUB ── */}
         <section className="px-6 py-12 md:py-20" ref={firmSv.ref}>
-          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
             {/* Left: text */}
             <div className={`transition-all duration-700 ${firmSv.inView ? 'translate-x-0' : '-translate-x-4'}`}>
               <span className="text-xs font-bold tracking-widest uppercase text-crimson-400/70 mb-3 block">{lang === 'en' ? 'Firm Management' : 'Gestion de Cabinet'}</span>
-              <h2 className="font-display text-3xl md:text-4xl xl:text-5xl pub-heading font-bold mb-4 leading-tight">{t.firmTitle}</h2>
+              <h2 className="font-display text-2xl sm:text-3xl md:text-4xl xl:text-5xl pub-heading font-bold mb-4 leading-tight">{t.firmTitle}</h2>
               <p className="pub-subtext mb-8 leading-relaxed">{t.firmSub}</p>
               <ul className="space-y-3">
                 {t.firmPoints.map((p, i) => (
@@ -892,30 +892,32 @@ export default function Home() {
         <section className="px-6 py-12 md:py-20 pub-section-alt" ref={paySv.ref}>
           <div className="max-w-5xl mx-auto text-center mb-10">
             <span className="text-xs font-bold tracking-widest uppercase text-orange-400/70 mb-3 block">{lang === 'en' ? 'Billing & Payments' : 'Facturation & Paiements'}</span>
-            <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold mb-4">{t.payTitle}</h2>
+            <h2 className="font-display text-2xl sm:text-3xl md:text-5xl pub-heading font-bold mb-4">{t.payTitle}</h2>
             <p className="pub-subtext max-w-xl mx-auto">{t.paySub}</p>
           </div>
           <div className="max-w-4xl mx-auto">
-            <div className="grid sm:grid-cols-3 gap-4 mb-10">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
               {t.payMethods.map((m, i) => (
-                <div key={i} className={`stagger-in rounded-2xl p-6 border bg-gradient-to-br ${m.color} text-center transition-all duration-300 hover:-translate-y-1 ${paySv.inView ? 'visible' : ''}`} style={{ transitionDelay: paySv.inView ? `${i * 100}ms` : '0ms' }}>
-                  <div className="text-3xl mb-3">{m.icon}</div>
-                  <div className="text-sm font-bold pub-heading mb-1">{m.name}</div>
-                  <div className="text-xs pub-muted">{m.sub}</div>
+                <div key={i} className={`stagger-in rounded-2xl p-5 border bg-gradient-to-br ${m.color} flex sm:flex-col items-center sm:text-center gap-4 sm:gap-0 transition-all duration-300 hover:-translate-y-1 ${paySv.inView ? 'visible' : ''}`} style={{ transitionDelay: paySv.inView ? `${i * 100}ms` : '0ms' }}>
+                  <div className="text-2xl sm:text-3xl sm:mb-3 shrink-0">{m.icon}</div>
+                  <div>
+                    <div className="text-sm font-bold pub-heading sm:mb-1">{m.name}</div>
+                    <div className="text-xs pub-muted">{m.sub}</div>
+                  </div>
                 </div>
               ))}
             </div>
             {/* Invoice flow */}
-            <div className="bg-white/3 border border-white/8 rounded-2xl p-6">
+            <div className="bg-white/3 border border-white/8 rounded-2xl p-4 sm:p-6">
               <div className="text-xs pub-muted font-semibold mb-4 tracking-wider uppercase text-center">{lang === 'en' ? 'Invoice Lifecycle' : 'Cycle de Vie de la Facture'}</div>
-              <div className="flex items-center justify-between gap-2">
+              <div className="grid grid-cols-4 gap-1.5 sm:flex sm:items-center sm:justify-between sm:gap-2">
                 {t.payFlow.map((step, i) => (
                   <React.Fragment key={i}>
-                    <div className={`flex-1 text-center py-2.5 rounded-xl text-xs font-semibold ${i === t.payFlow.length - 1 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-400/30' : 'bg-white/5 text-white/50 border border-white/8'}`}>
+                    <div className={`text-center py-2 sm:py-2.5 sm:flex-1 rounded-xl text-[10px] sm:text-xs font-semibold ${i === t.payFlow.length - 1 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-400/30' : 'bg-white/5 text-white/50 border border-white/8'}`}>
                       {step}
                     </div>
                     {i < t.payFlow.length - 1 && (
-                      <svg className="w-4 h-4 text-white/20 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                      <svg className="hidden sm:block w-4 h-4 text-white/20 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
                     )}
                   </React.Fragment>
                 ))}
@@ -932,7 +934,7 @@ export default function Home() {
           <div className="max-w-5xl mx-auto">
             <div className="text-center mb-10">
               <span className="text-xs font-bold tracking-widest uppercase text-blue-400/70 mb-3 block">{lang === 'en' ? 'Security & Compliance' : 'Sécurité & Conformité'}</span>
-              <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold mb-4">{t.secTitle}</h2>
+              <h2 className="font-display text-2xl sm:text-3xl md:text-5xl pub-heading font-bold mb-4">{t.secTitle}</h2>
               <p className="pub-subtext max-w-xl mx-auto">{t.secSub}</p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
@@ -951,12 +953,12 @@ export default function Home() {
         </section>
 
         {/* ── 12. PLATFORM STATS ── */}
-        <section className="px-6 py-20 bg-gradient-to-b from-gold-500/4 via-transparent to-transparent">
+        <section className="px-6 py-12 md:py-16 bg-gradient-to-b from-gold-500/4 via-transparent to-transparent">
           <div className="max-w-4xl mx-auto" ref={statsSv.ref}>
-            <div className="text-center mb-12">
-              <h2 className="font-display text-2xl md:text-4xl pub-heading font-bold">{t.statsTitle}</h2>
+            <div className="text-center mb-8">
+              <h2 className="font-display text-xl sm:text-2xl md:text-4xl pub-heading font-bold">{t.statsTitle}</h2>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
               {t.statsItems.map((s, i) => (
                 <StatCounter key={i} val={s.val} suffix={s.suffix} label={s.label} active={statsSv.inView} delay={i * 100} />
               ))}
@@ -974,7 +976,7 @@ export default function Home() {
             </div>
             <div className="grid md:grid-cols-3 gap-6">
               {t.testimonials.map((test, i) => (
-                <div key={i} className={`stagger-in relative pub-card rounded-2xl p-7 border border-[var(--border-default)] hover:border-gold-400/25 transition-all duration-300 hover:-translate-y-1 ${testSv.inView ? 'visible' : ''}`} style={{ transitionDelay: testSv.inView ? `${i * 120}ms` : '0ms' }}>
+                <div key={i} className={`stagger-in relative pub-card rounded-2xl p-5 sm:p-7 border border-[var(--border-default)] hover:border-gold-400/25 transition-all duration-300 hover:-translate-y-1 ${testSv.inView ? 'visible' : ''}`} style={{ transitionDelay: testSv.inView ? `${i * 120}ms` : '0ms' }}>
                   {/* Stars */}
                   <div className="flex gap-0.5 mb-4">
                     {[1,2,3,4,5].map(s => <span key={s} className="text-gold-400 text-sm">★</span>)}
@@ -1013,17 +1015,17 @@ export default function Home() {
           <div className="max-w-3xl mx-auto text-center relative">
             <div className={`transition-all duration-700 ${ctaSv.inView ? 'translate-y-0' : 'translate-y-4'}`}>
               <span className="text-xs font-bold tracking-widest uppercase text-gold-400/70 mb-4 block">{lang === 'en' ? 'Start Today' : "Commencer Aujourd'hui"}</span>
-              <h2 className="font-display text-4xl md:text-6xl pub-heading font-bold mb-6 leading-tight">{t.ctaTitle}</h2>
-              <p className="text-lg pub-subtext mb-10 max-w-xl mx-auto">{t.ctaSub}</p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <Link href="/auth/register">
-                  <button className="flex items-center gap-2 px-8 py-4 rounded-xl bg-gradient-to-r from-gold-500 to-gold-400 text-primary-900 font-bold text-lg hover:opacity-95 active:scale-[0.98] transition-all duration-200 shadow-xl shadow-gold-500/30" style={{ animation: 'goldPulse 3s ease-in-out infinite' }}>
+              <h2 className="font-display text-2xl sm:text-4xl md:text-6xl pub-heading font-bold mb-5 leading-tight">{t.ctaTitle}</h2>
+              <p className="text-base sm:text-lg pub-subtext mb-8 max-w-xl mx-auto">{t.ctaSub}</p>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3">
+                <Link href="/auth/register" className="w-full sm:w-auto">
+                  <button className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3.5 rounded-xl bg-gradient-to-r from-gold-500 to-gold-400 text-primary-900 font-bold text-base sm:text-lg hover:opacity-95 active:scale-[0.98] transition-all duration-200 shadow-xl shadow-gold-500/30" style={{ animation: 'goldPulse 3s ease-in-out infinite' }}>
                     {t.ctaBtn1}
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                   </button>
                 </Link>
-                <Link href="/support">
-                  <button className="px-8 py-4 rounded-xl border border-gold-400/30 text-gold-400 font-bold text-lg hover:bg-gold-500/8 transition-all duration-200">
+                <Link href="/support" className="w-full sm:w-auto">
+                  <button className="w-full sm:w-auto px-7 py-3.5 rounded-xl border border-gold-400/30 text-gold-400 font-bold text-base sm:text-lg hover:bg-gold-500/8 transition-all duration-200">
                     {t.ctaBtn2}
                   </button>
                 </Link>
@@ -1035,7 +1037,7 @@ export default function Home() {
         {/* ── 15. FOOTER ── */}
         <footer className="pub-footer border-t border-[var(--border-default)] px-6 pt-16 pb-8">
           <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-10 mb-14">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6 md:gap-10 mb-10">
               {/* Brand col */}
               <div className="col-span-2 md:col-span-1">
                 <Link href="/" className="flex items-center gap-2.5 mb-4">
