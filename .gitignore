@@ -32,6 +32,9 @@ Thumbs.db
 # Monitoring local
 .monitoring/
 
+# Local deployment notes (may contain IPs/IDs)
+deployment-config.txt
+
 # Python cache in services
 services/**/__pycache__/
 services/**/.pytest_cache/
