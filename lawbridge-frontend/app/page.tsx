@@ -575,7 +575,7 @@ export default function Home() {
               ))}
             </div>
 
-            <div className={`grid lg:grid-cols-2 gap-8 items-center transition-all duration-300 ${aiSv.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>
+            <div className={`grid lg:grid-cols-2 gap-8 items-center transition-all duration-500 ${aiSv.inView ? 'translate-y-0' : 'translate-y-4'}`}>
               {/* Left: content */}
               <div>
                 <h3 className="font-display text-2xl md:text-3xl pub-heading font-bold mb-3">{t.aiContent[aiTab].title}</h3>
@@ -659,7 +659,7 @@ export default function Home() {
         <section className="px-6 py-12 md:py-20 pub-section-alt" ref={caseSv.ref}>
           <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: text */}
-            <div className={`transition-all duration-700 ${caseSv.inView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
+            <div className={`transition-all duration-700 ${caseSv.inView ? 'translate-x-0' : '-translate-x-4'}`}>
               <span className="text-xs font-bold tracking-widest uppercase text-gold-400/70 mb-3 block">{lang === 'en' ? 'Core Feature' : 'Fonctionnalité Principale'}</span>
               <h2 className="font-display text-3xl md:text-4xl xl:text-5xl pub-heading font-bold mb-4 leading-tight">{t.caseTitle}</h2>
               <p className="pub-subtext mb-8 leading-relaxed">{t.caseSub}</p>
@@ -680,7 +680,7 @@ export default function Home() {
             </div>
 
             {/* Right: browser mockup */}
-            <div className={`transition-all duration-700 delay-200 ${caseSv.inView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
+            <div className={`transition-all duration-700 delay-200 ${caseSv.inView ? 'translate-x-0' : 'translate-x-4'}`}>
               <div className="bg-white/4 border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
                 <div className="flex items-center gap-2 px-4 py-3 border-b border-white/8 bg-white/3">
                   <div className="w-2.5 h-2.5 rounded-full bg-red-400/60" />
@@ -770,7 +770,7 @@ export default function Home() {
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               {/* Left: book covers grid */}
-              <div className={`transition-all duration-700 ${camSv.inView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
+              <div className={`transition-all duration-700 ${camSv.inView ? 'translate-x-0' : '-translate-x-4'}`}>
                 <div className="grid grid-cols-3 gap-3">
                   {BOOKS.map((book, i) => (
                     <div
@@ -795,7 +795,7 @@ export default function Home() {
               </div>
 
               {/* Right: text */}
-              <div className={`transition-all duration-700 delay-200 ${camSv.inView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
+              <div className={`transition-all duration-700 delay-200 ${camSv.inView ? 'translate-x-0' : 'translate-x-4'}`}>
                 <span className="text-xs font-bold tracking-widest uppercase text-purple-400/70 mb-3 block">{lang === 'en' ? 'Legal Knowledge Base' : 'Base de Connaissances Juridiques'}</span>
                 <h2 className="font-display text-3xl md:text-4xl xl:text-5xl pub-heading font-bold mb-4 leading-tight">{t.camTitle}</h2>
                 <p className="pub-subtext mb-8 leading-relaxed">{t.camSub}</p>
@@ -825,7 +825,7 @@ export default function Home() {
         <section className="px-6 py-12 md:py-20" ref={firmSv.ref}>
           <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: text */}
-            <div className={`transition-all duration-700 ${firmSv.inView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
+            <div className={`transition-all duration-700 ${firmSv.inView ? 'translate-x-0' : '-translate-x-4'}`}>
               <span className="text-xs font-bold tracking-widest uppercase text-crimson-400/70 mb-3 block">{lang === 'en' ? 'Firm Management' : 'Gestion de Cabinet'}</span>
               <h2 className="font-display text-3xl md:text-4xl xl:text-5xl pub-heading font-bold mb-4 leading-tight">{t.firmTitle}</h2>
               <p className="pub-subtext mb-8 leading-relaxed">{t.firmSub}</p>
@@ -842,7 +842,7 @@ export default function Home() {
             </div>
 
             {/* Right: firm stats mock */}
-            <div className={`transition-all duration-700 delay-200 ${firmSv.inView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
+            <div className={`transition-all duration-700 delay-200 ${firmSv.inView ? 'translate-x-0' : 'translate-x-4'}`}>
               <div className="bg-white/4 border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4">
                 {/* Firm header */}
                 <div className="flex items-center justify-between pb-4 border-b border-white/8">
@@ -1011,7 +1011,7 @@ export default function Home() {
           </div>
 
           <div className="max-w-3xl mx-auto text-center relative">
-            <div className={`transition-all duration-700 ${ctaSv.inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+            <div className={`transition-all duration-700 ${ctaSv.inView ? 'translate-y-0' : 'translate-y-4'}`}>
               <span className="text-xs font-bold tracking-widest uppercase text-gold-400/70 mb-4 block">{lang === 'en' ? 'Start Today' : "Commencer Aujourd'hui"}</span>
               <h2 className="font-display text-4xl md:text-6xl pub-heading font-bold mb-6 leading-tight">{t.ctaTitle}</h2>
               <p className="text-lg pub-subtext mb-10 max-w-xl mx-auto">{t.ctaSub}</p>
