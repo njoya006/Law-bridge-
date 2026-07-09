@@ -10,7 +10,7 @@ const navLinks = [
   { label: 'Support', href: '/support' },
 ]
 
-export default function PublicHeader() {
+export default function PublicHeader({ lang, onLangChange }: { lang?: 'en' | 'fr', onLangChange?: (l: 'en' | 'fr') => void } = {}) {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [mounted, setMounted] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -85,6 +85,20 @@ export default function PublicHeader() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          {onLangChange && (
+            <div className="hidden sm:flex items-center gap-0.5 bg-white/5 border border-[var(--border-default)] rounded-lg p-0.5">
+              {(['en', 'fr'] as const).map(l => (
+                <button
+                  key={l}
+                  onClick={() => onLangChange(l)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all duration-200 ${lang === l ? 'bg-gold-500/20 text-gold-400 border border-gold-500/30' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
+
           <button
             onClick={toggleTheme}
             className="p-2.5 rounded-lg text-[var(--text-secondary)] hover:text-gold-400 hover:bg-gold-500/10 transition-all duration-200"
@@ -139,6 +153,20 @@ export default function PublicHeader() {
               Log in
             </span>
           </Link>
+          {onLangChange && (
+            <div className="flex items-center gap-2 px-3 py-2.5">
+              <span className="text-xs text-[var(--text-secondary)]">Language:</span>
+              {(['en', 'fr'] as const).map(l => (
+                <button
+                  key={l}
+                  onClick={() => { onLangChange(l); setMenuOpen(false) }}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all duration-200 ${lang === l ? 'bg-gold-500/20 text-gold-400 border border-gold-500/30' : 'text-[var(--text-secondary)] border border-[var(--border-default)] hover:text-[var(--text-primary)]'}`}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </header>
