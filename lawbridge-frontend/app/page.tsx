@@ -326,7 +326,8 @@ export default function Home() {
         .slide-up-3 { animation: slideUp 0.6s ease 0.3s both; }
         .slide-up-4 { animation: slideUp 0.6s ease 0.45s both; }
         .ai-mock-line { animation: slideUp 0.4s ease both; }
-        .stagger-in { opacity:0; transform:translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+        .stagger-in { opacity:1; transform:translateY(0); transition: opacity 0.5s ease, transform 0.5s ease; }
+        .stagger-in.animating { opacity:0; transform:translateY(16px); }
         .stagger-in.visible { opacity:1; transform:translateY(0); }
         .tab-bar { position:relative; }
         .tab-bar::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background:rgba(255,255,255,0.08); }
@@ -337,7 +338,7 @@ export default function Home() {
         <PublicHeader lang={lang} onLangChange={handleLangChange} />
 
         {/* ── 1. HERO ── */}
-        <section className="hero-bg relative min-h-screen flex flex-col justify-center px-6 pt-32 pb-20 overflow-hidden">
+        <section className="hero-bg relative flex flex-col justify-center px-6 pt-28 pb-16 overflow-hidden">
           {/* decorative blobs */}
           <div className="absolute top-1/4 right-1/4 w-[500px] h-[500px] rounded-full blur-[120px] bg-gold-500/5 pointer-events-none" />
           <div className="absolute bottom-1/4 left-1/6 w-[400px] h-[400px] rounded-full blur-[100px] bg-primary-500/8 pointer-events-none" />
@@ -362,7 +363,7 @@ export default function Home() {
                   {t.heroSub}
                 </p>
 
-                <div className="slide-up-4 flex flex-col sm:flex-row gap-3 mb-14">
+                <div className="slide-up-4 flex flex-col sm:flex-row gap-3 mb-10">
                   <Link href="/auth/register">
                     <button className="group flex items-center justify-center gap-2 px-7 py-4 rounded-xl bg-gradient-to-r from-gold-500 to-gold-400 text-primary-900 font-bold text-base hover:opacity-95 active:scale-[0.98] transition-all duration-200 shadow-lg shadow-gold-500/30" style={{ animation: 'goldPulse 3s ease-in-out infinite' }}>
                       {t.heroCta1}
@@ -463,9 +464,9 @@ export default function Home() {
         </section>
 
         {/* ── 3. WHO IT'S FOR ── */}
-        <section className="px-6 py-24 md:py-32">
+        <section className="px-6 py-12 md:py-20">
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
+            <div className="text-center mb-10">
               <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold mb-4">{t.forWhomTitle}</h2>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
@@ -516,12 +517,12 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="section-divider mx-6 md:mx-20" />
+        <div className="section-divider mx-6 md:mx-16" />
 
         {/* ── 4. FEATURES GRID ── */}
-        <section id="features" className="px-6 py-24 md:py-36 pub-section-alt">
+        <section id="features" className="px-6 py-12 md:py-20 pub-section-alt">
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
+            <div className="text-center mb-10">
               <span className="text-xs font-bold tracking-widest uppercase text-gold-400/70 mb-3 block">{lang === 'en' ? 'Platform Features' : 'Fonctionnalités'}</span>
               <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold mb-4">{t.featuresTitle}</h2>
               <p className="text-lg pub-subtext max-w-2xl mx-auto">{t.featuresSub}</p>
@@ -544,16 +545,16 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="section-divider mx-6 md:mx-20" />
+        <div className="section-divider mx-6 md:mx-16" />
 
         {/* ── 5. AI SHOWCASE ── */}
-        <section id="ai" className="px-6 py-24 md:py-36 relative overflow-hidden">
+        <section id="ai" className="px-6 py-12 md:py-20 relative overflow-hidden">
           {/* grid texture */}
           <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)', backgroundSize: '40px 40px' }} />
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold-500/20 to-transparent" />
 
           <div className="max-w-6xl mx-auto relative" ref={aiSv.ref}>
-            <div className="text-center mb-14">
+            <div className="text-center mb-10">
               <span className="text-xs font-bold tracking-widest uppercase text-emerald-400/70 mb-3 block">{lang === 'en' ? 'AI-Powered' : 'Propulsé par IA'}</span>
               <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold mb-4">
                 {t.aiTitle} <span className="gold-text-grad">{t.aiTitleGold}</span>
@@ -652,10 +653,10 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="section-divider mx-6 md:mx-20" />
+        <div className="section-divider mx-6 md:mx-16" />
 
         {/* ── 6. CASE MANAGEMENT ── */}
-        <section className="px-6 py-24 md:py-36 pub-section-alt" ref={caseSv.ref}>
+        <section className="px-6 py-12 md:py-20 pub-section-alt" ref={caseSv.ref}>
           <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: text */}
             <div className={`transition-all duration-700 ${caseSv.inView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
@@ -733,11 +734,11 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="section-divider mx-6 md:mx-20" />
+        <div className="section-divider mx-6 md:mx-16" />
 
         {/* ── 7. HOW IT WORKS ── */}
-        <section className="px-6 py-24 md:py-32" ref={howSv.ref}>
-          <div className="max-w-5xl mx-auto text-center mb-16">
+        <section className="px-6 py-12 md:py-20" ref={howSv.ref}>
+          <div className="max-w-5xl mx-auto text-center mb-10">
             <span className="text-xs font-bold tracking-widest uppercase text-gold-400/70 mb-3 block">{lang === 'en' ? 'Getting Started' : 'Démarrage'}</span>
             <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold">{t.howTitle}</h2>
           </div>
@@ -762,10 +763,10 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="section-divider mx-6 md:mx-20" />
+        <div className="section-divider mx-6 md:mx-16" />
 
         {/* ── 8. CAMLEX LIBRARY ── */}
-        <section className="px-6 py-24 md:py-32 pub-section-alt" ref={camSv.ref}>
+        <section className="px-6 py-12 md:py-20 pub-section-alt" ref={camSv.ref}>
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               {/* Left: book covers grid */}
@@ -818,10 +819,10 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="section-divider mx-6 md:mx-20" />
+        <div className="section-divider mx-6 md:mx-16" />
 
         {/* ── 9. FIRM HUB ── */}
-        <section className="px-6 py-24 md:py-32" ref={firmSv.ref}>
+        <section className="px-6 py-12 md:py-20" ref={firmSv.ref}>
           <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
             {/* Left: text */}
             <div className={`transition-all duration-700 ${firmSv.inView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
@@ -885,11 +886,11 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="section-divider mx-6 md:mx-20" />
+        <div className="section-divider mx-6 md:mx-16" />
 
         {/* ── 10. PAYMENTS ── */}
-        <section className="px-6 py-24 md:py-32 pub-section-alt" ref={paySv.ref}>
-          <div className="max-w-5xl mx-auto text-center mb-14">
+        <section className="px-6 py-12 md:py-20 pub-section-alt" ref={paySv.ref}>
+          <div className="max-w-5xl mx-auto text-center mb-10">
             <span className="text-xs font-bold tracking-widest uppercase text-orange-400/70 mb-3 block">{lang === 'en' ? 'Billing & Payments' : 'Facturation & Paiements'}</span>
             <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold mb-4">{t.payTitle}</h2>
             <p className="pub-subtext max-w-xl mx-auto">{t.paySub}</p>
@@ -924,12 +925,12 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="section-divider mx-6 md:mx-20" />
+        <div className="section-divider mx-6 md:mx-16" />
 
         {/* ── 11. SECURITY ── */}
-        <section id="security" className="px-6 py-24 md:py-32" ref={secSv.ref}>
+        <section id="security" className="px-6 py-12 md:py-20" ref={secSv.ref}>
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-14">
+            <div className="text-center mb-10">
               <span className="text-xs font-bold tracking-widest uppercase text-blue-400/70 mb-3 block">{lang === 'en' ? 'Security & Compliance' : 'Sécurité & Conformité'}</span>
               <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold mb-4">{t.secTitle}</h2>
               <p className="pub-subtext max-w-xl mx-auto">{t.secSub}</p>
@@ -963,12 +964,12 @@ export default function Home() {
           </div>
         </section>
 
-        <div className="section-divider mx-6 md:mx-20" />
+        <div className="section-divider mx-6 md:mx-16" />
 
         {/* ── 13. TESTIMONIALS ── */}
-        <section className="px-6 py-24 md:py-32 pub-section-alt" ref={testSv.ref}>
+        <section className="px-6 py-12 md:py-20 pub-section-alt" ref={testSv.ref}>
           <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-14">
+            <div className="text-center mb-10">
               <h2 className="font-display text-3xl md:text-5xl pub-heading font-bold">{t.testimonialsTitle}</h2>
             </div>
             <div className="grid md:grid-cols-3 gap-6">
@@ -995,7 +996,7 @@ export default function Home() {
         </section>
 
         {/* ── 14. FINAL CTA ── */}
-        <section className="px-6 py-24 md:py-36 relative overflow-hidden" ref={ctaSv.ref}>
+        <section className="px-6 py-12 md:py-20 relative overflow-hidden" ref={ctaSv.ref}>
           {/* Gold gradient background */}
           <div className="absolute inset-0 bg-gradient-to-br from-gold-500/12 via-gold-600/6 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-[var(--bg-base)] via-transparent to-transparent" />
