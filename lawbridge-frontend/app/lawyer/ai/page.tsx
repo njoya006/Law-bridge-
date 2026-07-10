@@ -126,34 +126,32 @@ function ChatPanel({ token }: { token: string }) {
   }
 
   return (
-    <div className="flex gap-4 h-[70vh] min-h-[500px]">
-      {/* Session list */}
-      <aside className="w-56 flex-shrink-0 flex flex-col gap-2">
+    <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 h-[75vh] lg:h-[var(--chat-height)]">
+      {/* Session list — horizontal scroll on mobile, sidebar on desktop */}
+      <aside className="flex-shrink-0 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto lg:w-56 pb-1 lg:pb-0">
         <button
           onClick={newChat}
-          className="w-full px-3 py-2 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 text-sm font-medium hover:bg-gold-500/20 transition-colors"
+          className="flex-shrink-0 px-3 py-2 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 text-sm font-medium hover:bg-gold-500/20 transition-colors whitespace-nowrap"
         >
           + New Chat
         </button>
-        <div className="flex-1 overflow-y-auto space-y-1">
-          {sessions.map(s => (
-            <button
-              key={s.id}
-              onClick={() => void loadSession(s.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-xs truncate transition-colors ${
-                activeSession === s.id
-                  ? 'bg-gold-500/15 text-gold-300 border border-gold-500/20'
-                  : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'
-              }`}
-            >
-              {s.title || 'Untitled chat'}
-            </button>
-          ))}
-        </div>
+        {sessions.map(s => (
+          <button
+            key={s.id}
+            onClick={() => void loadSession(s.id)}
+            className={`flex-shrink-0 text-left px-3 py-2 rounded-lg text-xs transition-colors whitespace-nowrap lg:whitespace-normal lg:truncate lg:w-full ${
+              activeSession === s.id
+                ? 'bg-gold-500/15 text-gold-300 border border-gold-500/20'
+                : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'
+            }`}
+          >
+            {s.title || 'Untitled chat'}
+          </button>
+        ))}
       </aside>
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col rounded-xl border border-neutral-700/40 bg-primary-800/30 overflow-hidden">
+      <div className="flex-1 flex flex-col rounded-xl border border-neutral-700/40 bg-primary-800/30 overflow-hidden min-h-0">
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.length === 0 && !streaming && (
             <div className="h-full flex items-center justify-center text-center text-neutral-500 text-sm p-8">
@@ -203,7 +201,7 @@ function ChatPanel({ token }: { token: string }) {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() } }}
-              placeholder="Ask LexAI about Cameroonian law, case analysis, legal strategy… (Enter to send)"
+              placeholder="Ask LexAI… (Enter to send)"
               rows={2}
               className="flex-1 rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50 resize-none"
             />
@@ -707,38 +705,36 @@ function DraftsPanel({ token }: { token: string }) {
   const showDocument = (step === 'done' || step === 'generating') || (selected && step === 'form')
 
   return (
-    <div className="flex gap-4 h-[78vh] min-h-[560px]">
-      {/* Sidebar — draft list */}
-      <aside className="w-56 flex-shrink-0 flex flex-col gap-2">
+    <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 h-[82vh] lg:h-[var(--chat-height)]">
+      {/* Draft list — horizontal scroll on mobile, sidebar on desktop */}
+      <aside className="flex-shrink-0 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto lg:w-56 pb-1 lg:pb-0">
         <button
           onClick={() => { setSelected(null); resetWizard(); setStep('form') }}
-          className="w-full px-3 py-2 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 text-sm font-medium hover:bg-gold-500/20 transition-colors"
+          className="flex-shrink-0 px-3 py-2 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 text-sm font-medium hover:bg-gold-500/20 transition-colors whitespace-nowrap"
         >
           + New Draft
         </button>
-        <div className="flex-1 overflow-y-auto space-y-1">
-          {drafts.map(d => (
-            <button
-              key={d.id}
-              onClick={() => void openDraft(d.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors ${
-                selected?.id === d.id
-                  ? 'bg-gold-500/15 text-gold-300 border border-gold-500/20'
-                  : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'
-              }`}
-            >
-              <div className="truncate font-medium">{d.title}</div>
-              <div className="text-neutral-600 text-[10px]">{DRAFT_TYPE_LABELS[d.draft_type] ?? d.draft_type}</div>
-            </button>
-          ))}
-          {drafts.length === 0 && step === 'form' && (
-            <p className="text-neutral-600 text-xs px-2 pt-4">No drafts yet. Click &quot;+ New Draft&quot; to generate one with AI.</p>
-          )}
-        </div>
+        {drafts.map(d => (
+          <button
+            key={d.id}
+            onClick={() => void openDraft(d.id)}
+            className={`flex-shrink-0 text-left px-3 py-2 rounded-lg text-xs transition-colors whitespace-nowrap lg:whitespace-normal lg:w-full ${
+              selected?.id === d.id
+                ? 'bg-gold-500/15 text-gold-300 border border-gold-500/20'
+                : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'
+            }`}
+          >
+            <div className="lg:truncate font-medium">{d.title}</div>
+            <div className="text-neutral-600 text-[10px] hidden lg:block">{DRAFT_TYPE_LABELS[d.draft_type] ?? d.draft_type}</div>
+          </button>
+        ))}
+        {drafts.length === 0 && step === 'form' && (
+          <p className="text-neutral-600 text-xs px-2 pt-1 lg:pt-4 whitespace-nowrap lg:whitespace-normal">No drafts yet.</p>
+        )}
       </aside>
 
       {/* Main area */}
-      <div className="flex-1 flex flex-col rounded-xl border border-neutral-700/40 bg-primary-800/30 overflow-hidden">
+      <div className="flex-1 flex flex-col rounded-xl border border-neutral-700/40 bg-primary-800/30 overflow-hidden min-h-0">
 
         {/* ── Step: form ── */}
         {step === 'form' && !selected && (
@@ -1325,7 +1321,7 @@ function ContractReviewPanel({ token }: { token: string }) {
         <div className="space-y-4">
           {/* Risk Overview */}
           <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-5">
-            <div className="flex items-start gap-5">
+            <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-5">
               <RiskScoreRing score={result.overall_risk_score} />
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-3">
@@ -1433,17 +1429,17 @@ function ResearchPanel({ token }: { token: string }) {
   }
 
   return (
-    <div className="flex gap-5">
-      {/* Left sidebar — recent searches */}
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-5">
+      {/* Recent searches — horizontal scroll on mobile, sidebar on desktop */}
       {history.length > 0 && (
-        <aside className="w-48 flex-shrink-0">
+        <aside className="flex-shrink-0 lg:w-48">
           <p className="text-neutral-500 text-xs uppercase tracking-widest mb-2 px-1">Recent</p>
-          <div className="space-y-1">
+          <div className="flex gap-2 overflow-x-auto pb-1 lg:pb-0 lg:block lg:space-y-1 lg:overflow-x-hidden">
             {history.map((h, i) => (
               <button
                 key={i}
                 onClick={() => { setQuery(h); void search(h) }}
-                className="w-full text-left px-3 py-2 rounded-lg text-xs text-neutral-400 hover:text-neutral-200 hover:bg-white/5 truncate transition-colors"
+                className="flex-shrink-0 text-left px-3 py-2 rounded-lg text-xs text-neutral-400 hover:text-neutral-200 hover:bg-white/5 whitespace-nowrap lg:whitespace-normal lg:truncate lg:w-full transition-colors"
               >
                 {h}
               </button>
@@ -1461,18 +1457,18 @@ function ResearchPanel({ token }: { token: string }) {
               Search Cameroonian Civil Code, Common Law, OHADA Uniform Acts, and CEMAC regulations with cited statutes.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') void search() }}
-              placeholder="e.g. OHADA obligations for commercial leases, or force majeure under Cameroonian civil code…"
+              placeholder="Search Cameroonian law, OHADA, force majeure…"
               className="flex-1 rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2.5 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50"
             />
             <button
               onClick={() => void search()}
               disabled={streaming || !query.trim()}
-              className="px-4 py-2 rounded-lg bg-gold-500 text-black font-semibold text-sm hover:bg-gold-400 disabled:opacity-50 transition-colors flex items-center gap-2 flex-shrink-0"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-lg bg-gold-500 text-black font-semibold text-sm hover:bg-gold-400 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 flex-shrink-0"
             >
               {streaming ? (
                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -1563,16 +1559,16 @@ export default function LawyerAIPage() {
     setToken(localStorage.getItem('access') ?? '')
   }, [])
 
-  const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: 'chat',     label: 'LexAI Chat',        icon: <ChatBubbleIcon /> },
-    { key: 'drafts',   label: 'Legal Drafts',       icon: <DocIcon /> },
-    { key: 'analysis', label: 'Document Analysis',  icon: <SparkIcon /> },
-    { key: 'contract', label: 'Contract Review',    icon: (
+  const tabs: { key: Tab; label: string; short: string; icon: React.ReactNode }[] = [
+    { key: 'chat',     label: 'LexAI Chat',        short: 'Chat',     icon: <ChatBubbleIcon /> },
+    { key: 'drafts',   label: 'Legal Drafts',       short: 'Drafts',   icon: <DocIcon /> },
+    { key: 'analysis', label: 'Doc Analysis',       short: 'Analysis', icon: <SparkIcon /> },
+    { key: 'contract', label: 'Contract Review',    short: 'Contract', icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
       </svg>
     )},
-    { key: 'research', label: 'Legal Research',     icon: (
+    { key: 'research', label: 'Legal Research',     short: 'Research', icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
@@ -1580,36 +1576,40 @@ export default function LawyerAIPage() {
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-display-md text-neutral-50">AI Legal Assistant</h1>
-          <p className="mt-1 text-neutral-400 text-sm">
+          <h1 className="font-display text-2xl sm:text-display-md text-neutral-50">AI Legal Assistant</h1>
+          <p className="mt-1 text-neutral-400 text-sm hidden sm:block">
             LexAI is trained on Cameroonian Civil Law, Common Law, OHADA, and CEMAC regulations — your 24/7 legal research partner.
           </p>
+          <p className="mt-1 text-neutral-400 text-xs sm:hidden">
+            Your AI-powered legal research partner.
+          </p>
         </div>
-        <div className="flex-shrink-0 h-12 w-12 rounded-xl bg-gradient-to-br from-gold-400/20 to-gold-600/20 border border-gold-500/30 flex items-center justify-center">
-          <svg className="w-6 h-6 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex-shrink-0 h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-gradient-to-br from-gold-400/20 to-gold-600/20 border border-gold-500/30 flex items-center justify-center">
+          <svg className="w-5 h-5 sm:w-6 sm:h-6 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
           </svg>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-neutral-700/40">
+      {/* Tabs — horizontally scrollable on mobile */}
+      <div className="flex gap-0.5 border-b border-neutral-700/40 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap flex-shrink-0 ${
               tab === t.key
                 ? 'border-gold-500 text-gold-400'
                 : 'border-transparent text-neutral-400 hover:text-neutral-200'
             }`}
           >
             {t.icon}
-            {t.label}
+            <span className="sm:hidden">{t.short}</span>
+            <span className="hidden sm:inline">{t.label}</span>
           </button>
         ))}
       </div>
