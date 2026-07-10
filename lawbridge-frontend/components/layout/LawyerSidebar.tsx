@@ -55,13 +55,15 @@ export default function LawyerSidebar() {
 
     const syncViewport = () => {
       setIsMobile(mediaQuery.matches)
-      if (!mediaQuery.matches) {
-        setMobileOpen(false)
-      }
+      if (!mediaQuery.matches) setMobileOpen(false)
     }
 
     syncViewport()
     mediaQuery.addEventListener('change', syncViewport)
+
+    // Open sidebar from mobile top bar hamburger
+    const handleOpenSidebar = () => setMobileOpen(true)
+    window.addEventListener('lawbridge:open-sidebar', handleOpenSidebar)
 
     const accessToken = localStorage.getItem('access')
     const currentUserId = localStorage.getItem('authUserId')
@@ -73,7 +75,10 @@ export default function LawyerSidebar() {
     if (!accessToken) {
       setAssociates([])
       setIsFirmAdmin(false)
-      return () => mediaQuery.removeEventListener('change', syncViewport)
+      return () => {
+        mediaQuery.removeEventListener('change', syncViewport)
+        window.removeEventListener('lawbridge:open-sidebar', handleOpenSidebar)
+      }
     }
 
     // Listen for avatar updates from the profile page
@@ -154,6 +159,7 @@ export default function LawyerSidebar() {
       cancelled = true
       clearInterval(unreadInterval)
       mediaQuery.removeEventListener('change', syncViewport)
+      window.removeEventListener('lawbridge:open-sidebar', handleOpenSidebar)
       window.removeEventListener('lawbridge:avatar-updated', onAvatarUpdated)
     }
   }, [])
@@ -190,43 +196,64 @@ export default function LawyerSidebar() {
     applyTheme(nextTheme)
   }
 
+  const closeMobile = () => { if (isMobile) setMobileOpen(false) }
+
   return (
-    <aside
-      className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ease-out ${collapsed ? 'w-20 lg:w-72' : 'w-72'} bg-gradient-to-b from-primary-800 via-primary-800 to-primary-900 border-r border-neutral-700/30 shadow-2xl shadow-black/20`}
-      style={{ width: 'var(--sidebar-width)' }}
-    >
-      <button
-        onClick={() => {
-          if (isMobile) {
-            setMobileOpen(v => !v)
-            return
-          }
+    <>
+      {/* Mobile backdrop — tap outside to close */}
+      {isMobile && mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-[2px]"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
-          setDesktopCollapsed(v => !v)
-        }}
-        className="absolute -right-3 top-5 z-50 flex h-8 w-8 items-center justify-center rounded-full border border-gold-400/30 bg-primary-900 text-gold-300 shadow-lg shadow-black/30 transition-all duration-200 hover:scale-110 hover:border-gold-300 hover:text-gold-200 active:scale-95"
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        aria-pressed={collapsed}
-        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      <aside
+        className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ease-out
+          ${isMobile ? 'w-72' : (desktopCollapsed ? 'w-20' : 'w-72')}
+          ${isMobile ? (mobileOpen ? 'translate-x-0 shadow-2xl shadow-black/40' : '-translate-x-full') : 'translate-x-0'}
+          bg-gradient-to-b from-primary-800 via-primary-800 to-primary-900 border-r border-neutral-700/30 shadow-2xl shadow-black/20`}
       >
-        {collapsed ? <ExpandIcon width={16} height={16} /> : <CollapseIcon width={16} height={16} />}
-      </button>
+        {/* Desktop collapse toggle — hidden on mobile */}
+        {!isMobile && (
+          <button
+            onClick={() => setDesktopCollapsed(v => !v)}
+            className="absolute -right-3 top-5 z-50 flex h-8 w-8 items-center justify-center rounded-full border border-gold-400/30 bg-primary-900 text-gold-300 shadow-lg shadow-black/30 transition-all duration-200 hover:scale-110 hover:border-gold-300 hover:text-gold-200 active:scale-95"
+            aria-label={desktopCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-pressed={desktopCollapsed}
+          >
+            {desktopCollapsed ? <ExpandIcon width={16} height={16} /> : <CollapseIcon width={16} height={16} />}
+          </button>
+        )}
 
-      <div className="relative flex items-center justify-between gap-3 p-4 border-b border-neutral-700/30 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,146,58,0.18),transparent_42%)] pointer-events-none" />
-        <div className="flex items-center gap-3 relative">
-          <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900 font-display font-bold text-sm shadow-lg shadow-gold-500/30">
-            <span className="absolute inset-0 rounded-xl bg-white/30 animate-pulse-subtle" />
-            <span className="relative"><LawIcon width={18} height={18} /></span>
-          </div>
-          {!collapsed && (
-            <div>
-              <div className="font-display font-semibold text-neutral-50 text-base tracking-tight">LawBridge</div>
-              <div className="text-xs text-neutral-400">Firm Workspace</div>
+        <div className="relative flex items-center justify-between gap-3 p-4 border-b border-neutral-700/30 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,146,58,0.18),transparent_42%)] pointer-events-none" />
+          <div className="flex items-center gap-3 relative">
+            <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900 font-display font-bold text-sm shadow-lg shadow-gold-500/30 flex-shrink-0">
+              <span className="absolute inset-0 rounded-xl bg-white/30 animate-pulse-subtle" />
+              <span className="relative"><LawIcon width={18} height={18} /></span>
             </div>
+            {!collapsed && (
+              <div>
+                <div className="font-display font-semibold text-neutral-50 text-base tracking-tight">LawBridge</div>
+                <div className="text-xs text-neutral-400">Firm Workspace</div>
+              </div>
+            )}
+          </div>
+          {/* Mobile close button */}
+          {isMobile && (
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="relative flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-white/10 transition-all active:scale-95 flex-shrink-0"
+              aria-label="Close menu"
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           )}
         </div>
-      </div>
 
       <nav className="p-3 overflow-y-auto flex-1 space-y-1">
         {nav.map(item => {
@@ -239,6 +266,7 @@ export default function LawyerSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={closeMobile}
               className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 font-body text-sm border active:scale-[0.98]
                 ${isActive
                   ? 'bg-portal-soft text-portal border-portal shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]'
@@ -273,24 +301,18 @@ export default function LawyerSidebar() {
           <div className="mt-3 space-y-1 px-2">
             <div className="text-xs text-neutral-400 px-3">Office</div>
             <div className="mt-1 space-y-1">
-              <Link href="/lawyer/office/me" className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${pathname === '/lawyer/office/me' ? 'text-portal' : 'text-neutral-300 hover:text-neutral-50'}`}>
-                <span className="ml-1">Overview</span>
-              </Link>
-              <Link href="/lawyer/office/me/matters" className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${pathname === '/lawyer/office/me/matters' ? 'text-portal' : 'text-neutral-300 hover:text-neutral-50'}`}>
-                <span className="ml-1">Matters</span>
-              </Link>
-              <Link href="/lawyer/office/me/clients" className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${pathname === '/lawyer/office/me/clients' ? 'text-portal' : 'text-neutral-300 hover:text-neutral-50'}`}>
-                <span className="ml-1">Clients</span>
-              </Link>
-              <Link href="/lawyer/office/me/documents" className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${pathname === '/lawyer/office/me/documents' ? 'text-portal' : 'text-neutral-300 hover:text-neutral-50'}`}>
-                <span className="ml-1">Documents</span>
-              </Link>
-              <Link href="/lawyer/office/me/calendar" className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${pathname === '/lawyer/office/me/calendar' ? 'text-portal' : 'text-neutral-300 hover:text-neutral-50'}`}>
-                <span className="ml-1">Calendar</span>
-              </Link>
-              <Link href="/lawyer/office/me/settings" className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${pathname === '/lawyer/office/me/settings' ? 'text-portal' : 'text-neutral-300 hover:text-neutral-50'}`}>
-                <span className="ml-1">Settings</span>
-              </Link>
+              {[
+                { href: '/lawyer/office/me', label: 'Overview' },
+                { href: '/lawyer/office/me/matters', label: 'Matters' },
+                { href: '/lawyer/office/me/clients', label: 'Clients' },
+                { href: '/lawyer/office/me/documents', label: 'Documents' },
+                { href: '/lawyer/office/me/calendar', label: 'Calendar' },
+                { href: '/lawyer/office/me/settings', label: 'Settings' },
+              ].map(sub => (
+                <Link key={sub.href} href={sub.href} onClick={closeMobile} className={`group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium ${pathname === sub.href ? 'text-portal' : 'text-neutral-300 hover:text-neutral-50'}`}>
+                  <span className="ml-1">{sub.label}</span>
+                </Link>
+              ))}
             </div>
           </div>
         )}
@@ -303,6 +325,7 @@ export default function LawyerSidebar() {
                 <Link
                   key={member.id}
                   href={`/lawyer/office/${member.user}`}
+                  onClick={closeMobile}
                   className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${pathname === `/lawyer/office/${member.user}` ? 'text-portal' : 'text-neutral-300 hover:text-neutral-50'}`}
                 >
                   <span className="ml-1">{member.user_full_name ?? member.user_email ?? `User #${member.user}`}</span>
@@ -335,6 +358,7 @@ export default function LawyerSidebar() {
 
           <Link
             href="/lawyer/profile"
+            onClick={closeMobile}
             className="group relative flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 overflow-hidden transition-all duration-200 hover:scale-105 hover:border-gold-300/40 active:scale-95"
             aria-label="Open profile"
             title="Profile"
@@ -361,6 +385,7 @@ export default function LawyerSidebar() {
           </button>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   )
 }

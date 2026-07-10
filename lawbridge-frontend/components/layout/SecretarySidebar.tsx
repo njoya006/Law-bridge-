@@ -43,6 +43,10 @@ export default function SecretarySidebar() {
     sync()
     mq.addEventListener('change', sync)
 
+    // Open sidebar from mobile top bar hamburger
+    const handleOpenSidebar = () => setMobileOpen(true)
+    window.addEventListener('lawbridge:open-sidebar', handleOpenSidebar)
+
     const applyTheme = (t: 'light' | 'dark') => {
       if (t === 'light') document.documentElement.classList.add('light-mode')
       else document.documentElement.classList.remove('light-mode')
@@ -68,7 +72,10 @@ export default function SecretarySidebar() {
       }).catch(() => {})
     }
 
-    return () => mq.removeEventListener('change', sync)
+    return () => {
+      mq.removeEventListener('change', sync)
+      window.removeEventListener('lawbridge:open-sidebar', handleOpenSidebar)
+    }
   }, [])
 
   useEffect(() => {
@@ -84,35 +91,64 @@ export default function SecretarySidebar() {
     else document.documentElement.classList.remove('light-mode')
   }
 
-  return (
-    <aside
-      className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ease-out ${collapsed ? 'w-20 lg:w-72' : 'w-72'} bg-gradient-to-b from-primary-800 via-primary-800 to-primary-900 border-r border-neutral-700/30 shadow-2xl shadow-black/20`}
-      style={{ width: 'var(--sidebar-width)' }}
-    >
-      <button
-        onClick={() => { if (isMobile) setMobileOpen(v => !v); else setDesktopCollapsed(v => !v) }}
-        className="absolute -right-3 top-5 z-50 flex h-8 w-8 items-center justify-center rounded-full border border-gold-400/30 bg-primary-900 text-gold-300 shadow-lg shadow-black/30 transition-all duration-200 hover:scale-110 hover:border-gold-300 hover:text-gold-200 active:scale-95"
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        {collapsed ? <ExpandIcon width={16} height={16} /> : <CollapseIcon width={16} height={16} />}
-      </button>
+  const closeMobile = () => { if (isMobile) setMobileOpen(false) }
 
-      {/* Header */}
-      <div className="relative flex items-center justify-between gap-3 p-4 border-b border-neutral-700/30 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,146,58,0.18),transparent_42%)] pointer-events-none" />
-        <div className="flex items-center gap-3 relative">
-          <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900 font-display font-bold text-sm shadow-lg shadow-gold-500/30">
-            <span className="absolute inset-0 rounded-xl bg-white/30 animate-pulse-subtle" />
-            <span className="relative"><BalanceIcon width={18} height={18} /></span>
-          </div>
-          {!collapsed && (
-            <div>
-              <div className="font-display font-semibold text-neutral-50 text-base tracking-tight">LawBridge</div>
-              <div className="text-xs text-neutral-400">Secretary Portal</div>
+  return (
+    <>
+      {/* Mobile backdrop — tap outside to close */}
+      {isMobile && mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-[2px]"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`fixed left-0 top-0 h-screen z-40 flex flex-col transition-all duration-300 ease-out
+          ${isMobile ? 'w-72' : (desktopCollapsed ? 'w-20' : 'w-72')}
+          ${isMobile ? (mobileOpen ? 'translate-x-0 shadow-2xl shadow-black/40' : '-translate-x-full') : 'translate-x-0'}
+          bg-gradient-to-b from-primary-800 via-primary-800 to-primary-900 border-r border-neutral-700/30 shadow-2xl shadow-black/20`}
+      >
+        {/* Desktop collapse toggle — hidden on mobile */}
+        {!isMobile && (
+          <button
+            onClick={() => setDesktopCollapsed(v => !v)}
+            className="absolute -right-3 top-5 z-50 flex h-8 w-8 items-center justify-center rounded-full border border-gold-400/30 bg-primary-900 text-gold-300 shadow-lg shadow-black/30 transition-all duration-200 hover:scale-110 hover:border-gold-300 hover:text-gold-200 active:scale-95"
+            aria-label={desktopCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {desktopCollapsed ? <ExpandIcon width={16} height={16} /> : <CollapseIcon width={16} height={16} />}
+          </button>
+        )}
+
+        {/* Header */}
+        <div className="relative flex items-center justify-between gap-3 p-4 border-b border-neutral-700/30 overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(201,146,58,0.18),transparent_42%)] pointer-events-none" />
+          <div className="flex items-center gap-3 relative">
+            <div className="relative h-10 w-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 flex items-center justify-center text-primary-900 font-display font-bold text-sm shadow-lg shadow-gold-500/30 flex-shrink-0">
+              <span className="absolute inset-0 rounded-xl bg-white/30 animate-pulse-subtle" />
+              <span className="relative"><BalanceIcon width={18} height={18} /></span>
             </div>
+            {!collapsed && (
+              <div>
+                <div className="font-display font-semibold text-neutral-50 text-base tracking-tight">LawBridge</div>
+                <div className="text-xs text-neutral-400">Secretary Portal</div>
+              </div>
+            )}
+          </div>
+          {/* Mobile close button */}
+          {isMobile && (
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="relative flex h-8 w-8 items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-200 hover:bg-white/10 transition-all active:scale-95 flex-shrink-0"
+              aria-label="Close menu"
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           )}
         </div>
-      </div>
 
       {/* Nav */}
       <nav className="p-3 overflow-y-auto flex-1 space-y-1">
@@ -125,6 +161,7 @@ export default function SecretarySidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={closeMobile}
               className={`group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 font-body text-sm border active:scale-[0.98]
                 ${isActive ? 'bg-portal-soft text-portal border-portal shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]' : 'border-transparent text-neutral-300 hover:bg-white/5 hover:text-neutral-50 hover:border-white/5'}
                 ${collapsed ? 'justify-center' : ''}`}
@@ -175,6 +212,7 @@ export default function SecretarySidebar() {
           </button>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   )
 }
