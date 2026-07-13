@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { getContacts, saveContact, deleteContact, getFirms, generateId, Contact, OutreachFirm } from '../../../../lib/outreachStore'
+import { getContacts, saveContact, deleteContact, getFirms, generateId, syncContactsFromApi, syncFirmsFromApi, Contact, OutreachFirm } from '../../../../lib/outreachStore'
 
 function AddContactModal({ firms, onClose, onSave }: { firms: OutreachFirm[]; onClose: () => void; onSave: (c: Contact) => void }) {
   const [form, setForm] = useState<Partial<Contact>>({ isPrimary: false })
@@ -64,7 +64,12 @@ export default function ContactsPage() {
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
 
-  useEffect(() => { setContacts(getContacts()); setFirms(getFirms()) }, [])
+  useEffect(() => {
+    setContacts(getContacts()); setFirms(getFirms())
+    Promise.all([syncContactsFromApi(), syncFirmsFromApi()]).then(([c, f]) => {
+      if (c) setContacts(c); if (f) setFirms(f)
+    })
+  }, [])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()

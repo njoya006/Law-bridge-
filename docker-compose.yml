@@ -71,6 +71,7 @@ services:
       - case-service
       - lawyer-service
       - library-service
+      - outreach-service
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
       interval: 30s
@@ -217,6 +218,15 @@ services:
       DB_PORT: "5432"
       DB_NAME: library_db
       REDIS_URL: redis://redis:6379/0
+
+  outreach-service:
+    <<: *django-common
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/outreach-service:latest
+    expose: ["8014"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: outreach_db
 
 networks:
   lawbridge:

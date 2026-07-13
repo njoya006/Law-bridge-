@@ -7,6 +7,7 @@ import {
   getFirmById, saveFirm, getInterviewsByFirm, getFeatureRequestsByFirm,
   getTasksByFirm, getContactsByFirm, saveContact, deleteContact,
   saveFeatureRequest, saveTask, generateId,
+  syncFirmsFromApi, syncInterviewsFromApi, syncContactsFromApi,
   OutreachFirm, Interview, FeatureRequest, Task, Contact,
   RelationshipStatus, STATUS_LABELS, STATUS_COLORS,
 } from '../../../../../lib/outreachStore'
@@ -51,13 +52,20 @@ export default function FirmDetailPage() {
 
   useEffect(() => {
     const f = getFirmById(id)
-    if (!f) { router.replace('/admin/outreach/firms'); return }
-    setFirm(f)
-    setNotesVal(f.notes ?? '')
+    if (f) { setFirm(f); setNotesVal(f.notes ?? '') }
     setInterviews(getInterviewsByFirm(id))
     setFeatures(getFeatureRequestsByFirm(id))
     setTasks(getTasksByFirm(id))
     setContacts(getContactsByFirm(id))
+    Promise.all([syncFirmsFromApi(), syncInterviewsFromApi(id), syncContactsFromApi(id)]).then(([firms]) => {
+      const fresh = firms?.find(x => x.id === id)
+      if (fresh) { setFirm(fresh); setNotesVal(fresh.notes ?? '') }
+      else if (!f) { router.replace('/admin/outreach/firms'); return }
+      setInterviews(getInterviewsByFirm(id))
+      setFeatures(getFeatureRequestsByFirm(id))
+      setTasks(getTasksByFirm(id))
+      setContacts(getContactsByFirm(id))
+    })
   }, [id, router])
 
   function refresh() {

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { getTasks, saveTask, getFirms, generateId, Task, OutreachFirm } from '../../../../lib/outreachStore'
+import { getTasks, saveTask, getFirms, generateId, syncTasksFromApi, syncFirmsFromApi, Task, OutreachFirm } from '../../../../lib/outreachStore'
 
 function fmtDate(iso?: string) {
   if (!iso) return ''
@@ -99,7 +99,12 @@ export default function TasksPage() {
   const [search, setSearch] = useState('')
   const [view, setView] = useState<'kanban' | 'table'>('kanban')
 
-  useEffect(() => { setTasks(getTasks()); setFirms(getFirms()) }, [])
+  useEffect(() => {
+    setTasks(getTasks()); setFirms(getFirms())
+    Promise.all([syncTasksFromApi(), syncFirmsFromApi()]).then(([t, f]) => {
+      if (t) setTasks(t); if (f) setFirms(f)
+    })
+  }, [])
 
   const pending = tasks.filter(t => t.status !== 'done')
   const filtered = useMemo(() => {

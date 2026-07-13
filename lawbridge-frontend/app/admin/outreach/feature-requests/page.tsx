@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { getFeatureRequests, saveFeatureRequest, getFirms, generateId, FeatureRequest, OutreachFirm } from '../../../../lib/outreachStore'
+import { getFeatureRequests, saveFeatureRequest, getFirms, generateId, syncFeatureRequestsFromApi, syncFirmsFromApi, FeatureRequest, OutreachFirm } from '../../../../lib/outreachStore'
 
 const STATUS_PIPELINE: FeatureRequest['status'][] = ['under_review', 'approved', 'planned', 'in_development', 'released', 'declined']
 const STATUS_LABELS: Record<FeatureRequest['status'], string> = {
@@ -113,7 +113,12 @@ export default function FeatureRequestsPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState<FeatureRequest['status']>('under_review')
 
-  useEffect(() => { setFrs(getFeatureRequests()); setFirms(getFirms()) }, [])
+  useEffect(() => {
+    setFrs(getFeatureRequests()); setFirms(getFirms())
+    Promise.all([syncFeatureRequestsFromApi(), syncFirmsFromApi()]).then(([fr, f]) => {
+      if (fr) setFrs(fr); if (f) setFirms(f)
+    })
+  }, [])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()

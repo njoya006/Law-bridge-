@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  getFirms, saveFirm, deleteFirm, generateId,
+  getFirms, saveFirm, deleteFirm, generateId, syncFirmsFromApi,
   OutreachFirm, RelationshipStatus, STATUS_LABELS, STATUS_COLORS,
 } from '../../../../lib/outreachStore'
 
@@ -201,7 +201,10 @@ export default function FirmsPage() {
   const [editing, setEditing] = useState<OutreachFirm | undefined>()
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  useEffect(() => { setFirms(getFirms()) }, [])
+  useEffect(() => {
+    setFirms(getFirms())
+    syncFirmsFromApi().then(data => { if (data) setFirms(data) })
+  }, [])
 
   const cities = useMemo(() => ['all', ...Array.from(new Set(firms.map(f => f.city))).sort()], [firms])
 

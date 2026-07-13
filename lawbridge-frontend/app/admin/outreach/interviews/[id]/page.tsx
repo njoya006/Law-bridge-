@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { getInterviewById, saveInterview, Interview, NextStep, generateId } from '../../../../../lib/outreachStore'
+import { getInterviewById, saveInterview, syncInterviewsFromApi, Interview, NextStep, generateId } from '../../../../../lib/outreachStore'
 
 function fmtDate(iso?: string) {
   if (!iso) return '—'
@@ -29,12 +29,16 @@ export default function InterviewDetailPage() {
   const [notesVal, setNotesVal] = useState('')
 
   useEffect(() => {
-    const data = getInterviewById(id)
-    if (!data) { router.replace('/admin/outreach/interviews'); return }
-    setIv(data)
-    setSummaryVal(data.summary ?? '')
-    setNotesVal(data.notes ?? '')
-    setEditForm({ status: data.status, overallInterestLevel: data.overallInterestLevel, interviewerName: data.interviewerName, location: data.location })
+    const cached = getInterviewById(id)
+    if (cached) {
+      setIv(cached); setSummaryVal(cached.summary ?? ''); setNotesVal(cached.notes ?? '')
+      setEditForm({ status: cached.status, overallInterestLevel: cached.overallInterestLevel, interviewerName: cached.interviewerName, location: cached.location })
+    }
+    syncInterviewsFromApi().then(() => {
+      const fresh = getInterviewById(id)
+      if (fresh) { setIv(fresh); setSummaryVal(fresh.summary ?? ''); setNotesVal(fresh.notes ?? '') }
+      else if (!cached) router.replace('/admin/outreach/interviews')
+    })
   }, [id, router])
 
   function update(patch: Partial<Interview>) {

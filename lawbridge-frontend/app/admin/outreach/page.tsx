@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getFirms, getInterviews, getFeatureRequests, getTasks, OutreachFirm, Interview, FeatureRequest, Task, STATUS_LABELS } from '../../../lib/outreachStore'
+import { getFirms, getInterviews, getFeatureRequests, getTasks, syncAllFromApi, OutreachFirm, Interview, FeatureRequest, Task, STATUS_LABELS } from '../../../lib/outreachStore'
 
 function KpiTile({ label, value, sub, color }: { label: string; value: number | string; sub?: string; color: string }) {
   return (
@@ -88,6 +88,13 @@ export default function OutreachDashboardPage() {
     setInterviews(getInterviews())
     setFeatureReqs(getFeatureRequests())
     setTasks(getTasks())
+    syncAllFromApi().then(store => {
+      if (!store) return
+      setFirms(store.firms)
+      setInterviews(store.interviews)
+      setFeatureReqs(store.featureRequests)
+      setTasks(store.tasks)
+    })
   }, [])
 
   const kpi = {

@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { getInterviews, getFirms, saveInterview, generateId, Interview, OutreachFirm } from '../../../../lib/outreachStore'
+import { getInterviews, getFirms, saveInterview, generateId, syncInterviewsFromApi, syncFirmsFromApi, Interview, OutreachFirm } from '../../../../lib/outreachStore'
 
 function fmtDate(iso?: string) {
   if (!iso) return '—'
@@ -137,6 +137,10 @@ export default function InterviewsPage() {
     setInterviews(getInterviews())
     setFirms(getFirms())
     if (prefirmId) setShowModal(true)
+    Promise.all([syncInterviewsFromApi(), syncFirmsFromApi()]).then(([iv, f]) => {
+      if (iv) setInterviews(iv)
+      if (f) setFirms(f)
+    })
   }, [prefirmId])
 
   const filtered = useMemo(() => {
