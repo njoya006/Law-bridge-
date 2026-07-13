@@ -23,9 +23,12 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('email', 'full_name', 'password', 'role')
+        # role is accepted on write but always forced to 'client' — prevents privilege escalation via registration
+        read_only_fields = ('role',)
 
     def create(self, validated_data):
         password = validated_data.pop('password')
+        validated_data['role'] = 'client'  # enforce: public registration always creates clients
         user = User.objects.create_user(password=password, **validated_data)
         return user
 
