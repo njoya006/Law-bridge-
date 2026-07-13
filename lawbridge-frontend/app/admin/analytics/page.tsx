@@ -97,31 +97,32 @@ export default function AnalyticsPage() {
     setLoading(true)
     setError('')
     const token = localStorage.getItem('access')
-    if (!token) { setLoading(false); return }
+    if (!token) { setLoading(false); setError('No auth token — please log in again'); return }
     const h = { Authorization: `Bearer ${token}` }
-    try {
-      const [usersRes, statsRes, intelRes] = await Promise.all([
-        fetch('/api/v1/auth/admin/users/', { headers: h }),
-        fetch('/api/v1/monitoring/admin/platform-stats/', { headers: h }),
-        fetch('/api/v1/monitoring/firm-intelligence/', { headers: h }),
-      ])
-      if (usersRes.ok) {
-        const ud = await usersRes.json()
-        setUsers(Array.isArray(ud) ? ud : (ud.results ?? []))
-      }
-      if (statsRes.ok) {
-        setStats(await statsRes.json())
-      }
-      if (intelRes.ok) {
-        const id = await intelRes.json()
-        setLawyers(id.lawyer_loads ?? [])
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load analytics')
-    } finally {
-      setLoading(false)
+    const [usersRes, statsRes, intelRes] = await Promise.allSettled([
+      fetch('/api/v1/auth/admin/users/', { headers: h }),
+      fetch('/api/v1/monitoring/admin/platform-stats/', { headers: h }),
+      fetch('/api/v1/monitoring/firm-intelligence/', { headers: h }),
+    ])
+    if (usersRes.status === 'fulfilled' && usersRes.value.ok) {
+      const ud = await usersRes.value.json()
+      setUsers(Array.isArray(ud) ? ud : (ud.results ?? []))
     }
-  }, [])
+    if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
+      setStats(await statsRes.value.json())
+    }
+    if (intelRes.status === 'fulfilled' && intelRes.value.ok) {
+      const id = await intelRes.value.json()
+      setLawyers(id.lawyer_loads ?? [])
+    }
+    const anyFailed = [usersRes, statsRes, intelRes].some(
+      r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok)
+    )
+    if (anyFailed && users.length === 0 && !stats) {
+      setError('Some data could not be loaded. Check your session or backend services.')
+    }
+    setLoading(false)
+  }, [stats, users.length])
 
   useEffect(() => { void load() }, [load])
 
