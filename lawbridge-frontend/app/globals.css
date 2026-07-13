@@ -719,3 +719,46 @@ html.light-mode body {
   color: #111118;
 }
 
+/* ================================================================
+   FORM UTILITIES — used in admin outreach forms and modals
+   ================================================================ */
+
+.field {
+  display: block;
+  width: 100%;
+  background: rgba(11, 20, 38, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: #d8d8e8;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.field:focus {
+  border-color: rgba(201, 146, 58, 0.4);
+}
+.field::placeholder {
+  color: rgba(150, 150, 170, 0.6);
+}
+select.field {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(150,150,170,0.6)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2rem;
+}
+select.field option {
+  background: #112240;
+  color: #d8d8e8;
+}
+
+.label-xs {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(150, 150, 170, 0.8);
+}
+

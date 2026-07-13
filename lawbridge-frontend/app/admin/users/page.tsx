@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 
 type User = {
   id: string
@@ -36,7 +36,69 @@ function Initials({ name }: { name: string }) {
   )
 }
 
-const ROLES = ['all', 'client', 'lawyer', 'firm_admin', 'secretary', 'support']
+const ROLES = ['all', 'client', 'lawyer', 'firm_admin', 'secretary', 'support', 'admin']
+const ASSIGNABLE_ROLES = ['client', 'lawyer', 'firm_admin', 'secretary', 'support', 'admin']
+
+function RoleMenu({ user, onChanged }: { user: User; onChanged: (id: string, role: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  async function changeRole(role: string) {
+    setOpen(false)
+    if (role === user.role) return
+    setLoading(true)
+    try {
+      const token = localStorage.getItem('access')
+      const res = await fetch(`/api/v1/auth/admin/users/${user.id}/`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      })
+      if (res.ok) onChanged(user.id, role)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(v => !v)}
+        disabled={loading}
+        className="rounded-lg p-1.5 text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors"
+        title="Change role"
+      >
+        {loading
+          ? <div className="h-3 w-3 rounded-full border border-neutral-500 border-t-transparent animate-spin" />
+          : <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+        }
+      </button>
+      {open && (
+        <div className="absolute right-0 top-8 z-30 min-w-[140px] rounded-xl bg-primary-800 border border-white/10 shadow-xl py-1">
+          <p className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-neutral-600 font-semibold">Change role to</p>
+          {ASSIGNABLE_ROLES.filter(r => r !== user.role).map(r => (
+            <button
+              key={r}
+              onClick={() => changeRole(r)}
+              className="w-full text-left px-3 py-1.5 text-sm text-neutral-300 hover:bg-white/5 capitalize transition-colors"
+            >
+              {r.replace('_', ' ')}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -71,6 +133,10 @@ export default function AdminUsersPage() {
     users.forEach(u => { c[u.role] = (c[u.role] ?? 0) + 1 })
     return c
   }, [users])
+
+  function handleRoleChanged(id: string, role: string) {
+    setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u))
+  }
 
   return (
     <div className="space-y-5">
@@ -126,11 +192,12 @@ export default function AdminUsersPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">Email</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">Role</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">Joined</th>
+                <th className="px-4 py-3 w-12" />
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filtered.length === 0 ? (
-                <tr><td colSpan={4} className="px-4 py-12 text-center text-neutral-500 text-sm">No users found</td></tr>
+                <tr><td colSpan={5} className="px-4 py-12 text-center text-neutral-500 text-sm">No users found</td></tr>
               ) : filtered.map(u => (
                 <tr key={u.id} className="hover:bg-white/3 transition-colors">
                   <td className="px-4 py-3">
@@ -146,6 +213,7 @@ export default function AdminUsersPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-neutral-500">{formatDate(u.date_joined ?? u.created_at)}</td>
+                  <td className="px-4 py-3"><RoleMenu user={u} onChanged={handleRoleChanged} /></td>
                 </tr>
               ))}
             </tbody>
