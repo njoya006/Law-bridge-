@@ -1,0 +1,63 @@
+name: Bootstrap Admin Account
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Create admin account via Django shell
+        run: |
+          SCRIPT='docker exec lawbridge-auth-service-1 python3 -c "
+import os, django
+os.environ[\"DJANGO_SETTINGS_MODULE\"] = \"core.settings\"
+django.setup()
+from apps.users.models import User
+email    = \"admin@lawbridge.cm\"
+password = \"LBAdmin@2026!\"
+name     = \"LawBridge Admin\"
+user, created = User.objects.get_or_create(email=email, defaults={\"full_name\": name, \"role\": \"admin\"})
+if created:
+    user.set_password(password)
+    user.is_active = True
+    user.save()
+    print(\"CREATED:\", email)
+else:
+    changed = False
+    if user.role != \"admin\":
+        user.role = \"admin\"
+        changed = True
+    if not user.check_password(password):
+        user.set_password(password)
+        changed = True
+    if not user.is_active:
+        user.is_active = True
+        changed = True
+    if changed:
+        user.save()
+        print(\"UPDATED:\", email)
+    else:
+        print(\"OK (no change):\", email)
+print(\"role=\", user.role, \"| active=\", user.is_active)
+"'
+          ENCODED=$(echo "$SCRIPT" | base64 -w 0)
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids i-031445edd3e88f5fe \
+            --document-name AWS-RunShellScript \
+            --parameters commands=["echo $ENCODED | base64 -d | bash"] \
+            --query Command.CommandId --output text)
+          echo "SSM command: $CMD_ID"
+          sleep 20
+          aws ssm get-command-invocation \
+            --command-id "$CMD_ID" \
+            --instance-id i-031445edd3e88f5fe \
+            --query '[StandardOutputContent,StandardErrorContent]' \
+            --output text
