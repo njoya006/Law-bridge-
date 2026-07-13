@@ -204,24 +204,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [])
 
   useEffect(() => {
-    const raw = localStorage.getItem('userInfo') || localStorage.getItem('me')
-    let role = ''
-    if (raw) {
-      try { role = JSON.parse(raw)?.role ?? '' } catch { /* ignore */ }
-    }
-    if (!role) {
-      const access = localStorage.getItem('access')
-      if (access) {
-        try {
-          const payload = JSON.parse(atob(access.split('.')[1]))
-          role = payload.role ?? ''
-        } catch { /* ignore */ }
-      }
-    }
-    if (!['support', 'admin'].includes(role.toLowerCase())) {
-      router.replace('/dashboard')
+    // Must have come through /command — that page sets portalRole='admin'
+    const portalRole = localStorage.getItem('portalRole')
+    if (portalRole !== 'admin') {
+      router.replace('/command')
       return
     }
+
+    // Also verify the JWT role as a second factor
+    const access = localStorage.getItem('access')
+    let jwtRole = ''
+    if (access) {
+      try {
+        const payload = JSON.parse(atob(access.split('.')[1]))
+        jwtRole = payload.role ?? ''
+      } catch { /* ignore */ }
+    }
+    if (!['support', 'admin'].includes(jwtRole.toLowerCase())) {
+      router.replace('/command')
+      return
+    }
+
     setChecked(true)
   }, [router])
 
@@ -235,7 +238,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   function handleLogout() {
     clearSession()
-    router.push('/auth/login')
+    localStorage.removeItem('portalRole')
+    router.push('/command')
   }
 
   return (
