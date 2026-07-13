@@ -14,48 +14,48 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      - name: Create admin account via Django shell
+      - name: Check running containers (diagnostic)
         run: |
-          SCRIPT='docker exec lawbridge-auth-service-1 python3 -c "
-import os, django
-os.environ[\"DJANGO_SETTINGS_MODULE\"] = \"core.settings\"
-django.setup()
-from apps.users.models import User
-email    = \"admin@lawbridge.cm\"
-password = \"LBAdmin@2026!\"
-name     = \"LawBridge Admin\"
-user, created = User.objects.get_or_create(email=email, defaults={\"full_name\": name, \"role\": \"admin\"})
-if created:
-    user.set_password(password)
-    user.is_active = True
-    user.save()
-    print(\"CREATED:\", email)
-else:
-    changed = False
-    if user.role != \"admin\":
-        user.role = \"admin\"
-        changed = True
-    if not user.check_password(password):
-        user.set_password(password)
-        changed = True
-    if not user.is_active:
-        user.is_active = True
-        changed = True
-    if changed:
-        user.save()
-        print(\"UPDATED:\", email)
-    else:
-        print(\"OK (no change):\", email)
-print(\"role=\", user.role, \"| active=\", user.is_active)
-"'
-          ENCODED=$(echo "$SCRIPT" | base64 -w 0)
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids i-031445edd3e88f5fe \
+            --document-name AWS-RunShellScript \
+            --parameters '{"commands":["docker ps --format \"{{.Names}} | {{.Status}}\""]}' \
+            --query Command.CommandId --output text)
+          echo "Diagnostic cmd: $CMD_ID"
+          sleep 15
+          aws ssm get-command-invocation \
+            --command-id "$CMD_ID" \
+            --instance-id i-031445edd3e88f5fe \
+            --query '[StandardOutputContent,StandardErrorContent]' \
+            --output text
+
+      - name: Create admin account
+        run: |
+          # Python script is pre-encoded to avoid ALL quoting issues.
+          # Decodes to:
+          #   import os, django
+          #   os.environ['DJANGO_SETTINGS_MODULE'] = 'core.settings'
+          #   django.setup()
+          #   from apps.users.models import User
+          #   email = 'admin@lawbridge.cm'
+          #   password = 'LBAdmin@2026!'
+          #   u, c = User.objects.get_or_create(email=email, defaults={'full_name': 'LawBridge Admin', 'role': 'admin'})
+          #   if c: u.set_password(password); u.is_active = True; u.save(); print('CREATED:', email)
+          #   else: u.role='admin'; u.is_active=True; u.set_password(password); u.save(); print('UPDATED:', email)
+          #   print('role=', u.role, '| active=', u.is_active)
+          PY_B64="aW1wb3J0IG9zLCBkamFuZ28Kb3MuZW52aXJvblsnREpBTkdPX1NFVFRJTkdTX01PRFVMRSddID0gJ2NvcmUuc2V0dGluZ3MnCmRqYW5nby5zZXR1cCgpCmZyb20gYXBwcy51c2Vycy5tb2RlbHMgaW1wb3J0IFVzZXIKZW1haWwgPSAnYWRtaW5AbGF3YnJpZGdlLmNtJwpwYXNzd29yZCA9ICdMQkFkbWluQDIwMjYhJwp1LCBjID0gVXNlci5vYmplY3RzLmdldF9vcl9jcmVhdGUoZW1haWw9ZW1haWwsIGRlZmF1bHRzPXsnZnVsbF9uYW1lJzogJ0xhd0JyaWRnZSBBZG1pbicsICdyb2xlJzogJ2FkbWluJ30pCmlmIGM6CiAgICB1LnNldF9wYXNzd29yZChwYXNzd29yZCkKICAgIHUuaXNfYWN0aXZlID0gVHJ1ZQogICAgdS5zYXZlKCkKICAgIHByaW50KCdDUkVBVEVEOicsIGVtYWlsKQplbHNlOgogICAgdS5yb2xlID0gJ2FkbWluJwogICAgdS5pc19hY3RpdmUgPSBUcnVlCiAgICB1LnNldF9wYXNzd29yZChwYXNzd29yZCkKICAgIHUuc2F2ZSgpCiAgICBwcmludCgnVVBEQVRFRDonLCBlbWFpbCkKcHJpbnQoJ3JvbGU9JywgdS5yb2xlLCAnfCBhY3RpdmU9JywgdS5pc19hY3RpdmUp"
+
+          # Build shell script: decode Python → write to file → copy into container → run
+          INNER="echo ${PY_B64} | base64 -d > /tmp/mk_admin.py && docker cp /tmp/mk_admin.py lawbridge-auth-service-1:/tmp/mk_admin.py && docker exec lawbridge-auth-service-1 python3 /tmp/mk_admin.py"
+          ENCODED=$(echo "$INNER" | base64 -w 0)
+
           CMD_ID=$(aws ssm send-command \
             --instance-ids i-031445edd3e88f5fe \
             --document-name AWS-RunShellScript \
             --parameters commands=["echo $ENCODED | base64 -d | bash"] \
             --query Command.CommandId --output text)
-          echo "SSM command: $CMD_ID"
-          sleep 20
+          echo "Admin cmd: $CMD_ID"
+          sleep 30
           aws ssm get-command-invocation \
             --command-id "$CMD_ID" \
             --instance-id i-031445edd3e88f5fe \
