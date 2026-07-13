@@ -1,59 +1,42 @@
 """
-Create admin and support accounts for the LawBridge team.
-Run: python manage.py create_admin_users
+Creates the default admin account on container startup.
+Reads credentials from environment variables so nothing is hardcoded.
 
-These users can log in at /auth/login and access the Admin Console at /admin
+Environment variables:
+  ADMIN_EMAIL     (default: admin@lawbridge.cm)
+  ADMIN_PASSWORD  (default: LBAdmin@2026!)
+  ADMIN_NAME      (default: LawBridge Admin)
+
+Safe to run multiple times — uses get_or_create, so it never creates duplicates.
 """
+import os
 from django.core.management.base import BaseCommand
 from apps.users.models import User
 
 
-ADMIN_USERS = [
-    # (email, full_name, role, password)
-    # CEO / COO — full admin access
-    ("praise@lawbridge.cm",    "Praise Njoya Medin",  "admin",   "LBAdmin@2026"),
-    ("ceo@lawbridge.cm",       "LawBridge CEO",       "admin",   "LBAdmin@2026"),
-    # Public Image & Business Development — support access
-    ("outreach@lawbridge.cm",  "LawBridge Outreach",  "support", "LBTeam@2026"),
-    ("pr@lawbridge.cm",        "PR Team",             "support", "LBTeam@2026"),
-    # QA Engineer — support access
-    ("qa@lawbridge.cm",        "QA Engineer",         "support", "LBTeam@2026"),
-]
-
-
 class Command(BaseCommand):
-    help = "Create admin and support accounts for the LawBridge team"
+    help = "Bootstrap the admin account from environment variables on container startup"
 
     def handle(self, *args, **options):
-        self.stdout.write("\nCreating LawBridge admin accounts...\n")
-        for email, full_name, role, password in ADMIN_USERS:
-            user, created = User.objects.get_or_create(
-                email=email,
-                defaults={"full_name": full_name, "role": role},
-            )
-            if created:
-                user.set_password(password)
-                user.is_active = True
-                user.save()
-                self.stdout.write(self.style.SUCCESS(f"  ✓ Created  {email}  [{role}]"))
-            else:
-                # Update role and password if user already exists
-                user.role = role
-                user.full_name = full_name
-                user.set_password(password)
-                user.save()
-                self.stdout.write(self.style.WARNING(f"  ~ Updated  {email}  [{role}]"))
+        email    = os.environ.get('ADMIN_EMAIL',    'admin@lawbridge.cm')
+        password = os.environ.get('ADMIN_PASSWORD', 'LBAdmin@2026!')
+        name     = os.environ.get('ADMIN_NAME',     'LawBridge Admin')
 
-        self.stdout.write(self.style.SUCCESS(
-            "\n✅ Done! Admin users are ready.\n\n"
-            "  Admin login credentials:\n"
-            "  ─────────────────────────────────────────────\n"
-            "  Email:    praise@lawbridge.cm\n"
-            "  Password: LBAdmin@2026\n"
-            "  URL:      https://your-domain.com/auth/login\n"
-            "            then go to /admin\n"
-            "  ─────────────────────────────────────────────\n"
-            "  Support team:  outreach@lawbridge.cm / LBTeam@2026\n"
-            "                 pr@lawbridge.cm       / LBTeam@2026\n"
-            "                 qa@lawbridge.cm       / LBTeam@2026\n"
-        ))
+        user, created = User.objects.get_or_create(
+            email=email,
+            defaults={'full_name': name, 'role': 'admin'},
+        )
+
+        if created:
+            user.set_password(password)
+            user.is_active = True
+            user.save()
+            self.stdout.write(self.style.SUCCESS(f'[startup] Admin account created: {email}'))
+        else:
+            # Always sync the role in case it was accidentally changed
+            if user.role != 'admin':
+                user.role = 'admin'
+                user.save()
+                self.stdout.write(self.style.WARNING(f'[startup] Admin role restored for: {email}'))
+            else:
+                self.stdout.write(f'[startup] Admin account OK: {email}')

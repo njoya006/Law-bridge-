@@ -33,6 +33,15 @@ spec:
         - name: JWT_SECRET_KEY
           valueFrom:
             secretKeyRef: { name: lawbridge-secrets, key: JWT_SECRET_KEY }
+        - name: ADMIN_EMAIL
+          valueFrom:
+            secretKeyRef: { name: lawbridge-secrets, key: ADMIN_EMAIL, optional: true }
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef: { name: lawbridge-secrets, key: ADMIN_PASSWORD, optional: true }
+        - name: ADMIN_NAME
+          valueFrom:
+            secretKeyRef: { name: lawbridge-secrets, key: ADMIN_NAME, optional: true }
         envFrom:
         - secretRef:
             name: lawbridge-secrets

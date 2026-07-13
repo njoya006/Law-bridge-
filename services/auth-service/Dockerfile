@@ -11,4 +11,4 @@ COPY . /app
 RUN chmod +x /app/wait-for-db.sh
 
 EXPOSE 8001
-CMD /app/wait-for-db.sh && python manage.py migrate --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:8001
+CMD /app/wait-for-db.sh && python manage.py migrate --noinput && python manage.py create_admin_users && gunicorn core.wsgi:application --bind 0.0.0.0:8001
