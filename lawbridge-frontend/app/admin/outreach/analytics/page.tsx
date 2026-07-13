@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { getFirms, getInterviews, getFeatureRequests, OutreachFirm, Interview, FeatureRequest, STATUS_LABELS } from '../../../../lib/outreachStore'
+import { getFirms, getInterviews, getFeatureRequests, syncFirmsFromApi, syncInterviewsFromApi, syncFeatureRequestsFromApi, OutreachFirm, Interview, FeatureRequest, STATUS_LABELS } from '../../../../lib/outreachStore'
 
 function HBar({ label, value, max, color = '#C9923A', sub }: { label: string; value: number; max: number; color?: string; sub?: string }) {
   return (
@@ -35,6 +35,11 @@ export default function OutreachAnalyticsPage() {
     setFirms(getFirms())
     setInterviews(getInterviews())
     setFrs(getFeatureRequests())
+    Promise.all([syncFirmsFromApi(), syncInterviewsFromApi(), syncFeatureRequestsFromApi()]).then(([f, i, fr]) => {
+      if (f) setFirms(f)
+      if (i) setInterviews(i)
+      if (fr) setFrs(fr)
+    })
   }, [])
 
   const stats = useMemo(() => {

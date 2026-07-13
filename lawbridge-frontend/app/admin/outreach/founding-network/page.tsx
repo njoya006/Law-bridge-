@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getFirms, getInterviewsByFirm, OutreachFirm, STATUS_LABELS, STATUS_COLORS } from '../../../../lib/outreachStore'
+import { getFirms, getInterviewsByFirm, syncFirmsFromApi, syncInterviewsFromApi, OutreachFirm, STATUS_LABELS, STATUS_COLORS } from '../../../../lib/outreachStore'
 
 type NetworkEntry = {
   firm: OutreachFirm
@@ -19,23 +19,26 @@ function fmtDate(iso?: string) {
 export default function FoundingNetworkPage() {
   const [entries, setEntries] = useState<NetworkEntry[]>([])
 
-  useEffect(() => {
-    const firms = getFirms().filter(f =>
-      ['joined_founding_network', 'founding_council_member', 'interested', 'pilot_partner', 'active_partner'].includes(f.status)
-    )
+  function buildEntries() {
+    const NETWORK_STATUSES = ['joined_founding_network', 'founding_council_member', 'interested', 'pilot_partner', 'active_partner']
+    const STATUS_WEIGHT: Record<string, number> = { interested: 30, joined_founding_network: 50, founding_council_member: 80, pilot_partner: 70, active_partner: 100 }
+    const firms = getFirms().filter(f => NETWORK_STATUSES.includes(f.status))
     const data = firms.map(firm => {
       const ivs = getInterviewsByFirm(firm.id)
       const completed = ivs.filter(i => i.status === 'completed')
       const interests = completed.map(i => i.overallInterestLevel ?? 0).filter(n => n > 0)
       const avgInterest = interests.length ? Math.round(interests.reduce((a, b) => a + b, 0) / interests.length) : 0
-      // Engagement: based on status weight + interviews
-      const statusWeight: Record<string, number> = {
-        interested: 30, joined_founding_network: 50, founding_council_member: 80, pilot_partner: 70, active_partner: 100,
-      }
-      const engagement = Math.min(100, (statusWeight[firm.status] ?? 20) + completed.length * 5)
+      const engagement = Math.min(100, (STATUS_WEIGHT[firm.status] ?? 20) + completed.length * 5)
       return { firm, completedInterviews: completed.length, avgInterest, engagementScore: engagement }
     }).sort((a, b) => b.engagementScore - a.engagementScore)
     setEntries(data)
+  }
+
+  useEffect(() => {
+    buildEntries()
+    Promise.all([syncFirmsFromApi(), syncInterviewsFromApi()]).then(([f, i]) => {
+      if (f || i) buildEntries()
+    })
   }, [])
 
   return (

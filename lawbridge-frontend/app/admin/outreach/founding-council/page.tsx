@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getFirms, getInterviewsByFirm, getContactsByFirm, OutreachFirm, Interview, Contact } from '../../../../lib/outreachStore'
+import { getFirms, getInterviewsByFirm, getContactsByFirm, syncFirmsFromApi, syncInterviewsFromApi, syncContactsFromApi, OutreachFirm, Interview, Contact } from '../../../../lib/outreachStore'
 
 type CouncilMember = {
   firm: OutreachFirm
@@ -30,7 +30,7 @@ function InitialsAvatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md
 export default function FoundingCouncilPage() {
   const [members, setMembers] = useState<CouncilMember[]>([])
 
-  useEffect(() => {
+  function buildMembers() {
     const firms = getFirms().filter(f => f.status === 'founding_council_member')
     const data = firms.map(firm => {
       const interviews = getInterviewsByFirm(firm.id)
@@ -38,15 +38,16 @@ export default function FoundingCouncilPage() {
       const completed = interviews.filter(i => i.status === 'completed')
       const interests = completed.map(i => i.overallInterestLevel ?? 0).filter(n => n > 0)
       const avg = interests.length ? Math.round(interests.reduce((a, b) => a + b, 0) / interests.length) : 0
-      return {
-        firm,
-        contact: contacts.find(c => c.isPrimary) ?? contacts[0],
-        interviews,
-        completedInterviews: completed.length,
-        avgInterest: avg,
-      }
+      return { firm, contact: contacts.find(c => c.isPrimary) ?? contacts[0], interviews, completedInterviews: completed.length, avgInterest: avg }
     })
     setMembers(data)
+  }
+
+  useEffect(() => {
+    buildMembers()
+    Promise.all([syncFirmsFromApi(), syncInterviewsFromApi(), syncContactsFromApi()]).then(([f, i, c]) => {
+      if (f || i || c) buildMembers()
+    })
   }, [])
 
   return (

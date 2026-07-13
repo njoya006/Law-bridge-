@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getFirms, getInterviewsByFirm, getContactsByFirm, getFeatureRequestsByFirm, OutreachFirm } from '../../../../lib/outreachStore'
+import { getFirms, getInterviewsByFirm, getContactsByFirm, getFeatureRequestsByFirm, syncFirmsFromApi, syncInterviewsFromApi, syncContactsFromApi, syncFeatureRequestsFromApi, OutreachFirm } from '../../../../lib/outreachStore'
 
 type PilotEntry = {
   firm: OutreachFirm
@@ -20,7 +20,7 @@ function fmtDate(iso?: string) {
 export default function PilotPartnersPage() {
   const [pilots, setPilots] = useState<PilotEntry[]>([])
 
-  useEffect(() => {
+  function buildPilots() {
     const firms = getFirms().filter(f => f.status === 'pilot_partner' || f.status === 'active_partner')
     const data = firms.map(firm => {
       const ivs = getInterviewsByFirm(firm.id)
@@ -30,9 +30,16 @@ export default function PilotPartnersPage() {
       const interests = completed.map(i => i.overallInterestLevel ?? 0).filter(n => n > 0)
       const avg = interests.length ? Math.round(interests.reduce((a, b) => a + b, 0) / interests.length) : 0
       const pc = contacts.find(c => c.isPrimary) ?? contacts[0]
-      return { firm, featuresCount: frs.length, completedInterviews: completed.length, avgInterest: avg, primaryContact: pc ? `${pc.name}` : undefined }
+      return { firm, featuresCount: frs.length, completedInterviews: completed.length, avgInterest: avg, primaryContact: pc?.name }
     })
     setPilots(data)
+  }
+
+  useEffect(() => {
+    buildPilots()
+    Promise.all([syncFirmsFromApi(), syncInterviewsFromApi(), syncContactsFromApi(), syncFeatureRequestsFromApi()]).then(([f, i, c, fr]) => {
+      if (f || i || c || fr) buildPilots()
+    })
   }, [])
 
   return (
