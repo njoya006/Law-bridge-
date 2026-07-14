@@ -120,7 +120,7 @@ MINIO_USE_SSL = config('MINIO_USE_SSL', default=False, cast=bool)
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ALGORITHM': 'HS256',
     'SIGNING_KEY': config('JWT_SECRET_KEY', default=SECRET_KEY),
