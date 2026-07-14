@@ -91,13 +91,11 @@ export default function AnalyticsPage() {
   const [stats, setStats] = useState<PlatformStats | null>(null)
   const [lawyers, setLawyers] = useState<LawyerLoad[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError('')
     const token = localStorage.getItem('access')
-    if (!token) { setLoading(false); setError('No auth token — please log in again'); return }
+    if (!token) { setLoading(false); return }
     const h = { Authorization: `Bearer ${token}` }
     const [usersRes, statsRes, intelRes] = await Promise.allSettled([
       fetch('/api/v1/auth/admin/users/', { headers: h }),
@@ -115,14 +113,8 @@ export default function AnalyticsPage() {
       const id = await intelRes.value.json()
       setLawyers(id.lawyer_loads ?? [])
     }
-    const anyFailed = [usersRes, statsRes, intelRes].some(
-      r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok)
-    )
-    if (anyFailed && users.length === 0 && !stats) {
-      setError('Some data could not be loaded. Check your session or backend services.')
-    }
     setLoading(false)
-  }, [stats, users.length])
+  }, [])
 
   useEffect(() => { void load() }, [load])
 
@@ -196,8 +188,6 @@ export default function AnalyticsPage() {
           <Skeleton className="h-64" />
           <Skeleton className="h-64" />
         </div>
-      ) : error ? (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/8 px-4 py-3 text-sm text-red-400">{error}</div>
       ) : (
         <>
           {tab === 'users' && (

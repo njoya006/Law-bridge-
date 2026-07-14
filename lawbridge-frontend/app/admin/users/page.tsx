@@ -106,8 +106,15 @@ export default function AdminUsersPage() {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
+  const [myRole, setMyRole] = useState('')
+  const [myId, setMyId] = useState('')
 
   useEffect(() => {
+    const stored = localStorage.getItem('userRole')
+    const storedId = localStorage.getItem('authUserId')
+    if (stored) setMyRole(stored)
+    if (storedId) setMyId(storedId)
+
     const token = localStorage.getItem('access')
     if (!token) return
     fetch('/api/v1/auth/admin/users/', { headers: { Authorization: `Bearer ${token}` } })
@@ -213,7 +220,14 @@ export default function AdminUsersPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-neutral-500">{formatDate(u.date_joined ?? u.created_at)}</td>
-                  <td className="px-4 py-3"><RoleMenu user={u} onChanged={handleRoleChanged} /></td>
+                  <td className="px-4 py-3">
+                    {myRole === 'admin' && u.id !== myId
+                      ? <RoleMenu user={u} onChanged={handleRoleChanged} />
+                      : u.id === myId
+                        ? <span className="text-[10px] text-neutral-600">you</span>
+                        : null
+                    }
+                  </td>
                 </tr>
               ))}
             </tbody>

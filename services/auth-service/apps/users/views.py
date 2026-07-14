@@ -286,7 +286,7 @@ class AdminTokenView(APIView):
         if not user.check_password(password):
             return Response(self._FAIL, status=status.HTTP_401_UNAUTHORIZED)
 
-        if user.role != 'admin' or not user.is_active:
+        if user.role not in ('admin', 'support') or not user.is_active:
             return Response(self._FAIL, status=status.HTTP_401_UNAUTHORIZED)
 
         refresh = CustomTokenObtainPairSerializer.get_token(user)
@@ -323,3 +323,34 @@ class AdminUserListView(APIView):
             for u in users
         ]
         return Response({'count': len(data), 'results': data})
+
+
+class AdminUserUpdateView(APIView):
+    """PATCH /api/v1/auth/admin/users/<id>/ — change a user's role. Admin-only."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    _VALID_ROLES = ('client', 'lawyer', 'firm_admin', 'secretary', 'support', 'admin')
+
+    def patch(self, request, user_id):
+        if request.user.role != 'admin':
+            return Response({'detail': 'Only admins can change user roles.'}, status=status.HTTP_403_FORBIDDEN)
+
+        import uuid as _uuid
+        try:
+            target = User.objects.get(id=_uuid.UUID(str(user_id)))
+        except (User.DoesNotExist, ValueError):
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if str(target.id) == str(request.user.id):
+            return Response({'detail': 'You cannot change your own role.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        new_role = (request.data.get('role') or '').strip()
+        if new_role not in self._VALID_ROLES:
+            return Response(
+                {'detail': f'Invalid role. Choose from: {", ".join(self._VALID_ROLES)}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target.role = new_role
+        target.save(update_fields=['role'])
+        return Response({'id': str(target.id), 'role': target.role})

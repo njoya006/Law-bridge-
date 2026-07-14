@@ -69,26 +69,25 @@ export default function RisksPage() {
   const [cases, setCases] = useState<RiskItem[]>([])
   const [counts, setCounts] = useState<RiskCounts>({ critical: 0, watch: 0, healthy: 0 })
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [filter, setFilter] = useState<RiskFilter>('all')
   const [lastRefreshed, setLastRefreshed] = useState(0)
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError('')
     const token = localStorage.getItem('access')
     if (!token) { setLoading(false); return }
     try {
       const res = await fetch('/api/v1/monitoring/case-risks/', {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json() as { cases: RiskItem[]; counts: RiskCounts }
-      setCases(json.cases ?? [])
-      setCounts(json.counts ?? { critical: 0, watch: 0, healthy: 0 })
-      setLastRefreshed(Date.now())
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load risk data')
+      if (res.ok) {
+        const json = await res.json() as { cases: RiskItem[]; counts: RiskCounts }
+        setCases(json.cases ?? [])
+        setCounts(json.counts ?? { critical: 0, watch: 0, healthy: 0 })
+        setLastRefreshed(Date.now())
+      }
+    } catch {
+      // Network error — leave cases empty, show empty state
     } finally {
       setLoading(false)
     }
@@ -177,8 +176,6 @@ export default function RisksPage() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
           {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-32" />)}
         </div>
-      ) : error ? (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/8 px-4 py-3 text-sm text-red-400">{error}</div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/5 p-10 text-center">
           <svg className="w-10 h-10 text-emerald-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>

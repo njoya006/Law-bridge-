@@ -177,7 +177,6 @@ function LawyerWorkloadTable({ loads }: { loads: LawyerLoad[] }) {
 export default function IntelligencePage() {
   const [data, setData] = useState<IntelligenceData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [lastFetched, setLastFetched] = useState<Date | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [showFullNarrative, setShowFullNarrative] = useState(false)
@@ -185,19 +184,19 @@ export default function IntelligencePage() {
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
     else setLoading(true)
-    setError('')
     const token = localStorage.getItem('access')
     if (!token) { setLoading(false); return }
     try {
       const res = await fetch('/api/v1/monitoring/firm-intelligence/', {
         headers: { Authorization: `Bearer ${token}` },
       })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = await res.json() as IntelligenceData
-      setData(json)
-      setLastFetched(new Date())
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load intelligence data')
+      if (res.ok) {
+        const json = await res.json() as IntelligenceData
+        setData(json)
+        setLastFetched(new Date())
+      }
+    } catch {
+      // Network error — leave data as-is, show empty state
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -241,8 +240,22 @@ export default function IntelligencePage() {
           </div>
           <Skeleton className="h-56" />
         </div>
-      ) : error ? (
-        <div className="rounded-xl border border-red-500/20 bg-red-500/8 px-4 py-3 text-sm text-red-400">{error}</div>
+      ) : !data ? (
+        <div className="rounded-2xl border border-white/8 bg-primary-800/20 py-24 text-center">
+          <svg className="w-10 h-10 text-neutral-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path d="M9 17v-2m3 2v-4m3 4v-6M5 20h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v11a2 2 0 002 2z" />
+          </svg>
+          <p className="text-neutral-400 text-sm font-medium">No intelligence data yet</p>
+          <p className="text-neutral-600 text-xs mt-1 max-w-xs mx-auto">
+            Intelligence populates as lawyers manage cases on the platform. Check back once cases are active.
+          </p>
+          <button
+            onClick={() => void load(true)}
+            className="mt-5 rounded-xl border border-white/10 bg-primary-800/40 px-4 py-2 text-sm text-neutral-300 hover:border-white/20 hover:text-neutral-100 transition-all"
+          >
+            Try again
+          </button>
+        </div>
       ) : data ? (
         <>
           {/* Morning Briefing */}
