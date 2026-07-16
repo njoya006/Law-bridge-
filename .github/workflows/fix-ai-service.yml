@@ -27,19 +27,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # ── 1. Resolve Groq key (workflow input wins over repo secret) ──────────
+      # ── 1. Resolve Groq key: input → GitHub secret → SSM ──────────────────
       - name: Resolve Groq API key
         id: groq
         run: |
           KEY="${{ github.event.inputs.groq_api_key }}"
+
           if [ -z "$KEY" ]; then
             KEY="${{ secrets.GROQ_API_KEY }}"
           fi
+
+          # Last resort: read from SSM (set during initial EC2 deployment)
           if [ -z "$KEY" ]; then
-            echo "ERROR: No Groq API key provided."
-            echo "Either pass it as the workflow input or add GROQ_API_KEY to repository Secrets."
-            echo ""
-            echo "Get a free key at: https://console.groq.com"
+            KEY=$(aws ssm get-parameter \
+              --name "/lawbridge/GROQ_API_KEY" --with-decryption \
+              --query 'Parameter.Value' --output text --region us-east-1 2>/dev/null || echo "")
+            [ -n "$KEY" ] && echo "Using key from SSM /lawbridge/GROQ_API_KEY"
+          fi
+
+          if [ -z "$KEY" ]; then
+            echo "ERROR: No Groq API key found in input, GitHub secrets, or SSM."
+            echo "Get a free key at: https://console.groq.com and paste it as the workflow input."
             exit 1
           fi
           echo "key=$KEY" >> "$GITHUB_OUTPUT"
