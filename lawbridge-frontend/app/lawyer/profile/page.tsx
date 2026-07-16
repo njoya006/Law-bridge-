@@ -1,11 +1,10 @@
-"use client"
+'use client'
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { api } from '../../../lib/api'
 import { getMyFirmMemberships, type FirmMembership } from '../../../lib/firmsApi'
-import { Card } from '../../../components/ui/Card'
-import Button from '../../../components/ui/Button'
+import { getMyCases, type CaseItem } from '../../../lib/casesApi'
 import AvatarUploader from '../../../components/ui/AvatarUploader'
 
 type AuthMe = { id: string; email: string; full_name: string; role: string; avatar_url?: string | null }
@@ -29,17 +28,34 @@ type LawyerProfile = {
 }
 
 const BIJURAL_LABELS: Record<string, string> = {
-  common_law: 'Common Law (Anglophone)',
-  civil_law: 'Civil Law (Francophone)',
-  both: 'Both Traditions',
+  common_law: 'Common Law · Anglophone',
+  civil_law: 'Civil Law · Francophone',
+  both: 'Bijural · Both Traditions',
 }
 
-const AVAILABILITY_COLORS: Record<string, string> = {
-  available: 'text-emerald-400 bg-emerald-500/20',
-  busy: 'text-gold-400 bg-gold-500/20',
-  on_leave: 'text-primary-400 bg-primary-500/20',
-  inactive: 'text-neutral-400 bg-neutral-700/40',
+function caseStatusCls(status: string) {
+  if (['in_progress', 'hearing_scheduled'].includes(status)) return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+  if (['awaiting_court_date', 'hearing_adjourned'].includes(status)) return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+  if (['closed', 'dismissed', 'archived'].includes(status)) return 'bg-neutral-700/40 text-neutral-400 border-neutral-600/30'
+  if (['verdict', 'settled'].includes(status)) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+  return 'bg-gold-500/20 text-gold-300 border-gold-500/30'
 }
+
+function StarRating({ rating }: { rating: string | number }) {
+  const r = Number(rating) || 0
+  const full = Math.floor(r)
+  return (
+    <span className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => (
+        <svg key={i} className={`w-3.5 h-3.5 ${i <= full ? 'text-gold-400' : 'text-neutral-700'}`} fill="currentColor" viewBox="0 0 20 20">
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+      ))}
+    </span>
+  )
+}
+
+type Tab = 'overview' | 'bio' | 'activity'
 
 export default function LawyerProfilePage() {
   const [me, setMe] = useState<AuthMe | null>(null)
@@ -47,16 +63,18 @@ export default function LawyerProfilePage() {
   const [token, setToken] = useState<string | null>(null)
   const [lawyerProfile, setLawyerProfile] = useState<LawyerProfile | null>(null)
   const [firm, setFirm] = useState<FirmMembership | null>(null)
+  const [cases, setCases] = useState<CaseItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [casesLoading, setCasesLoading] = useState(true)
   const [noProfile, setNoProfile] = useState(false)
   const [availUpdating, setAvailUpdating] = useState(false)
+  const [activeTab, setActiveTab] = useState<Tab>('overview')
 
   useEffect(() => {
     const run = async () => {
       const access = localStorage.getItem('access')
       if (!access) { setLoading(false); return }
       setToken(access)
-
       try {
         const meData = await api.get<AuthMe>('auth', '/auth/me/', access)
         setMe(meData)
@@ -65,19 +83,21 @@ export default function LawyerProfilePage() {
         setLoading(false)
         return
       }
-
       await Promise.allSettled([
         api.get<LawyerProfile>('lawyer', '/lawyers/me/', access)
           .then(p => setLawyerProfile(p))
           .catch(() => setNoProfile(true)),
         getMyFirmMemberships(access)
-          .then(memberships => setFirm(memberships[0] ?? null))
+          .then(ms => setFirm(ms[0] ?? null))
           .catch(() => {}),
       ])
-
       setLoading(false)
+      // Load cases for breakdown chart and activity tab
+      getMyCases(access)
+        .then(res => setCases(res.results ?? []))
+        .catch(() => {})
+        .finally(() => setCasesLoading(false))
     }
-
     void run()
   }, [])
 
@@ -88,223 +108,458 @@ export default function LawyerProfilePage() {
     try {
       await api.patch('lawyer', '/lawyers/me/', { availability_status: newStatus }, access)
       setLawyerProfile(prev => prev ? { ...prev, availability_status: newStatus } : prev)
-    } catch { /* silently ignore — badge stays unchanged */ }
+    } catch { /* ignore */ }
     finally { setAvailUpdating(false) }
   }, [lawyerProfile, availUpdating])
 
   const initials = me
-    ? (me.full_name || me.email || 'L')
-        .split(/\s+/)
-        .map(w => w[0])
-        .slice(0, 2)
-        .join('')
-        .toUpperCase()
+    ? (me.full_name || me.email || 'L').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
     : '?'
 
-  const availColor = lawyerProfile
-    ? (AVAILABILITY_COLORS[lawyerProfile.availability_status] ?? 'text-neutral-400 bg-neutral-700/40')
-    : ''
-  const availLabel = lawyerProfile?.availability_status?.replace(/_/g, ' ') ?? ''
+  const expLevel = !lawyerProfile ? ''
+    : (lawyerProfile.years_of_experience ?? 0) >= 10 ? 'Expert'
+    : (lawyerProfile.years_of_experience ?? 0) >= 4 ? 'Senior'
+    : 'Junior Associate'
+
+  const caseTypeCounts = cases.reduce<Record<string, number>>((acc, c) => {
+    acc[c.case_type] = (acc[c.case_type] ?? 0) + 1
+    return acc
+  }, {})
+  const topCaseTypes = Object.entries(caseTypeCounts).sort((a, b) => b[1] - a[1]).slice(0, 5)
+  const maxTypeCount = topCaseTypes[0]?.[1] ?? 1
+
+  const statsData = [
+    { label: 'Active Cases', value: lawyerProfile?.active_cases ?? 0, color: 'text-gold-400' },
+    { label: 'Total Cases', value: lawyerProfile?.total_cases ?? 0, color: 'text-primary-400' },
+    { label: 'Avg Rating', value: Number(lawyerProfile?.average_rating ?? 0).toFixed(1), color: 'text-emerald-400' },
+    { label: 'Reviews', value: lawyerProfile?.rating_count ?? 0, color: 'text-neutral-300' },
+  ]
+
+  const TABS: { id: Tab; label: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'bio', label: 'Bio & Practice' },
+    { id: 'activity', label: 'Case Activity' },
+  ]
 
   return (
-    <div className="space-y-6 max-w-4xl w-full">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="w-full">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-display-md text-neutral-50">My Profile</h1>
-          <p className="text-neutral-400">Your public professional profile on Lawbridge</p>
+          <p className="text-sm text-neutral-500 mt-0.5">Your professional identity on LawBridge</p>
         </div>
-        <Link href="/lawyer/office/me/settings">
-          <Button variant="outline">Edit Profile</Button>
+        <Link
+          href="/lawyer/office/me/settings"
+          className="inline-flex items-center gap-2 rounded-xl border border-neutral-700/50 bg-white/4 px-4 py-2 text-sm font-medium text-neutral-300 hover:border-neutral-600 hover:text-neutral-100 transition-colors flex-shrink-0"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          Edit Profile
         </Link>
       </div>
 
-      {loading && (
-        <Card className="p-8">
-          <div className="flex items-center gap-2 text-neutral-400">
-            <span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />
-            Loading profile...
-          </div>
-        </Card>
-      )}
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 text-neutral-400 py-20">
+          <span className="animate-spin h-5 w-5 border-2 border-gold-400 border-t-transparent rounded-full" />
+          Loading profile…
+        </div>
+      ) : !me ? (
+        <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-8 text-center">
+          <p className="text-neutral-400">Sign in as a lawyer to view your profile.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr_260px] items-start gap-5">
 
-      {!loading && me && (
-        <>
-          {/* Identity card */}
-          <Card className="p-8">
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-6">
-              <div className="flex-shrink-0 self-center sm:self-auto">
+          {/* ═══ LEFT PANEL ═══ */}
+          <aside className="lg:sticky lg:top-4 space-y-4">
+            {/* Identity card */}
+            <div className="rounded-2xl border border-white/8 bg-primary-800/40 p-5">
+              <div className="flex flex-col items-center text-center gap-3">
                 <AvatarUploader
                   currentUrl={avatarUrl}
                   initials={initials}
                   size="md"
                   token={token}
-                  onUploaded={(url) => {
+                  onUploaded={url => {
                     setAvatarUrl(url)
-                    // Persist so sidebar picks it up immediately
                     localStorage.setItem('avatarUrl', url)
                   }}
                 />
-                <p className="text-center text-xs text-neutral-500 mt-2">Click to change photo</p>
+                <div>
+                  <h2 className="font-display text-lg font-semibold text-neutral-50 leading-snug">{me.full_name || me.email}</h2>
+                  {lawyerProfile?.specialization && (
+                    <p className="mt-1 text-xs text-gold-400/80">{lawyerProfile.specialization}</p>
+                  )}
+                  <p className="mt-0.5 text-[11px] text-neutral-600 capitalize">{me.role}</p>
+                </div>
+
+                {/* Verification badge */}
+                {lawyerProfile && (
+                  lawyerProfile.verified_at ? (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                      Verified Lawyer
+                    </span>
+                  ) : (
+                    <Link href="/lawyer/verify" className="inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/8 px-2.5 py-1 text-[11px] text-amber-400/80 hover:bg-amber-500/15 transition-all">
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12" y2="13" /><circle cx="12" cy="16" r="0.5" fill="currentColor" /></svg>
+                      Not Verified · Get Verified
+                    </Link>
+                  )
+                )}
+
+                {/* Availability pills */}
+                {lawyerProfile && (
+                  <div className="w-full">
+                    <p className="text-[10px] uppercase tracking-widest text-neutral-600 mb-2">Availability Status</p>
+                    <div className="flex justify-center gap-1.5 flex-wrap">
+                      {(['available', 'busy', 'on_leave'] as const).map(s => {
+                        const active = lawyerProfile.availability_status === s
+                        const base = 'px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all disabled:cursor-default'
+                        const cls = s === 'available'
+                          ? `${base} ${active ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-300' : 'border-neutral-700/40 text-neutral-600 hover:text-neutral-400'}`
+                          : s === 'busy'
+                          ? `${base} ${active ? 'border-gold-500/60 bg-gold-500/15 text-gold-300' : 'border-neutral-700/40 text-neutral-600 hover:text-neutral-400'}`
+                          : `${base} ${active ? 'border-blue-500/60 bg-blue-500/15 text-blue-300' : 'border-neutral-700/40 text-neutral-600 hover:text-neutral-400'}`
+                        return (
+                          <button key={s} onClick={() => changeAvailability(s)} disabled={availUpdating || active} className={cls}>
+                            {s === 'on_leave' ? 'On Leave' : s === 'available' ? 'Available' : 'Busy'}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
-                  <div>
-                    <h2 className="font-display text-display-sm text-neutral-50">
-                      {me.full_name || me.email}
-                    </h2>
-                    <p className="text-primary-400 text-body-lg capitalize">{me.role}</p>
-                    {lawyerProfile && (
-                      <div className="mt-2">
-                        {lawyerProfile.verified_at ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                              <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                            Verified Lawyer · since {new Date(lawyerProfile.verified_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
-                          </span>
-                        ) : (
-                          <Link href="/lawyer/verify" className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/25 bg-gold-500/8 px-3 py-1 text-xs text-gold-400 hover:bg-gold-500/15 transition-all">
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
-                              <path d="M12 8v4l2 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                            </svg>
-                            Get Verified — boost your visibility
-                          </Link>
-                        )}
+              <div className="mt-4 pt-4 border-t border-white/6 space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <svg className="mt-0.5 flex-shrink-0 text-neutral-600" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-neutral-600">Email</p>
+                    <p className="text-xs text-neutral-300 truncate">{me.email}</p>
+                  </div>
+                </div>
+
+                {lawyerProfile?.bar_number && (
+                  <div className="flex items-start gap-2.5">
+                    <svg className="mt-0.5 flex-shrink-0 text-neutral-600" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /></svg>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-600">Bar Number</p>
+                      <p className="text-xs text-neutral-300 font-mono">{lawyerProfile.bar_number}</p>
+                    </div>
+                  </div>
+                )}
+
+                {lawyerProfile?.years_of_experience !== undefined && (
+                  <div className="flex items-start gap-2.5">
+                    <svg className="mt-0.5 flex-shrink-0 text-neutral-600" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-600">Experience</p>
+                      <p className="text-xs text-neutral-300">{lawyerProfile.years_of_experience} yrs · <span className="text-gold-400/70">{expLevel}</span></p>
+                    </div>
+                  </div>
+                )}
+
+                {firm && (
+                  <div className="flex items-start gap-2.5">
+                    <svg className="mt-0.5 flex-shrink-0 text-neutral-600" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                    <div className="min-w-0">
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-600">Firm</p>
+                      <p className="text-xs text-neutral-300 capitalize">Firm #{firm.firm} · {firm.role?.replace(/_/g, ' ')}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quick access */}
+            <div className="rounded-2xl border border-white/8 bg-primary-800/40 p-4">
+              <p className="text-[10px] uppercase tracking-widest text-neutral-600 mb-3">Quick Access</p>
+              <div className="space-y-0.5">
+                {([
+                  { label: 'Edit Profile Settings', href: '/lawyer/office/me/settings' },
+                  { label: 'My Matters', href: '/lawyer/matters' },
+                  { label: 'Calendar', href: '/lawyer/calendar' },
+                  { label: 'Documents', href: '/lawyer/office/me/documents' },
+                  ...(!lawyerProfile?.verified_at ? [{ label: 'Get Verified', href: '/lawyer/verify' }] : []),
+                ] as { label: string; href: string }[]).map(({ label, href }) => (
+                  <Link key={href} href={href} className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-neutral-400 hover:text-neutral-200 hover:bg-white/4 transition-colors">
+                    <span className="w-1 h-1 rounded-full bg-neutral-700 flex-shrink-0" />
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </aside>
+
+          {/* ═══ CENTER PANEL ═══ */}
+          <main className="min-w-0 space-y-5">
+            {/* Stats row visible only below XL (XL has right panel) */}
+            {lawyerProfile && (
+              <div className="grid grid-cols-4 gap-3 xl:hidden">
+                {statsData.map(({ label, value, color }) => (
+                  <div key={label} className="rounded-xl border border-white/8 bg-primary-800/40 p-3 text-center">
+                    <p className={`text-xl font-bold tabular-nums font-display ${color}`}>{value}</p>
+                    <p className="text-[10px] text-neutral-600 mt-0.5">{label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Professional details grid */}
+            <div className="rounded-2xl border border-white/8 bg-primary-800/40 p-6">
+              <h3 className="text-[11px] uppercase tracking-widest text-neutral-600 font-semibold mb-4">Professional Details</h3>
+              {noProfile ? (
+                <div className="rounded-xl border border-gold-500/25 bg-gold-500/5 p-5">
+                  <h4 className="font-heading text-sm font-semibold text-neutral-100 mb-1">Professional Profile Not Set Up</h4>
+                  <p className="text-neutral-400 text-xs mb-3">Create your professional profile to appear in client searches and accept cases.</p>
+                  <Link href="/lawyer/office/me/settings" className="inline-flex items-center gap-1.5 rounded-lg bg-gold-500 px-4 py-2 text-xs font-semibold text-black hover:bg-gold-400 transition-colors">
+                    Set Up Profile
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    { label: 'Specialization', value: lawyerProfile?.specialization || '—' },
+                    { label: 'Legal Tradition', value: BIJURAL_LABELS[lawyerProfile?.bijural_flag ?? ''] ?? lawyerProfile?.bijural_flag ?? '—' },
+                    { label: 'Bar Registration', value: lawyerProfile?.bar_number || '—', mono: true },
+                    { label: 'Years of Practice', value: lawyerProfile ? `${lawyerProfile.years_of_experience} years` : '—' },
+                    { label: 'Consultation Fee', value: lawyerProfile?.consultation_fee ? `${Number(lawyerProfile.consultation_fee).toLocaleString()} XAF / session` : '—' },
+                    { label: 'Current Status', value: lawyerProfile?.availability_status?.replace(/_/g, ' ') ?? '—', capitalize: true },
+                  ].map(({ label, value, mono, capitalize }) => (
+                    <div key={label} className="rounded-xl bg-primary-900/50 border border-white/5 px-4 py-3">
+                      <p className="text-[10px] uppercase tracking-wider text-neutral-600 mb-1">{label}</p>
+                      <p className={`text-sm font-medium text-neutral-100 ${mono ? 'font-mono' : ''} ${capitalize ? 'capitalize' : ''}`}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Tabbed content */}
+            <div className="rounded-2xl border border-white/8 bg-primary-800/40 overflow-hidden">
+              <div className="flex border-b border-white/6">
+                {TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex-1 px-4 py-3.5 text-sm font-medium transition-colors ${
+                      activeTab === tab.id
+                        ? 'text-gold-400 border-b-2 border-gold-500 bg-gold-500/5'
+                        : 'text-neutral-500 hover:text-neutral-300'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="p-6">
+                {/* OVERVIEW */}
+                {activeTab === 'overview' && (
+                  <div className="space-y-5">
+                    {lawyerProfile?.bio && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-600 mb-2">About</p>
+                        <p className="text-neutral-300 text-sm leading-relaxed line-clamp-4">{lawyerProfile.bio}</p>
+                        <button onClick={() => setActiveTab('bio')} className="mt-2 text-xs text-gold-400/70 hover:text-gold-400 transition-colors">
+                          Read full bio →
+                        </button>
+                      </div>
+                    )}
+
+                    {!casesLoading && topCaseTypes.length > 0 && (
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-600 mb-3">Practice Breakdown</p>
+                        <div className="space-y-2.5">
+                          {topCaseTypes.map(([type, count]) => (
+                            <div key={type} className="flex items-center gap-3">
+                              <p className="text-xs text-neutral-400 w-28 flex-shrink-0 capitalize">{type.replace(/_/g, ' ')}</p>
+                              <div className="flex-1 h-1.5 rounded-full bg-neutral-800/60 overflow-hidden">
+                                <div className="h-full rounded-full bg-gold-500/50 transition-all duration-700" style={{ width: `${(count / maxTypeCount) * 100}%` }} />
+                              </div>
+                              <p className="text-xs text-neutral-600 w-4 text-right flex-shrink-0 tabular-nums">{count}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {!lawyerProfile?.bio && !noProfile && (
+                      <div className="text-center py-6">
+                        <p className="text-neutral-500 text-sm">No bio added yet.</p>
+                        <Link href="/lawyer/office/me/settings" className="text-xs text-gold-400 hover:text-gold-300 mt-1 inline-block">Add a professional bio →</Link>
                       </div>
                     )}
                   </div>
-                  {lawyerProfile && (
-                    <div className="flex flex-col items-end gap-1.5 self-start flex-shrink-0">
-                      <div className="flex gap-1">
-                        {(['available', 'busy', 'on_leave'] as const).map(status => {
-                          const isActive = lawyerProfile.availability_status === status
-                          const statusColors: Record<string, string> = {
-                            available: isActive ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-300' : 'border-neutral-700/40 text-neutral-500 hover:border-neutral-600/60 hover:text-neutral-300',
-                            busy:      isActive ? 'border-gold-500/60 bg-gold-500/15 text-gold-300'           : 'border-neutral-700/40 text-neutral-500 hover:border-neutral-600/60 hover:text-neutral-300',
-                            on_leave:  isActive ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'           : 'border-neutral-700/40 text-neutral-500 hover:border-neutral-600/60 hover:text-neutral-300',
-                          }
-                          return (
-                            <button
-                              key={status}
-                              onClick={() => changeAvailability(status)}
-                              disabled={availUpdating || isActive}
-                              className={`px-2.5 py-1 rounded-full text-xs font-medium border capitalize transition-all disabled:cursor-default ${statusColors[status]}`}
-                            >
-                              {status.replace(/_/g, ' ')}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      <p className="text-[10px] text-neutral-600">Your availability status</p>
-                    </div>
-                  )}
-                </div>
+                )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-body-sm mt-4">
-                  <div>
-                    <p className="text-neutral-400">Email</p>
-                    <p className="text-neutral-200">{me.email}</p>
-                  </div>
-                  {lawyerProfile && (
-                    <>
+                {/* BIO & PRACTICE */}
+                {activeTab === 'bio' && (
+                  <div className="space-y-6">
+                    {lawyerProfile?.bio ? (
                       <div>
-                        <p className="text-neutral-400">Specialization</p>
-                        <p className="text-neutral-200">{lawyerProfile.specialization || '—'}</p>
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-600 mb-2">Professional Biography</p>
+                        <p className="text-neutral-300 text-sm leading-relaxed whitespace-pre-wrap">{lawyerProfile.bio}</p>
                       </div>
-                      <div>
-                        <p className="text-neutral-400">Bar Number</p>
-                        <p className="text-neutral-200 font-mono">{lawyerProfile.bar_number || '—'}</p>
+                    ) : (
+                      <div className="text-center py-6">
+                        <p className="text-neutral-500 text-sm">No biography added yet.</p>
+                        <Link href="/lawyer/office/me/settings" className="text-xs text-gold-400 hover:text-gold-300 mt-1 inline-block">Add a bio →</Link>
                       </div>
-                      <div>
-                        <p className="text-neutral-400">Years of Experience</p>
-                        <p className="text-neutral-200">{lawyerProfile.years_of_experience ?? '—'}</p>
-                      </div>
-                      <div>
-                        <p className="text-neutral-400">Legal Tradition</p>
-                        <p className="text-neutral-200">
-                          {BIJURAL_LABELS[lawyerProfile.bijural_flag] ?? lawyerProfile.bijural_flag}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-neutral-400">Consultation Fee</p>
-                        <p className="text-neutral-200">
-                          {lawyerProfile.consultation_fee
-                            ? `${Number(lawyerProfile.consultation_fee).toLocaleString()} XAF`
-                            : '—'}
-                        </p>
-                      </div>
-                    </>
-                  )}
-                  {firm && (
-                    <div>
-                      <p className="text-neutral-400">Firm</p>
-                      <p className="text-neutral-200">Firm #{firm.firm} · {firm.role?.replace(/_/g, ' ')}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Card>
+                    )}
 
-          {/* Bio & Qualifications */}
-          {lawyerProfile && (lawyerProfile.bio || lawyerProfile.qualifications) && (
-            <Card className="p-8">
-              <div className="space-y-6">
-                {lawyerProfile.bio && (
-                  <div>
-                    <h3 className="font-heading text-body-lg text-neutral-50 mb-2">Bio</h3>
-                    <p className="text-neutral-300 text-body-sm whitespace-pre-wrap">{lawyerProfile.bio}</p>
+                    {lawyerProfile?.qualifications && (
+                      <div className="border-t border-white/6 pt-5">
+                        <p className="text-[10px] uppercase tracking-wider text-neutral-600 mb-2">Qualifications & Education</p>
+                        <p className="text-neutral-300 text-sm leading-relaxed whitespace-pre-wrap">{lawyerProfile.qualifications}</p>
+                      </div>
+                    )}
+
+                    {lawyerProfile?.bijural_flag && (
+                      <div className="rounded-xl border border-primary-600/25 bg-primary-900/40 px-4 py-3.5 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-primary-600/25 flex items-center justify-center flex-shrink-0">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary-400">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-neutral-600">Legal Tradition</p>
+                          <p className="text-sm text-neutral-200">{BIJURAL_LABELS[lawyerProfile.bijural_flag] ?? lawyerProfile.bijural_flag}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-                {lawyerProfile.qualifications && (
-                  <div>
-                    <h3 className="font-heading text-body-lg text-neutral-50 mb-2">Qualifications</h3>
-                    <p className="text-neutral-300 text-body-sm whitespace-pre-wrap">{lawyerProfile.qualifications}</p>
-                  </div>
+
+                {/* CASE ACTIVITY */}
+                {activeTab === 'activity' && (
+                  casesLoading ? (
+                    <div className="flex items-center justify-center gap-2 text-neutral-500 py-8">
+                      <span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />
+                      Loading cases…
+                    </div>
+                  ) : cases.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-neutral-500 text-sm">No cases found.</p>
+                      <Link href="/lawyer/matters" className="text-xs text-gold-400 hover:text-gold-300 mt-1 inline-block">Go to Matters →</Link>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {cases.slice(0, 12).map(c => (
+                        <Link key={c.id} href={`/cases/${c.id}`} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-colors group">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-neutral-100 truncate group-hover:text-white">{c.title}</p>
+                            <p className="text-xs text-neutral-600 capitalize mt-0.5">{c.case_type?.replace(/_/g, ' ')}</p>
+                          </div>
+                          <span className={`text-[11px] px-2 py-0.5 rounded-full border capitalize flex-shrink-0 ${caseStatusCls(c.status)}`}>
+                            {c.status?.replace(/_/g, ' ')}
+                          </span>
+                        </Link>
+                      ))}
+                      {cases.length > 12 && (
+                        <Link href="/lawyer/matters" className="block text-center text-xs text-gold-400 hover:text-gold-300 pt-2">
+                          View all {cases.length} matters →
+                        </Link>
+                      )}
+                    </div>
+                  )
                 )}
               </div>
-            </Card>
-          )}
-
-          {/* Stats */}
-          {lawyerProfile && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-6 text-center">
-                <div className="font-display text-display-sm text-gold-400 mb-1">{lawyerProfile.active_cases}</div>
-                <p className="text-neutral-400 text-body-sm">Active Cases</p>
-              </Card>
-              <Card className="p-6 text-center">
-                <div className="font-display text-display-sm text-primary-400 mb-1">{lawyerProfile.total_cases}</div>
-                <p className="text-neutral-400 text-body-sm">Total Cases</p>
-              </Card>
-              <Card className="p-6 text-center">
-                <div className="font-display text-display-sm text-emerald-400 mb-1">
-                  {Number(lawyerProfile.average_rating).toFixed(1)}
-                </div>
-                <p className="text-neutral-400 text-body-sm">Avg Rating</p>
-              </Card>
-              <Card className="p-6 text-center">
-                <div className="font-display text-display-sm text-neutral-200 mb-1">{lawyerProfile.rating_count}</div>
-                <p className="text-neutral-400 text-body-sm">Reviews</p>
-              </Card>
             </div>
-          )}
+          </main>
 
-          {/* No profile prompt */}
-          {noProfile && (
-            <Card className="p-8 border border-gold-400/30">
-              <h3 className="font-heading text-body-lg text-neutral-50 mb-2">Professional Profile Not Set Up</h3>
-              <p className="text-neutral-400 text-body-sm mb-4">
-                Create your professional profile to appear in client searches and accept cases.
-              </p>
-              <Link href="/lawyer/office/me/settings">
-                <Button variant="gold">Set Up Professional Profile</Button>
-              </Link>
-            </Card>
-          )}
-        </>
+          {/* ═══ RIGHT PANEL ═══ — XL screens only */}
+          <aside className="hidden xl:block space-y-4">
+            {/* Performance stats */}
+            {lawyerProfile && (
+              <div className="rounded-2xl border border-white/8 bg-primary-800/40 p-5">
+                <p className="text-[10px] uppercase tracking-widest text-neutral-600 mb-4">Performance</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {statsData.map(({ label, value, color }) => (
+                    <div key={label} className="rounded-xl bg-primary-900/50 border border-white/5 p-3 text-center">
+                      <p className={`text-2xl font-bold tabular-nums font-display ${color}`}>{value}</p>
+                      <p className="text-[10px] text-neutral-600 mt-0.5">{label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
+                  <StarRating rating={lawyerProfile.average_rating} />
+                  <span className="text-xs text-neutral-500">{lawyerProfile.rating_count} review{lawyerProfile.rating_count !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Seniority */}
+            {lawyerProfile && (
+              <div className="rounded-2xl border border-white/8 bg-primary-800/40 p-5">
+                <p className="text-[10px] uppercase tracking-widest text-neutral-600 mb-3">Seniority Level</p>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                    expLevel === 'Expert' ? 'bg-gold-500/20 text-gold-400'
+                    : expLevel === 'Senior' ? 'bg-primary-500/20 text-primary-400'
+                    : 'bg-emerald-500/15 text-emerald-400'
+                  }`}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-neutral-100">{expLevel}</p>
+                    <p className="text-xs text-neutral-500">{lawyerProfile.years_of_experience} years of practice</p>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-1.5">
+                  <div className="flex justify-between text-[10px] text-neutral-700">
+                    <span>Junior</span><span>Senior</span><span>Expert</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-neutral-800/60 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500/50 via-primary-400/50 to-gold-500/60 transition-all duration-700"
+                      style={{ width: `${Math.min(100, Math.max(5, (lawyerProfile.years_of_experience / 15) * 100))}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Verification status */}
+            {lawyerProfile && (
+              <div className={`rounded-2xl border p-5 ${lawyerProfile.verified_at ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                <div className="flex items-start gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${lawyerProfile.verified_at ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                      {lawyerProfile.verified_at && <polyline points="9 12 11 14 15 10" />}
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {lawyerProfile.verified_at ? (
+                      <>
+                        <p className="text-sm font-semibold text-emerald-300">Verified Lawyer</p>
+                        <p className="text-[11px] text-neutral-500 mt-0.5">
+                          Since {new Date(lawyerProfile.verified_at).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-semibold text-amber-300">Not Yet Verified</p>
+                        <p className="text-[11px] text-neutral-500 mt-0.5">Verify to boost visibility and client trust</p>
+                        <Link href="/lawyer/verify" className="mt-2 inline-flex text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition-colors">
+                          Start verification →
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
       )}
     </div>
   )
