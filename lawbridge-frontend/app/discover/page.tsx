@@ -41,60 +41,107 @@ function AvailabilityBadge({ status }: { status: LawyerDiscovery['availability_s
 
 function LawyerCard({ lawyer, isStaff }: { lawyer: LawyerDiscovery; isStaff: boolean }) {
   const initials = (lawyer.name || '?').split(' ').map((w: string) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
-  const fee = lawyer.consultation_fee ? `${parseFloat(lawyer.consultation_fee).toLocaleString()} XAF` : 'Fee on request'
+  const fee = lawyer.consultation_fee ? `${parseFloat(lawyer.consultation_fee).toLocaleString()} XAF` : 'On request'
+
+  const avail = {
+    available: { label: 'Available', cls: 'bg-emerald-500 text-white' },
+    busy: { label: 'Busy', cls: 'bg-amber-500 text-black' },
+    on_leave: { label: 'On Leave', cls: 'bg-neutral-600 text-neutral-200' },
+    inactive: { label: 'Inactive', cls: 'bg-neutral-700 text-neutral-400' },
+  }[lawyer.availability_status] ?? { label: 'Unknown', cls: 'bg-neutral-700 text-neutral-400' }
+
+  const tags = [
+    lawyer.specialization,
+    lawyer.bijural_flag === 'common_law' ? 'Common Law' : lawyer.bijural_flag === 'civil_law' ? 'Civil Law' : lawyer.bijural_flag === 'both' ? 'Bijural' : null,
+    lawyer.practice_circuit || null,
+    lawyer.consultation_mode === 'virtual' ? 'Virtual' : lawyer.consultation_mode === 'in_person' ? 'In-Person' : 'Virtual & In-Person',
+  ].filter(Boolean).slice(0, 3) as string[]
 
   return (
-    <div className="bg-primary-800/40 border border-neutral-700/40 rounded-xl p-5 hover:border-gold-500/40 hover:bg-primary-800/60 transition-all duration-200 flex flex-col gap-4">
-      <div className="flex items-start gap-3">
-        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-gold-500/40 to-gold-600/40 border border-gold-500/30 flex items-center justify-center flex-shrink-0">
-          <span className="text-gold-300 text-sm font-bold">{initials}</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-heading text-body-md text-neutral-50 truncate">{lawyer.name}</h3>
-            {lawyer.is_verified && (
-              <svg className="w-4 h-4 text-gold-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-              </svg>
+    <div className="group relative flex flex-col bg-primary-800/50 border border-white/8 rounded-2xl overflow-hidden hover:border-gold-500/30 hover:shadow-lg hover:shadow-black/20 transition-all duration-200">
+      {/* Top section with avatar */}
+      <div className="relative px-5 pt-6 pb-4 flex flex-col items-center text-center">
+        {/* Availability badge — top left */}
+        <span className={`absolute top-3 left-3 text-[10px] font-bold px-2 py-0.5 rounded-full ${avail.cls}`}>
+          {avail.label}
+        </span>
+
+        {/* Fee — top right */}
+        <span className="absolute top-3 right-3 text-xs font-semibold text-gold-400">
+          {lawyer.consultation_fee ? `${Math.round(parseFloat(lawyer.consultation_fee) / 1000)}K XAF` : 'Free'}
+        </span>
+
+        {/* Avatar */}
+        <div className="relative mb-3">
+          <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/10 shadow-lg shadow-black/30">
+            {lawyer.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={lawyer.avatar_url} alt={lawyer.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-gold-500/40 via-gold-600/30 to-primary-600/50 flex items-center justify-center">
+                <span className="text-gold-200 text-xl font-bold font-display">{initials}</span>
+              </div>
             )}
           </div>
-          <p className="text-gold-400/80 text-body-sm truncate">{lawyer.specialization}</p>
-        </div>
-        <AvailabilityBadge status={lawyer.availability_status} />
-      </div>
-
-      <div className="flex items-center gap-4 text-xs text-neutral-400 flex-wrap">
-        <StarRating rating={lawyer.average_rating} count={lawyer.rating_count} />
-        <span>{lawyer.years_of_experience}yr exp</span>
-        <span>{lawyer.active_cases} active cases</span>
-        {lawyer.accepts_urgent_cases && <span className="text-crimson-400">Urgent ✓</span>}
-      </div>
-
-      {lawyer.bio && (
-        <p className="text-neutral-400 text-body-sm line-clamp-2">{lawyer.bio}</p>
-      )}
-
-      <div className="flex items-center justify-between gap-3 pt-1 border-t border-neutral-700/30">
-        <div>
-          <p className="text-xs text-neutral-500">Consultation fee</p>
-          <p className="text-gold-400 font-semibold text-sm">{fee}</p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href={isStaff ? `/lawyer/discover/lawyer/${lawyer.id}` : `/discover/lawyer/${lawyer.id}`}
-            className="px-3 py-1.5 rounded-lg border border-neutral-600/50 text-neutral-300 text-xs hover:border-gold-500/50 hover:text-gold-400 transition-colors"
-          >
-            View Profile
-          </Link>
-          {!isStaff && (
-            <Link
-              href={`/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}`}
-              className="px-3 py-1.5 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 transition-colors"
-            >
-              Book
-            </Link>
+          {lawyer.is_verified && (
+            <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gold-500 border-2 border-primary-800 flex items-center justify-center">
+              <svg className="w-3 h-3 text-primary-900" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+              </svg>
+            </span>
           )}
         </div>
+
+        {/* Name + role */}
+        <h3 className="font-heading font-semibold text-neutral-50 text-base leading-tight">{lawyer.name}</h3>
+        <p className="mt-0.5 text-xs text-gold-400/80 truncate w-full">{lawyer.specialization || 'Legal Professional'}</p>
+
+        {/* Affiliation row */}
+        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-neutral-500">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          {lawyer.years_of_experience}yr exp
+          {lawyer.practice_circuit && <><span>·</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>{lawyer.practice_circuit}</>}
+        </div>
+
+        {/* Star rating */}
+        <div className="mt-2 flex items-center gap-1">
+          <StarRating rating={lawyer.average_rating} count={lawyer.rating_count} />
+        </div>
+      </div>
+
+      {/* Tags */}
+      {tags.length > 0 && (
+        <div className="px-5 pb-3 flex flex-wrap gap-1.5 justify-center">
+          {tags.map(tag => (
+            <span key={tag} className="text-[10px] px-2 py-0.5 rounded-full border border-neutral-700/50 bg-primary-900/40 text-neutral-400">{tag}</span>
+          ))}
+          {lawyer.accepts_urgent_cases && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full border border-crimson-500/30 bg-crimson-500/10 text-crimson-400">Urgent</span>
+          )}
+        </div>
+      )}
+
+      {/* Bio */}
+      {lawyer.bio && (
+        <p className="px-5 pb-3 text-xs text-neutral-500 line-clamp-2 text-center leading-relaxed">{lawyer.bio}</p>
+      )}
+
+      {/* Buttons */}
+      <div className="mt-auto px-4 pb-4 pt-1 flex gap-2 border-t border-white/5">
+        <Link
+          href={isStaff ? `/lawyer/discover/lawyer/${lawyer.id}` : `/discover/lawyer/${lawyer.id}`}
+          className="flex-1 text-center py-2.5 rounded-xl border border-neutral-600/50 text-xs font-semibold text-neutral-300 hover:border-gold-500/50 hover:text-gold-400 hover:bg-gold-500/5 transition-colors uppercase tracking-wide"
+        >
+          View Profile
+        </Link>
+        {!isStaff && (
+          <Link
+            href={`/book?kind=lawyer&id=${encodeURIComponent(lawyer.id)}&name=${encodeURIComponent(lawyer.name)}&fee=${lawyer.consultation_fee ?? ''}`}
+            className="px-4 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-xs font-bold transition-colors uppercase tracking-wide"
+          >
+            Book
+          </Link>
+        )}
       </div>
     </div>
   )
@@ -104,74 +151,87 @@ function FirmCard({ firm, isStaff, isOwnFirm }: { firm: FirmDiscovery; isStaff: 
   const initials = (firm.name || '?').split(' ').map((w: string) => w[0] ?? '').filter(Boolean).slice(0, 2).join('').toUpperCase() || '?'
 
   return (
-    <div className="bg-primary-800/40 border border-neutral-700/40 rounded-xl p-5 hover:border-gold-500/40 hover:bg-primary-800/60 transition-all duration-200 flex flex-col gap-4">
-      <div className="flex items-start gap-3">
-        {firm.logo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={firm.logo_url} alt={firm.name} className="h-12 w-12 rounded-xl object-cover border border-neutral-700/30 flex-shrink-0" />
-        ) : (
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary-600/50 to-primary-700/50 border border-neutral-700/30 flex items-center justify-center flex-shrink-0">
-            <span className="text-neutral-300 text-sm font-bold">{initials}</span>
+    <div className="group relative flex flex-col bg-primary-800/50 border border-white/8 rounded-2xl overflow-hidden hover:border-gold-500/30 hover:shadow-lg hover:shadow-black/20 transition-all duration-200">
+      {/* Top section */}
+      <div className="relative px-5 pt-6 pb-4 flex flex-col items-center text-center">
+        {/* Own firm badge */}
+        {isOwnFirm && (
+          <span className="absolute top-3 left-3 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gold-500 text-black">Your Firm</span>
+        )}
+
+        {/* Member count — top right */}
+        <span className="absolute top-3 right-3 text-[11px] text-neutral-500">
+          {firm.member_count ?? 0} members
+        </span>
+
+        {/* Logo */}
+        <div className="relative mb-3">
+          <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white/10 shadow-lg shadow-black/30">
+            {firm.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={firm.logo_url} alt={firm.name} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-primary-600/60 via-primary-700/50 to-primary-800/60 flex items-center justify-center">
+                <span className="text-neutral-200 text-xl font-bold font-display">{initials}</span>
+              </div>
+            )}
+          </div>
+          {firm.is_verified && (
+            <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gold-500 border-2 border-primary-800 flex items-center justify-center">
+              <svg className="w-3 h-3 text-primary-900" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+              </svg>
+            </span>
+          )}
+        </div>
+
+        {/* Name */}
+        <h3 className="font-heading font-semibold text-neutral-50 text-base leading-tight">{firm.name}</h3>
+        <p className="mt-0.5 text-xs text-neutral-500">Law Firm</p>
+
+        {/* Location */}
+        {(firm.city || firm.country) && (
+          <div className="mt-2 flex items-center gap-1 text-[11px] text-neutral-500">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+            {[firm.city, firm.country].filter(Boolean).join(', ')}
+            {firm.year_established && <><span>·</span>Est. {firm.year_established}</>}
           </div>
         )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-heading text-body-md text-neutral-50 truncate">{firm.name}</h3>
-            {firm.is_verified && (
-              <svg className="w-4 h-4 text-gold-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-              </svg>
-            )}
-            {isOwnFirm && (
-              <span className="flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-gold-500/15 border border-gold-500/30 text-gold-400 font-semibold">Your Firm</span>
-            )}
-          </div>
-          <p className="text-neutral-400 text-body-sm">{firm.member_count ?? 0} active members</p>
-          {firm.city && <p className="text-neutral-500 text-xs">{firm.city}{firm.country ? `, ${firm.country}` : ''}</p>}
-        </div>
       </div>
 
-      {firm.description ? (
-        <p className="text-neutral-400 text-body-sm line-clamp-2">{firm.description}</p>
-      ) : (
-        <p className="text-neutral-400 text-body-sm">A registered law firm on Lawbridge.</p>
-      )}
-
+      {/* Specializations */}
       {firm.specializations && firm.specializations.length > 0 && (
-        <div className="flex flex-wrap gap-1">
+        <div className="px-5 pb-3 flex flex-wrap gap-1.5 justify-center">
           {firm.specializations.slice(0, 3).map(s => (
-            <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-primary-700/50 border border-neutral-700/30 text-neutral-400">{s}</span>
+            <span key={s} className="text-[10px] px-2 py-0.5 rounded-full border border-neutral-700/50 bg-primary-900/40 text-neutral-400">{s}</span>
           ))}
         </div>
       )}
 
-      <div className="flex gap-2 pt-1 border-t border-neutral-700/30">
+      {/* Description */}
+      {firm.description && (
+        <p className="px-5 pb-3 text-xs text-neutral-500 line-clamp-2 text-center leading-relaxed">{firm.description}</p>
+      )}
+
+      {/* Buttons */}
+      <div className="mt-auto px-4 pb-4 pt-1 flex gap-2 border-t border-white/5">
         <Link
           href={isStaff ? `/lawyer/discover/firm/${firm.id}` : `/discover/firm/${firm.id}`}
-          className="flex-1 text-center px-3 py-1.5 rounded-lg border border-neutral-600/50 text-neutral-300 text-xs hover:border-gold-500/50 hover:text-gold-400 transition-colors"
+          className="flex-1 text-center py-2.5 rounded-xl border border-neutral-600/50 text-xs font-semibold text-neutral-300 hover:border-gold-500/50 hover:text-gold-400 hover:bg-gold-500/5 transition-colors uppercase tracking-wide"
         >
           View Firm
         </Link>
         {isOwnFirm ? (
-          <Link
-            href="/lawyer/team"
-            className="flex-1 text-center px-3 py-1.5 rounded-lg bg-primary-600/60 border border-gold-500/30 text-gold-400 text-xs font-semibold hover:bg-primary-600 transition-colors"
-          >
+          <Link href="/lawyer/team" className="px-4 py-2.5 rounded-xl bg-gold-500/10 border border-gold-500/30 text-gold-400 text-xs font-bold hover:bg-gold-500/20 transition-colors uppercase tracking-wide">
             Manage
           </Link>
         ) : isStaff ? (
-          <Link
-            href={`/lawyer/discover/firm/${firm.id}#partnership`}
-            className="flex-1 text-center px-3 py-1.5 rounded-lg bg-primary-600/60 border border-neutral-600/50 text-neutral-200 text-xs font-semibold hover:bg-primary-600 hover:border-gold-500/50 transition-colors"
-          >
+          <Link href={`/lawyer/discover/firm/${firm.id}#partnership`} className="px-4 py-2.5 rounded-xl border border-neutral-600/50 text-neutral-300 text-xs font-bold hover:border-gold-500/50 hover:text-gold-400 transition-colors uppercase tracking-wide">
             Partner
           </Link>
         ) : (
-          <Link
-            href={`/book?kind=firm&id=${firm.id}&name=${encodeURIComponent(firm.name)}`}
-            className="flex-1 text-center px-3 py-1.5 rounded-lg bg-gold-500 text-black text-xs font-semibold hover:bg-gold-400 transition-colors"
-          >
-            Book with Firm
+          <Link href={`/book?kind=firm&id=${firm.id}&name=${encodeURIComponent(firm.name)}`} className="px-4 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-xs font-bold transition-colors uppercase tracking-wide">
+            Book
           </Link>
         )}
       </div>

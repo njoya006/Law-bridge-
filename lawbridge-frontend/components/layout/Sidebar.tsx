@@ -54,6 +54,8 @@ function DesktopSidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [unreadCount, setUnreadCount] = useState(0)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarInitials, setAvatarInitials] = useState('C')
   const pathname = usePathname()
   const router = useRouter()
 
@@ -73,6 +75,36 @@ function DesktopSidebar() {
     fetchUnread()
     const iv = setInterval(fetchUnread, 30000)
     return () => clearInterval(iv)
+  }, [])
+
+  useEffect(() => {
+    // Load avatar from cache, then refresh from API
+    const cached = localStorage.getItem('avatarUrl')
+    if (cached) setAvatarUrl(cached)
+
+    const token = localStorage.getItem('access')
+    if (!token) return
+
+    fetch('/api/v1/auth/me/', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then((me: { full_name?: string; email?: string; avatar_url?: string | null } | null) => {
+        if (!me) return
+        if (me.avatar_url) {
+          setAvatarUrl(me.avatar_url)
+          localStorage.setItem('avatarUrl', me.avatar_url)
+        }
+        const name = me.full_name || me.email || 'C'
+        setAvatarInitials(name.split(/\s+/).map((w: string) => w[0]).slice(0, 2).join('').toUpperCase() || 'C')
+      })
+      .catch(() => {})
+
+    // Listen for avatar updates from the profile page
+    const onAvatarUpdated = (e: Event) => {
+      const url = (e as CustomEvent<{ url: string }>).detail?.url
+      if (url) { setAvatarUrl(url); localStorage.setItem('avatarUrl', url) }
+    }
+    window.addEventListener('lawbridge:avatar-updated', onAvatarUpdated)
+    return () => window.removeEventListener('lawbridge:avatar-updated', onAvatarUpdated)
   }, [])
 
   useEffect(() => {
@@ -183,10 +215,18 @@ function DesktopSidebar() {
           </button>
           <Link
             href="/profile"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/5 bg-gradient-to-br from-gold-500/25 to-gold-600/25 text-gold-300 transition-all duration-200 hover:scale-105 hover:border-gold-300/40"
+            className="group relative flex h-9 w-9 items-center justify-center rounded-xl border border-white/5 overflow-hidden transition-all duration-200 hover:scale-105 hover:border-gold-300/40"
             title="Profile"
           >
-            <UserIcon width={16} height={16} />
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt="Profile" className="h-full w-full object-cover rounded-xl" />
+            ) : (
+              <span className="absolute inset-0 flex items-center justify-center rounded-xl bg-gradient-to-br from-gold-500/25 to-gold-600/25 text-gold-300 text-xs font-bold">
+                {avatarInitials}
+              </span>
+            )}
+            <span className="absolute inset-0 rounded-xl bg-gold-400/0 transition-colors duration-200 group-hover:bg-gold-400/10" />
           </Link>
           <button
             onClick={handleLogout}

@@ -25,6 +25,7 @@ export type LawyerDiscovery = {
   consultation_mode: 'in_person' | 'virtual' | 'both'
   is_verified: boolean
   is_stub?: boolean
+  avatar_url?: string | null
 }
 
 export interface LawyerBrowseFilters {
