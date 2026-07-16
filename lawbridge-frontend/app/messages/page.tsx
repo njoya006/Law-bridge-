@@ -383,59 +383,77 @@ function MessageView({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isTypingRef = useRef(false)
+  const reconnectRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectAttemptsRef = useRef(0)
+  const mountedRef = useRef(true)
 
   // ── WebSocket setup ─────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const wsUrl = getWebSocketUrl(thread.id, token)
-    const ws = new WebSocket(wsUrl)
-    wsRef.current = ws
-    setWsStatus('connecting')
+    mountedRef.current = true
+    reconnectAttemptsRef.current = 0
 
-    ws.onopen = () => {
-      setWsStatus('open')
-      setLoading(false)
-    }
+    function connect() {
+      if (!mountedRef.current) return
+      const wsUrl = getWebSocketUrl(thread.id, token)
+      const ws = new WebSocket(wsUrl)
+      wsRef.current = ws
+      setWsStatus('connecting')
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data)
-      if (data.type === 'history') {
-        setMessages(data.messages)
+      ws.onopen = () => {
+        if (!mountedRef.current) { ws.close(); return }
+        setWsStatus('open')
+        reconnectAttemptsRef.current = 0
         setLoading(false)
-      } else if (data.type === 'message') {
-        setMessages(prev => [...prev, data])
-      } else if (data.type === 'typing') {
-        if (data.is_typing) {
-          setTypingUsers(prev => ({ ...prev, [data.user_id]: data.display_name }))
-        } else {
-          setTypingUsers(prev => { const next = { ...prev }; delete next[data.user_id]; return next })
+      }
+
+      ws.onmessage = (event) => {
+        if (!mountedRef.current) return
+        const data = JSON.parse(event.data as string)
+        if (data.type === 'history') {
+          setMessages(data.messages)
+          setLoading(false)
+        } else if (data.type === 'message') {
+          setMessages(prev => [...prev, data])
+        } else if (data.type === 'typing') {
+          if (data.is_typing) {
+            setTypingUsers(prev => ({ ...prev, [data.user_id]: data.display_name }))
+          } else {
+            setTypingUsers(prev => { const next = { ...prev }; delete next[data.user_id]; return next })
+          }
+        } else if (data.type === 'reaction') {
+          setMessages(prev => prev.map(m => {
+            if (m.id !== data.message_id) return m
+            const reactions = m.reactions.filter(r => !(r.user_id === data.user_id && r.emoji === data.emoji))
+            if (data.added) reactions.push({ emoji: data.emoji, user_id: data.user_id, display_name: data.display_name, created_at: new Date().toISOString() })
+            return { ...m, reactions }
+          }))
         }
-      } else if (data.type === 'reaction') {
-        setMessages(prev => prev.map(m => {
-          if (m.id !== data.message_id) return m
-          const reactions = m.reactions.filter(r => !(r.user_id === data.user_id && r.emoji === data.emoji))
-          if (data.added) reactions.push({ emoji: data.emoji, user_id: data.user_id, display_name: data.display_name, created_at: new Date().toISOString() })
-          return { ...m, reactions }
-        }))
-      } else if (data.type === 'read') {
-        // Could update read receipt display here
+      }
+
+      ws.onclose = () => {
+        if (!mountedRef.current) return
+        setWsStatus('closed')
+        // Exponential backoff reconnect: 2s, 4s, 8s … up to 30s
+        const delay = Math.min(2000 * Math.pow(2, reconnectAttemptsRef.current), 30000)
+        reconnectAttemptsRef.current++
+        reconnectRef.current = setTimeout(connect, delay)
+      }
+
+      ws.onerror = () => {
+        // Fetch via REST so the user sees current messages while reconnecting
+        listMessages(thread.id, token)
+          .then(msgs => { if (mountedRef.current) { setMessages(msgs); setLoading(false) } })
+          .catch(() => { if (mountedRef.current) setLoading(false) })
       }
     }
 
-    ws.onclose = () => {
-      setWsStatus('closed')
-    }
-
-    ws.onerror = () => {
-      setWsStatus('closed')
-      // Fall back to REST
-      listMessages(thread.id, token)
-        .then(msgs => { setMessages(msgs); setLoading(false) })
-        .catch(() => setLoading(false))
-    }
+    connect()
 
     return () => {
-      ws.close()
+      mountedRef.current = false
+      if (reconnectRef.current) clearTimeout(reconnectRef.current)
+      wsRef.current?.close()
     }
   }, [thread.id, token])
 
@@ -683,17 +701,26 @@ function MessagesPageInner() {
 
   useEffect(() => {
     if (!token) return
-    listThreads(token)
-      .then(data => {
-        setThreads(data)
-        const threadParam = searchParams.get('thread')
-        if (threadParam) {
-          const found = data.find(t => t.id === Number(threadParam))
-          if (found) { setSelectedThread(found); setMobileView('thread') }
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false))
+
+    const fetchThreads = (initial: boolean) => {
+      return listThreads(token)
+        .then(data => {
+          setThreads(data)
+          if (initial) {
+            const threadParam = searchParams.get('thread')
+            if (threadParam) {
+              const found = data.find(t => t.id === Number(threadParam))
+              if (found) { setSelectedThread(found); setMobileView('thread') }
+            }
+            setLoading(false)
+          }
+        })
+        .catch(() => { if (initial) setLoading(false) })
+    }
+
+    void fetchThreads(true)
+    const interval = setInterval(() => void fetchThreads(false), 15000)
+    return () => clearInterval(interval)
   }, [token, searchParams])
 
   function handleSelectThread(t: Thread) {

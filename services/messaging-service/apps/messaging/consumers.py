@@ -1,3 +1,4 @@
+import asyncio
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
@@ -60,7 +61,7 @@ class ThreadConsumer(AsyncWebsocketConsumer):
             content = (data.get('content') or '').strip()
             if not content:
                 return
-            msg = await self.save_message(content)
+            msg, needs_ai, case_id = await self.save_message(content)
             await self.channel_layer.group_send(self.group_name, {
                 'type': 'chat_message',
                 'id': msg['id'],
@@ -69,10 +70,15 @@ class ThreadConsumer(AsyncWebsocketConsumer):
                 'sender_name': msg['sender_name'],
                 'sender_role': msg['sender_role'],
                 'is_ai': False,
+                'is_system': False,
                 'created_at': msg['created_at'],
                 'reactions': [],
             })
             await self.update_thread_timestamp()
+
+            # Dispatch AI reply in background — does not block the WebSocket
+            if needs_ai:
+                asyncio.ensure_future(self._dispatch_ai_reply(content, case_id))
 
         elif msg_type == 'typing':
             await self.channel_layer.group_send(self.group_name, {
@@ -104,6 +110,30 @@ class ThreadConsumer(AsyncWebsocketConsumer):
                 'display_name': self.display_name,
                 'read_at': timezone.now().isoformat(),
             })
+
+    # ── AI reply dispatch ─────────────────────────────────────────────────────
+
+    async def _dispatch_ai_reply(self, user_content, case_id):
+        """Fetch AI reply in a thread pool, save it, then broadcast to the group."""
+        try:
+            loop = asyncio.get_event_loop()
+            from .views import _generate_ai_content
+            ai_content = await loop.run_in_executor(None, _generate_ai_content, user_content, case_id)
+            ai_msg = await self.save_ai_message(ai_content)
+            await self.channel_layer.group_send(self.group_name, {
+                'type': 'chat_message',
+                'id': ai_msg['id'],
+                'content': ai_msg['content'],
+                'sender_id': 'ai',
+                'sender_name': 'LawBridge AI',
+                'sender_role': 'support',
+                'is_ai': True,
+                'is_system': False,
+                'created_at': ai_msg['created_at'],
+                'reactions': [],
+            })
+        except Exception:
+            pass
 
     # ── Group event handlers ──────────────────────────────────────────────────
 
@@ -164,7 +194,6 @@ class ThreadConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def save_message(self, content):
-        # Admin messages show as support bubbles in the client's chat
         stored_role = 'support' if self.user_role == 'admin' else self.user_role
         thread = Thread.objects.get(id=self.thread_id)
         msg = Message.objects.create(
@@ -177,10 +206,7 @@ class ThreadConsumer(AsyncWebsocketConsumer):
         thread.updated_at = timezone.now()
         thread.save(update_fields=['updated_at'])
 
-        # Trigger AI reply only for client messages, never for admin/support
-        if stored_role == 'client' and thread.is_ai_support and not thread.escalated_to_human:
-            from .views import _fetch_ai_reply
-            _fetch_ai_reply(thread, content)
+        needs_ai = (stored_role == 'client' and thread.is_ai_support and not thread.escalated_to_human)
 
         return {
             'id': msg.id,
@@ -188,6 +214,23 @@ class ThreadConsumer(AsyncWebsocketConsumer):
             'sender_id': msg.sender_id,
             'sender_name': msg.sender_name,
             'sender_role': msg.sender_role,
+            'created_at': msg.created_at.isoformat(),
+        }, needs_ai, thread.case_id
+
+    @database_sync_to_async
+    def save_ai_message(self, content):
+        thread = Thread.objects.get(id=self.thread_id)
+        msg = Message.objects.create(
+            thread=thread,
+            sender_id='ai',
+            sender_name='LawBridge AI',
+            sender_role='support',
+            content=content,
+            is_ai=True,
+        )
+        return {
+            'id': msg.id,
+            'content': msg.content,
             'created_at': msg.created_at.isoformat(),
         }
 

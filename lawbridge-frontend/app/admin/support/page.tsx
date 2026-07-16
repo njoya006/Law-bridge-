@@ -146,7 +146,7 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
       const res = await fetch('/api/v1/ai/chat/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ message: prompt, portal: 'lawyer', language: 'en' }),
+        body: JSON.stringify({ message: prompt, portal: 'support', language: 'en' }),
       })
 
       if (!res.body) { setAiDrafting(false); return }
@@ -406,14 +406,23 @@ function SupportPageContent() {
     setToken(t)
     if (!t) return
 
-    fetch('/api/v1/messages/admin/threads/', { headers: { Authorization: `Bearer ${t}` } })
-      .then(r => r.ok ? r.json() : [])
-      .then((data: Thread[]) => {
-        setThreads(data)
-        if (!activeId && data.length > 0) setActiveId(data[0].id)
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
+    const fetchThreads = (initial: boolean) => {
+      fetch('/api/v1/messages/admin/threads/', { headers: { Authorization: `Bearer ${t}` } })
+        .then(r => r.ok ? r.json() : [])
+        .then((data: Thread[]) => {
+          setThreads(data)
+          if (initial) {
+            if (!activeId && data.length > 0) setActiveId(data[0].id)
+            setLoading(false)
+          }
+        })
+        .catch(() => { if (initial) setLoading(false) })
+    }
+
+    fetchThreads(true)
+    const interval = setInterval(() => fetchThreads(false), 10000)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function selectThread(id: number) {

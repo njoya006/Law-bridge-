@@ -1,4 +1,6 @@
 import requests
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import generics, status
@@ -205,7 +207,7 @@ def escalate_thread(request, pk):
         defaults={'display_name': 'LawBridge Support', 'role': 'support'},
     )
 
-    Message.objects.create(
+    sys_msg = Message.objects.create(
         thread=thread,
         sender_id='system',
         sender_name='LawBridge',
@@ -213,6 +215,27 @@ def escalate_thread(request, pk):
         content='Your request has been escalated to a human support agent. A member of our team will respond shortly during business hours.',
         is_system=True,
     )
+
+    # Push the system message to any active WebSocket connections on this thread
+    try:
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'thread_{pk}',
+            {
+                'type': 'chat_message',
+                'id': sys_msg.id,
+                'content': sys_msg.content,
+                'sender_id': 'system',
+                'sender_name': 'LawBridge',
+                'sender_role': 'system',
+                'is_ai': False,
+                'is_system': True,
+                'created_at': sys_msg.created_at.isoformat(),
+                'reactions': [],
+            },
+        )
+    except Exception:
+        pass
 
     return Response({'status': 'escalated'})
 
@@ -272,22 +295,26 @@ def _welcome_text(thread_type, case_title):
     return f'This conversation{case_info} is now open. All messages are encrypted and kept confidential.'
 
 
-def _fetch_ai_reply(thread, user_message):
+def _generate_ai_content(user_message, case_id=None):
+    """Call the AI service and return the reply text. Does not touch the DB."""
     try:
         resp = requests.post(
             f'{settings.AI_SERVICE_URL}/api/v1/ai/support-reply/',
-            json={'message': user_message, 'case_id': thread.case_id},
+            json={'message': user_message, 'case_id': case_id},
             headers={'X-Internal-Key': settings.INTERNAL_API_KEY},
             timeout=15,
         )
         if resp.status_code == 200:
-            ai_content = resp.json().get('reply', '')
-        else:
-            ai_content = 'I\'m having trouble responding right now. A human agent will review your message soon.'
+            return resp.json().get('reply', '')
     except Exception:
-        ai_content = 'I\'m having trouble responding right now. A human agent will review your message soon.'
+        pass
+    return "I'm having trouble responding right now. A member of our support team will follow up shortly."
 
-    Message.objects.create(
+
+def _fetch_ai_reply(thread, user_message):
+    """Generate an AI reply and save it to the DB. Used by the REST send path."""
+    ai_content = _generate_ai_content(user_message, thread.case_id)
+    return Message.objects.create(
         thread=thread,
         sender_id='ai',
         sender_name='LawBridge AI',
