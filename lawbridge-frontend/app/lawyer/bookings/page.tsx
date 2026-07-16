@@ -49,22 +49,47 @@ function BookingCard({ booking, onAccept, onDecline }: {
     setDeclining(false)
   }
 
+  // Derive client identity from booking metadata
+  const clientEmail = meta.client_email || ''
+  const clientDisplayName = clientEmail.split('@')[0]?.replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) || 'Client'
+  const clientInitials = clientDisplayName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase() || '?'
+
   return (
-    <div className={`rounded-xl border p-5 space-y-4 ${
-      isPending ? 'border-amber-500/20 bg-amber-500/5' :
-      booking.booking_status === 'accepted' ? 'border-emerald-500/20 bg-emerald-500/5' :
-      'border-neutral-700/30 bg-primary-800/30'
+    <div className={`rounded-xl border overflow-hidden ${
+      isPending ? 'border-amber-500/20' :
+      booking.booking_status === 'accepted' ? 'border-emerald-500/20' :
+      'border-neutral-700/30'
     }`}>
+      {/* Client identity strip */}
+      <div className={`flex items-center gap-3 px-4 py-3 border-b ${
+        isPending ? 'bg-amber-500/5 border-amber-500/10' :
+        booking.booking_status === 'accepted' ? 'bg-emerald-500/5 border-emerald-500/10' :
+        'bg-primary-800/40 border-neutral-700/20'
+      }`}>
+        {/* Avatar */}
+        <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gradient-to-br from-blue-500/30 to-blue-600/30 border border-blue-500/20 flex items-center justify-center text-blue-300 text-sm font-bold">
+          {clientInitials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-neutral-200">{clientDisplayName}</p>
+          {clientEmail && <p className="text-xs text-neutral-500 truncate">{clientEmail}</p>}
+        </div>
+        {!isPending && (
+          <span className={`flex-shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium capitalize ${
+            booking.booking_status === 'accepted' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-neutral-400 border-neutral-600/30'
+          }`}>{booking.booking_status}</span>
+        )}
+        {isPending && (
+          <span className="flex-shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium text-amber-400 border-amber-500/30 bg-amber-500/10">Pending</span>
+        )}
+      </div>
+
+      <div className="p-5 space-y-4 bg-primary-800/20">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="font-heading text-body-sm text-neutral-100">{booking.title}</p>
           <p className="text-neutral-500 text-xs mt-0.5">{booking.case_type} · Submitted {formatDate(booking.created_at)}</p>
         </div>
-        {!isPending && (
-          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium capitalize ${
-            booking.booking_status === 'accepted' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-neutral-400 border-neutral-600/30'
-          }`}>{booking.booking_status}</span>
-        )}
       </div>
 
       {/* Client request details */}
@@ -138,6 +163,7 @@ function BookingCard({ booking, onAccept, onDecline }: {
           <Link href={`/bookings/${booking.id}`} className="text-gold-400 text-sm hover:text-gold-300 transition-colors">View booking details →</Link>
         </div>
       )}
+      </div>
     </div>
   )
 }
