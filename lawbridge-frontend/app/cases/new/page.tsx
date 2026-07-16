@@ -51,11 +51,12 @@ export default function NewCasePage() {
     if (error) setError('')
   }
 
+  const canSubmit = form.title.trim().length >= 5 && form.description.trim().length >= 20 && !!form.case_type && !!form.legal_tradition && !!form.circuit
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const { title, description, case_type, legal_tradition, circuit } = form
-    if (!title.trim() || !description.trim() || !case_type || !legal_tradition || !circuit) {
-      setError('Please fill in all required fields.')
+    if (!canSubmit) {
+      setError('Please fill in all required fields. Title must be at least 5 characters and description at least 20.')
       return
     }
     const access = localStorage.getItem('access')
@@ -67,8 +68,9 @@ export default function NewCasePage() {
       const result = await createCase(form, access)
       router.push(`/cases/${result.id}`)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setError(msg.slice(0, 300))
+      const raw = err instanceof Error ? err.message : String(err)
+      const clean = raw.replace(/^\d{3}[^:]*:\s*/, '')
+      setError(clean.length > 5 ? clean.slice(0, 300) : 'Could not file your case. Please check your connection and try again. If the problem persists, contact support.')
       setSubmitting(false)
     }
   }
@@ -103,6 +105,9 @@ export default function NewCasePage() {
             onChange={e => set('title', e.target.value)}
             maxLength={255}
           />
+          {form.title.trim().length > 0 && form.title.trim().length < 5 && (
+            <p className="mt-1 text-xs text-amber-400">Must be at least 5 characters ({5 - form.title.trim().length} more needed)</p>
+          )}
         </Field>
 
         <Field label="Description" required>
@@ -112,7 +117,15 @@ export default function NewCasePage() {
             value={form.description}
             onChange={e => set('description', e.target.value)}
             rows={5}
+            maxLength={5000}
           />
+          <div className="mt-1 flex items-center justify-between">
+            {form.description.trim().length > 0 && form.description.trim().length < 20 && (
+              <p className="text-xs text-amber-400">Add at least {20 - form.description.trim().length} more characters for a good description</p>
+            )}
+            {form.description.trim().length >= 20 && <span />}
+            <span className="text-[10px] text-neutral-600 ml-auto">{form.description.length}/5000</span>
+          </div>
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -160,8 +173,8 @@ export default function NewCasePage() {
         <div className="flex items-center gap-3 pt-2">
           <button
             type="submit"
-            disabled={submitting}
-            className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed text-black text-sm font-semibold transition-colors"
+            disabled={submitting || !canSubmit}
+            className="flex-1 sm:flex-none px-6 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 disabled:opacity-40 disabled:cursor-not-allowed text-black text-sm font-semibold transition-colors"
           >
             {submitting ? 'Filing…' : 'File Case'}
           </button>
