@@ -404,12 +404,19 @@ function SupportPageContent() {
   useEffect(() => {
     const t = localStorage.getItem('access')
     setToken(t)
-    if (!t) return
+    if (!t) { setLoading(false); return }
 
     const fetchThreads = (initial: boolean) => {
       fetch('/api/v1/messages/admin/threads/', { headers: { Authorization: `Bearer ${t}` } })
-        .then(r => r.ok ? r.json() : [])
-        .then((data: Thread[]) => {
+        .then(r => {
+          if (!r.ok) {
+            if (initial) setLoading(false)
+            return null
+          }
+          return r.json() as Promise<Thread[]>
+        })
+        .then((data: Thread[] | null) => {
+          if (!data) return
           setThreads(data)
           if (initial) {
             if (!activeId && data.length > 0) setActiveId(data[0].id)
