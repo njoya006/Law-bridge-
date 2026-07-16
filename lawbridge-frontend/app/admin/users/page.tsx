@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { toastSuccess, toastError } from '../../../lib/toast'
 
 type User = {
   id: string
@@ -164,12 +165,17 @@ function CreateStaffModal({ onClose, onCreated }: {
       })
       const data = await res.json() as User & { detail?: string }
       if (!res.ok) {
-        setError(data.detail || `Error ${res.status}`)
+        const errMsg = data.detail || `Error ${res.status}`
+        setError(errMsg)
+        toastError(errMsg, 'Could not create user')
         return
       }
+      toastSuccess(`${data.full_name || data.email} created successfully`, 'Staff account created')
       onCreated(data)
     } catch {
-      setError('Network error. Please try again.')
+      const netErr = 'Network error. Please try again.'
+      setError(netErr)
+      toastError(netErr, 'Could not create user')
     } finally {
       setLoading(false)
     }

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '../../lib/api'
 import { createCalendarEvent } from '../../lib/calendarApi'
+import { toastSuccess, toastError } from '../../lib/toast'
 
 type Step = 1 | 2 | 3 | 4
 
@@ -157,9 +158,12 @@ export default function BookPage() {
         }, access)
       } catch { /* non-fatal */ }
       setCaseId(caseData.id)
+      toastSuccess(`Booking request sent to ${targetName || 'the lawyer'}`, 'Booking submitted')
       setStep(4)
     } catch (e) {
-      setErrors({ submit: e instanceof Error ? e.message : 'Booking failed. Please try again.' })
+      const errMsg = e instanceof Error ? e.message : 'Booking failed. Please try again.'
+      setErrors({ submit: errMsg })
+      toastError(errMsg, 'Booking failed')
     } finally { setSubmitting(false) }
   }
 

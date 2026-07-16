@@ -4,6 +4,7 @@ import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import Input from '../../../components/ui/Input'
 import { api } from '../../../lib/api'
+import { toastSuccess, toastError } from '../../../lib/toast'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -521,6 +522,7 @@ export default function LawyerSettingsPage() {
       const updated = await api.put<AvailabilitySlot[]>('lawyer', '/lawyers/me/availability/', clean, access)
       setSlots(Array.isArray(updated) ? updated : [])
       setAvailSuccess(true)
+      toastSuccess('Availability schedule saved')
       setTimeout(() => setAvailSuccess(false), 3000)
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : 'Failed to save schedule'
@@ -543,6 +545,7 @@ export default function LawyerSettingsPage() {
     try {
       await api.put('lawyer', '/lawyers/me/', casePrefs, access)
       setCaseSuccess(true)
+      toastSuccess('Case preferences saved')
       setTimeout(() => setCaseSuccess(false), 3000)
     } catch (cause) {
       const msg = cause instanceof Error ? cause.message : 'Failed to save'
@@ -563,9 +566,12 @@ export default function LawyerSettingsPage() {
     try {
       await api.put('lawyer', '/lawyers/me/', fees, access)
       setFeesSuccess(true)
+      toastSuccess('Fee structure saved')
       setTimeout(() => setFeesSuccess(false), 3000)
     } catch (cause) {
-      setFeesError(cause instanceof Error ? cause.message : 'Failed to save fees')
+      const feesMsg = cause instanceof Error ? cause.message : 'Failed to save fees'
+      setFeesError(feesMsg)
+      toastError(feesMsg, 'Could not save fees')
     } finally {
       setFeesSaving(false)
     }
@@ -843,9 +849,12 @@ export default function LawyerSettingsPage() {
                               confirm_password: pwForm.confirm,
                             }, access)
                             setPwSuccess(true)
+                            toastSuccess('Password changed successfully')
                             setPwForm({ current: '', next: '', confirm: '' })
                           } catch (e) {
-                            setPwError(e instanceof Error ? e.message.replace(/^4\d\d.*?: /, '') : 'Failed to change password')
+                            const pwMsg = e instanceof Error ? e.message.replace(/^4\d\d.*?: /, '') : 'Failed to change password'
+                            setPwError(pwMsg)
+                            toastError(pwMsg, 'Password change failed')
                           } finally {
                             setPwSaving(false)
                           }
