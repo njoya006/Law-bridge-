@@ -33,17 +33,27 @@ function ArticleCard({ article }: { article: ArticleItem }) {
       {article.summary && (
         <p className="text-[12px] text-white/40 leading-relaxed line-clamp-2 mb-3">{article.summary}</p>
       )}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 mb-3">
         <span className="text-[11px] text-white/30 truncate">{article.author_name}</span>
         {pubDate && <span className="text-[11px] text-white/20 flex-shrink-0">{pubDate}</span>}
       </div>
       {article.legal_areas.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
+        <div className="flex flex-wrap gap-1 mb-3">
           {article.legal_areas.slice(0, 2).map(a => (
             <span key={a} className="rounded bg-white/4 px-1.5 py-0.5 text-[10px] text-white/30">{a}</span>
           ))}
         </div>
       )}
+      <div className="mt-auto flex items-center gap-1.5 text-[11px] font-semibold text-gold-400/60 group-hover:text-gold-400 transition-colors">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+        Read article
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="ml-0.5">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </div>
     </Link>
   )
 }
@@ -406,14 +416,26 @@ export default function LibraryPage() {
           <div className="mt-7 space-y-3">
             {/* Books / Articles toggle */}
             <div className="flex gap-1 p-1 bg-white/4 rounded-xl w-fit">
-              {(['books', 'articles'] as const).map(ct => (
-                <button key={ct} onClick={() => setContentType(ct)}
-                  className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
-                    contentType === ct ? 'bg-gold-500 text-primary-950' : 'text-white/40 hover:text-white/70'
-                  }`}>
-                  {ct === 'books' ? 'Books' : 'Articles'}
-                </button>
-              ))}
+              <button onClick={() => setContentType('books')}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
+                  contentType === 'books' ? 'bg-gold-500 text-primary-950' : 'text-white/40 hover:text-white/70'
+                }`}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                Books
+              </button>
+              <button onClick={() => setContentType('articles')}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
+                  contentType === 'articles' ? 'bg-gold-500 text-primary-950' : 'text-white/40 hover:text-white/70'
+                }`}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+                </svg>
+                Articles
+              </button>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">

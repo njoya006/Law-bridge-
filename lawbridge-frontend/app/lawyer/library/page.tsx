@@ -198,19 +198,19 @@ export default function LawyerLibraryPage() {
             <div className="flex items-center gap-2">
               <Link
                 href="/lawyer/library/articles/new"
-                className="inline-flex items-center gap-2 rounded-xl bg-white/6 border border-white/10 px-4 py-2.5 text-sm font-medium text-white/60 hover:bg-white/10 hover:text-white/80 transition-colors flex-shrink-0"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/6 px-4 py-2.5 text-sm font-medium text-white/65 hover:bg-white/10 hover:border-white/18 hover:text-white/85 transition-all flex-shrink-0"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 20h9" strokeLinecap="round"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round"/>
                 </svg>
                 New Article
               </Link>
               <Link
                 href="/lawyer/library/new"
-                className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors flex-shrink-0"
+                className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors flex-shrink-0 shadow-md shadow-gold-500/20"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
                 New Book
               </Link>
@@ -287,8 +287,12 @@ export default function LawyerLibraryPage() {
                 </div>
                 <p className="text-[13px] font-medium text-white/40">No publications yet</p>
                 <p className="text-xs text-white/25 mt-1 mb-5">Share your legal expertise with the LawBridge community</p>
-                <Link href="/lawyer/library/new" className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors">
-                  Write your first publication
+                <Link href="/lawyer/library/new" className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-5 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" strokeLinecap="round"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round"/>
+                  </svg>
+                  Write your first book
                 </Link>
               </div>
             ) : (
@@ -315,17 +319,25 @@ export default function LawyerLibraryPage() {
                       {(book.status === 'draft' || book.status === 'rejected') && (
                         <Link
                           href={`/lawyer/library/${book.id}/edit`}
-                          className="rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors"
                         >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" strokeLinecap="round"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round"/>
+                          </svg>
                           Edit
                         </Link>
                       )}
                       {book.status === 'published' && (
                         <Link
                           href={`/library/${book.id}`}
-                          className="rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/15 transition-colors"
                         >
-                          View
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                          View in Library
                         </Link>
                       )}
                     </div>
@@ -342,8 +354,11 @@ export default function LawyerLibraryPage() {
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-sm font-semibold text-white/70">My Articles</h2>
               <Link href="/lawyer/library/articles/new"
-                className="text-xs text-gold-400/70 hover:text-gold-400 transition-colors">
-                + New Article
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/75 hover:bg-white/8 transition-colors">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
+                </svg>
+                New Article
               </Link>
             </div>
             {loading ? (
@@ -359,7 +374,10 @@ export default function LawyerLibraryPage() {
                 <p className="text-[13px] text-white/30">No articles yet</p>
                 <p className="text-xs text-white/20 mt-1 mb-4">Share short-form legal insights, case summaries, and alerts</p>
                 <Link href="/lawyer/library/articles/new"
-                  className="inline-flex items-center gap-2 rounded-xl bg-white/6 border border-white/10 px-4 py-2 text-sm font-medium text-white/50 hover:text-white/80 transition-colors">
+                  className="inline-flex items-center gap-2 rounded-xl bg-white/6 border border-white/10 px-5 py-2.5 text-sm font-medium text-white/60 hover:text-white/85 hover:bg-white/10 transition-colors">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 20h9" strokeLinecap="round"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round"/>
+                  </svg>
                   Write your first article
                 </Link>
               </div>
@@ -384,13 +402,20 @@ export default function LawyerLibraryPage() {
                     </div>
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Link href={`/lawyer/library/articles/${article.id}/edit`}
-                        className="rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors">
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <path d="M12 20h9" strokeLinecap="round"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round"/>
+                        </svg>
                         Edit
                       </Link>
                       {article.status === 'published' && (
                         <Link href={`/library/articles/${article.id}`}
-                          className="rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors">
-                          View
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/15 transition-colors">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                          Read
                         </Link>
                       )}
                     </div>
