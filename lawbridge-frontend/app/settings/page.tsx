@@ -5,6 +5,7 @@ import Button from '../../components/ui/Button'
 import AvatarUploader from '../../components/ui/AvatarUploader'
 import { api } from '../../lib/api'
 import { getLang, setLang, t, type Lang } from '../../lib/i18n'
+import { toastSuccess, toastError } from '../../lib/toast'
 
 type Prefs = {
   language: 'en' | 'fr'
@@ -150,14 +151,15 @@ export default function ClientSettingsPage() {
     setSaveSuccess(false)
     try {
       await api.patch('auth', '/auth/preferences/', prefs, access)
-      // Cache preferences locally so other pages can read them without an API call
       localStorage.setItem('userSettings', JSON.stringify(prefs))
-      // Apply language change immediately
       setLang(prefs.language)
       setSaveSuccess(true)
+      toastSuccess('Settings saved', 'Preferences updated')
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (cause) {
-      setSaveError(cause instanceof Error ? cause.message : 'Failed to save')
+      const msg = cause instanceof Error ? cause.message : 'Failed to save'
+      setSaveError(msg)
+      toastError(msg, 'Could not save settings')
     } finally {
       setSaving(false)
     }

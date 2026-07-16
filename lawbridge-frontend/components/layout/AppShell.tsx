@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import LawyerShell from './LawyerShell'
+import ToastContainer from '../ui/ToastContainer'
 
 function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -63,8 +64,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isCommandRoute = pathname === '/command'
 
   if (isAuthRoute || isLawyerRoute || isSecretaryRoute || isPublicRoute || isIntakeRoute || isAdminRoute || isCommandRoute) {
-    return <>{children}</>
+    return (
+      <>
+        {children}
+        <ToastContainer />
+      </>
+    )
   }
 
-  return <PortalShell>{children}</PortalShell>
+  return (
+    <>
+      <PortalShell>{children}</PortalShell>
+      <ToastContainer />
+    </>
+  )
 }
