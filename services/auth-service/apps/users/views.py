@@ -303,8 +303,12 @@ class AdminTokenView(APIView):
 
 
 class AdminUserListView(APIView):
-    """GET /api/v1/auth/admin/users/ — all users; requires support or admin role."""
+    """GET /api/v1/auth/admin/users/ — all users; requires support or admin role.
+    POST /api/v1/auth/admin/users/ — create a new admin/support staff account. Admin-only.
+    """
     permission_classes = [permissions.IsAuthenticated]
+
+    _STAFF_ROLES = ('admin', 'support')
 
     def get(self, request):
         if request.user.role not in ('support', 'admin'):
@@ -323,6 +327,37 @@ class AdminUserListView(APIView):
             for u in users
         ]
         return Response({'count': len(data), 'results': data})
+
+    def post(self, request):
+        """Create a new staff (admin or support) account. Requires admin role."""
+        if request.user.role != 'admin':
+            return Response({'detail': 'Only admins can create staff accounts.'}, status=status.HTTP_403_FORBIDDEN)
+
+        email = (request.data.get('email') or '').strip().lower()
+        full_name = (request.data.get('full_name') or '').strip()
+        password = request.data.get('password') or ''
+        role = (request.data.get('role') or '').strip()
+
+        if not email or '@' not in email:
+            return Response({'detail': 'A valid email address is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not full_name:
+            return Response({'detail': 'full_name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(password) < 8:
+            return Response({'detail': 'Password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+        if role not in self._STAFF_ROLES:
+            return Response({'detail': f'Role must be one of: {", ".join(self._STAFF_ROLES)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(email=email).exists():
+            return Response({'detail': 'An account with this email already exists.'}, status=status.HTTP_409_CONFLICT)
+
+        user = User.objects.create_user(email=email, password=password, full_name=full_name, role=role)
+        return Response({
+            'id': str(user.id),
+            'email': user.email,
+            'full_name': user.full_name,
+            'role': user.role,
+            'created_at': user.created_at.isoformat() if user.created_at else None,
+        }, status=status.HTTP_201_CREATED)
 
 
 class AdminUserUpdateView(APIView):

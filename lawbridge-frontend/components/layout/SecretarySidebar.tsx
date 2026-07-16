@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { DashboardIcon, DocumentIcon, PaymentIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, LogoutIcon, UserIcon, SparklesIcon, ClipboardIcon, BookmarkIcon, BalanceIcon, ChatIcon, BellIcon } from '../icons/Icons'
+import { DashboardIcon, DocumentIcon, PaymentIcon, CollapseIcon, ExpandIcon, SunIcon, MoonIcon, LogoutIcon, UserIcon, SparklesIcon, ClipboardIcon, BookmarkIcon, BalanceIcon, ChatIcon, BellIcon, SettingsIcon } from '../icons/Icons'
 import { getMyFirmMemberships } from '../../lib/firmsApi'
 import { getReportRequests } from '../../lib/monitoringApi'
 import { clearSession } from '../../lib/authSession'
@@ -18,6 +18,7 @@ const secretaryNav = [
   { label: 'Reports',       href: '/secretary/reports',      icon: DocumentIcon },
   { label: 'Members',       href: '/secretary/members',      icon: UserIcon },
   { label: 'Bookings',      href: '/secretary/bookings',     icon: BookmarkIcon },
+  { label: 'Settings',      href: '/secretary/settings',     icon: SettingsIcon },
 ]
 
 export default function SecretarySidebar() {
