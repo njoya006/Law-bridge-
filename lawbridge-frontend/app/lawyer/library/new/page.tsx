@@ -388,7 +388,7 @@ export default function NewBookPage() {
               <button
                 onClick={handleSubmitForReview}
                 disabled={submitting || saving}
-                className="w-full rounded-xl bg-gold-500 py-3 text-sm font-semibold text-primary-950 hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full rounded-xl bg-gold-500 py-3 text-sm font-semibold text-primary-900 hover:bg-gold-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? 'Submitting…' : 'Submit for Review'}
               </button>

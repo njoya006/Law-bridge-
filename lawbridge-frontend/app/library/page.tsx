@@ -403,7 +403,7 @@ export default function LibraryPage() {
 
             {isLawyer && (
               <Link href="/lawyer/library"
-                    className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-5 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors flex-shrink-0 shadow-lg shadow-gold-500/20">
+                    className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-5 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors flex-shrink-0 shadow-lg shadow-gold-500/20">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
@@ -418,7 +418,7 @@ export default function LibraryPage() {
             <div className="flex gap-1 p-1 bg-white/4 rounded-xl w-fit">
               <button onClick={() => setContentType('books')}
                 className={`inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
-                  contentType === 'books' ? 'bg-gold-500 text-primary-950' : 'text-white/40 hover:text-white/70'
+                  contentType === 'books' ? 'bg-gold-500 text-primary-900' : 'text-white/40 hover:text-white/70'
                 }`}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z" strokeLinecap="round" strokeLinejoin="round"/>
@@ -427,7 +427,7 @@ export default function LibraryPage() {
               </button>
               <button onClick={() => setContentType('articles')}
                 className={`inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
-                  contentType === 'articles' ? 'bg-gold-500 text-primary-950' : 'text-white/40 hover:text-white/70'
+                  contentType === 'articles' ? 'bg-gold-500 text-primary-900' : 'text-white/40 hover:text-white/70'
                 }`}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
@@ -483,7 +483,7 @@ export default function LibraryPage() {
                   {(['all', 'firm'] as const).map(tab => (
                     <button key={tab} onClick={() => setActiveTab(tab)}
                             className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
-                              activeTab === tab ? 'bg-gold-500 text-primary-950' : 'text-white/40 hover:text-white/70'
+                              activeTab === tab ? 'bg-gold-500 text-primary-900' : 'text-white/40 hover:text-white/70'
                             }`}>
                       {tab === 'all' ? 'All' : 'My Firm'}
                     </button>

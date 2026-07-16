@@ -261,7 +261,7 @@ export default function FirmVerifyPage() {
               <button
                 onClick={handleSubmit}
                 disabled={saving || !canSubmit}
-                className="w-full rounded-xl bg-gold-500 py-3 text-sm font-semibold text-primary-950 hover:bg-gold-400 disabled:opacity-50 transition-colors"
+                className="w-full rounded-xl bg-gold-500 py-3 text-sm font-semibold text-primary-900 hover:bg-gold-400 disabled:opacity-50 transition-colors"
               >
                 {saving ? 'Submitting…' : existingRequest?.status === 'rejected' ? 'Resubmit Request' : 'Submit Firm Verification'}
               </button>

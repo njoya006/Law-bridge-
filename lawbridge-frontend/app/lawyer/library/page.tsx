@@ -207,7 +207,7 @@ export default function LawyerLibraryPage() {
               </Link>
               <Link
                 href="/lawyer/library/new"
-                className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors flex-shrink-0 shadow-md shadow-gold-500/20"
+                className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors flex-shrink-0 shadow-md shadow-gold-500/20"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z" strokeLinecap="round" strokeLinejoin="round"/>
@@ -229,7 +229,7 @@ export default function LawyerLibraryPage() {
                 key={t.id}
                 onClick={() => setMainTab(t.id)}
                 className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
-                  mainTab === t.id ? 'bg-gold-500 text-primary-950' : 'text-white/40 hover:text-white/70'
+                  mainTab === t.id ? 'bg-gold-500 text-primary-900' : 'text-white/40 hover:text-white/70'
                 }`}
               >
                 {t.label}
@@ -253,7 +253,7 @@ export default function LawyerLibraryPage() {
                     onClick={() => setActiveFilter(f.value)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                       activeFilter === f.value
-                        ? 'bg-gold-500 text-primary-950'
+                        ? 'bg-gold-500 text-primary-900'
                         : 'text-white/40 hover:text-white/70'
                     }`}
                   >
@@ -287,7 +287,7 @@ export default function LawyerLibraryPage() {
                 </div>
                 <p className="text-[13px] font-medium text-white/40">No publications yet</p>
                 <p className="text-xs text-white/25 mt-1 mb-5">Share your legal expertise with the LawBridge community</p>
-                <Link href="/lawyer/library/new" className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-5 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors">
+                <Link href="/lawyer/library/new" className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-5 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" strokeLinecap="round"/>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round"/>

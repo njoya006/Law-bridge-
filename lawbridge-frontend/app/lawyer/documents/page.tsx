@@ -222,7 +222,7 @@ export default function LawyerDocumentsPage() {
         </div>
         <Link
           href="/upload"
-          className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors"
+          className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
@@ -346,7 +346,7 @@ export default function LawyerDocumentsPage() {
                 </button>
                 <button
                   onClick={closePreview}
-                  className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl bg-gold-500 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors px-3"
+                  className="min-h-[40px] min-w-[40px] flex items-center justify-center rounded-xl bg-gold-500 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors px-3"
                 >
                   Close
                 </button>

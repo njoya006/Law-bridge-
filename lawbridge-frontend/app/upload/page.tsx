@@ -278,7 +278,7 @@ export default function UploadPage() {
               'flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-semibold transition-all duration-200',
               !pendingFile || !caseId || statusState.type === 'uploading'
                 ? 'cursor-not-allowed bg-white/5 text-neutral-600'
-                : 'bg-gradient-to-r from-gold-500 to-gold-600 text-primary-950 shadow-lg shadow-gold-500/20 hover:shadow-gold-500/30 hover:from-gold-400 hover:to-gold-500',
+                : 'bg-gradient-to-r from-gold-500 to-gold-600 text-primary-900 shadow-lg shadow-gold-500/20 hover:shadow-gold-500/30 hover:from-gold-400 hover:to-gold-500',
             ].join(' ')}
           >
             {statusState.type === 'uploading' ? (

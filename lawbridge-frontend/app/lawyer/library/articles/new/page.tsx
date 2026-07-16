@@ -280,7 +280,7 @@ export default function NewArticlePage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="w-full rounded-xl bg-gold-500 py-3 text-sm font-semibold text-primary-950 hover:bg-gold-400 disabled:opacity-50 transition-colors"
+              className="w-full rounded-xl bg-gold-500 py-3 text-sm font-semibold text-primary-900 hover:bg-gold-400 disabled:opacity-50 transition-colors"
             >
               {saving ? 'Saving…' : status === 'published' ? 'Publish Article' : 'Save Draft'}
             </button>

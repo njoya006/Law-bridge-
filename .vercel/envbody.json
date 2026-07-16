@@ -1,0 +1,15 @@
+[
+ {"key":"API_GATEWAY_URL","value":"http://a6ce24e27601b4cbc8e417ae051a2e82-1176155018.us-east-1.elb.amazonaws.com","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_AUTH_SERVICE_URL","value":"/api/v1","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_CLIENT_SERVICE_URL","value":"/api/v1","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_LAWYER_SERVICE_URL","value":"/api/v1","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_FIRMS_SERVICE_URL","value":"/api/v1/firms","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_CASE_SERVICE_URL","value":"/api/v1","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_DOCUMENT_SERVICE_URL","value":"/api/v1/documents","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_NOTIFICATION_SERVICE_URL","value":"/api/v1","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_PAYMENT_SERVICE_URL","value":"/api/v1","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_CALENDAR_SERVICE_URL","value":"/api/v1/calendar","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_MONITORING_SERVICE_URL","value":"/api/v1","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_SEARCH_SERVICE_URL","value":"/api/v1","type":"plain","target":["production"]},
+ {"key":"NEXT_PUBLIC_AI_ASSISTANT_SERVICE_URL","value":"/api/v1","type":"plain","target":["production"]}
+]

@@ -163,7 +163,7 @@ export default function ArticleDetailPage() {
                     {isLoggedIn ? (
                       <Link
                         href={`/bookings/new?lawyer_id=${article.author_id}`}
-                        className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors"
+                        className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors"
                       >
                         Book a Consultation
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -173,7 +173,7 @@ export default function ArticleDetailPage() {
                     ) : (
                       <Link
                         href="/auth/register"
-                        className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors"
+                        className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors"
                       >
                         Create a free account to book
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none">

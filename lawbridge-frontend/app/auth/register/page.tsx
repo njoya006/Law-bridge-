@@ -136,7 +136,7 @@ export default function RegisterPage() {
         <section className="hidden lg:flex flex-col justify-center px-12 py-14 lg:order-2">
           <div className="max-w-md space-y-8">
             <div className="inline-flex items-center gap-3 rounded-full border border-gold-400/20 bg-white/5 px-4 py-2 text-sm text-neutral-200 backdrop-blur">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-gold-400 to-gold-500 text-primary-950 shadow-lg shadow-gold-500/20">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-gold-400 to-gold-500 text-primary-900 shadow-lg shadow-gold-500/20">
                 <LawIcon width={16} height={16} />
               </div>
               New client onboarding
@@ -180,7 +180,7 @@ export default function RegisterPage() {
 
             {/* Mobile header */}
             <div className="lg:hidden flex items-center gap-2 mb-6">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-gold-400 to-gold-500 text-primary-950">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-gold-400 to-gold-500 text-primary-900">
                 <LawIcon width={14} height={14} />
               </div>
               <span className="font-display font-semibold text-neutral-50">LawBridge</span>

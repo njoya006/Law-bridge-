@@ -174,7 +174,7 @@ export default function FirmProfilePage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
         {/* Firm header */}
         <div className="flex items-center gap-5 mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-primary-950 font-bold text-xl shadow-lg shadow-gold-500/20 flex-shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-primary-900 font-bold text-xl shadow-lg shadow-gold-500/20 flex-shrink-0">
             {firmInitials}
           </div>
           <div>
@@ -194,7 +194,7 @@ export default function FirmProfilePage() {
           <div className="ml-auto">
             <Link
               href={`/discover?firm_id=${firmId}`}
-              className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors"
+              className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors"
             >
               Consult with this Firm
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
@@ -211,7 +211,7 @@ export default function FirmProfilePage() {
               key={tab}
               onClick={() => setActiveTab(tab)}
               className={`rounded-lg px-5 py-1.5 text-sm font-medium transition-all ${
-                activeTab === tab ? 'bg-gold-500 text-primary-950' : 'text-white/40 hover:text-white/70'
+                activeTab === tab ? 'bg-gold-500 text-primary-900' : 'text-white/40 hover:text-white/70'
               }`}
             >
               {tab === 'books' ? `Books (${books.length})` : `Articles (${articles.length})`}

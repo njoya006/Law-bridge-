@@ -135,7 +135,7 @@ export default function LawFirmRegisterPage() {
         <section className="flex flex-col justify-between px-6 py-10 sm:px-10 lg:px-12 lg:py-14">
           <div className="max-w-xl space-y-8">
             <div className="inline-flex items-center gap-3 rounded-full border border-gold-400/20 bg-white/5 px-4 py-2 text-sm text-neutral-200 backdrop-blur">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-gold-400 to-gold-500 text-primary-950 shadow-lg shadow-gold-500/20">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-gold-400 to-gold-500 text-primary-900 shadow-lg shadow-gold-500/20">
                 <LawIcon width={16} height={16} />
               </div>
               Law firm onboarding

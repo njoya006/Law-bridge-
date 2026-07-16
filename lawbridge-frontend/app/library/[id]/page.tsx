@@ -513,7 +513,7 @@ export default function BookDetailPage() {
                       {isLoggedIn ? (
                         <Link
                           href={`/bookings/new?lawyer_id=${book.author_id}`}
-                          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-primary-950 transition-colors hover:opacity-90"
+                          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-primary-900 transition-colors hover:opacity-90"
                           style={{ background: theme.accent }}
                         >
                           Book a Consultation
@@ -524,7 +524,7 @@ export default function BookDetailPage() {
                       ) : (
                         <Link
                           href="/auth/register"
-                          className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors"
+                          className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors"
                         >
                           Create a free account to book
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none">

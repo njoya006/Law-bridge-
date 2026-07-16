@@ -332,7 +332,7 @@ export default function LawyerDetailPage() {
                   <button
                     onClick={handleSubmitReview}
                     disabled={submittingReview}
-                    className="flex-1 rounded-lg bg-gold-500 text-primary-950 text-sm font-semibold py-2 hover:bg-gold-400 disabled:opacity-50 transition-colors"
+                    className="flex-1 rounded-lg bg-gold-500 text-primary-900 text-sm font-semibold py-2 hover:bg-gold-400 disabled:opacity-50 transition-colors"
                   >
                     {submittingReview ? 'Submitting…' : 'Submit Review'}
                   </button>
