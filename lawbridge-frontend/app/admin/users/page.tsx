@@ -72,7 +72,15 @@ function RoleMenu({ user, onChanged }: { user: User; onChanged: (id: string, rol
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ role }),
       })
-      if (res.ok) onChanged(user.id, role)
+      if (res.ok) {
+        onChanged(user.id, role)
+        toastSuccess(`${user.full_name || user.email} is now ${role}`)
+      } else {
+        const body = await res.json().catch(() => ({}))
+        toastError((body as Record<string, string>).detail ?? `Failed to change role (${res.status})`, 'Role change failed')
+      }
+    } catch {
+      toastError('Network error — could not update role', 'Role change failed')
     } finally {
       setLoading(false)
     }
