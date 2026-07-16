@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import Link from 'next/link'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
 import {
@@ -744,6 +745,44 @@ export default function LawyerTeamPage() {
             currentLogoUrl={firm.logo_url ?? null}
             onUploaded={(url) => setFirm(prev => prev ? { ...prev, logo_url: url } : prev)}
           />
+        </Card>
+      )}
+
+      {/* Firm Administration quick links — admin/owner only */}
+      {isAdmin && (
+        <Card className="p-5">
+          <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500 mb-3">Firm Administration</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <Link
+              href="/lawyer/firm/verify"
+              className="flex items-center gap-3 rounded-xl border border-neutral-700/30 bg-primary-900/30 px-4 py-3 text-sm font-medium text-neutral-200 hover:border-gold-500/30 hover:bg-gold-500/5 hover:text-gold-300 transition-all group"
+            >
+              <span className="w-8 h-8 rounded-lg bg-gold-500/10 border border-gold-500/20 flex items-center justify-center flex-shrink-0 group-hover:bg-gold-500/20 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gold-400">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <polyline points="9 12 11 14 15 10" />
+                </svg>
+              </span>
+              <div>
+                <p className="font-semibold text-[13px]">Verify Your Firm</p>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Submit firm verification to unlock premium features</p>
+              </div>
+            </Link>
+            <Link
+              href="/lawyer/discover"
+              className="flex items-center gap-3 rounded-xl border border-neutral-700/30 bg-primary-900/30 px-4 py-3 text-sm font-medium text-neutral-200 hover:border-neutral-600/50 hover:bg-white/4 hover:text-neutral-100 transition-all group"
+            >
+              <span className="w-8 h-8 rounded-lg bg-neutral-700/30 border border-neutral-700/40 flex items-center justify-center flex-shrink-0 group-hover:bg-neutral-700/50 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-400">
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+              </span>
+              <div>
+                <p className="font-semibold text-[13px]">Discover Partners</p>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Browse firms to send partnership requests</p>
+              </div>
+            </Link>
+          </div>
         </Card>
       )}
 

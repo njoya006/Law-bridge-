@@ -213,3 +213,20 @@ export function respondToPartnershipRequest(
 export function updateFirmProfile(firmId: number, data: Partial<Firm>, token: string) {
   return api.patch<Firm>('firms', `/${firmId}/`, data, token)
 }
+
+export type FirmGalleryImage = {
+  id: number
+  firm: number
+  image_url: string
+  caption: string
+  order: number
+  uploaded_at: string
+}
+
+export function getFirmGallery(firmId: number, token?: string | null) {
+  return api.get<FirmGalleryImage[]>('firms', `/${firmId}/gallery/`, token)
+}
+
+export function deleteFirmGalleryImage(firmId: number, imageId: number, token: string) {
+  return api.request<void>('firms', `/${firmId}/gallery/${imageId}/`, { method: 'DELETE', token })
+}

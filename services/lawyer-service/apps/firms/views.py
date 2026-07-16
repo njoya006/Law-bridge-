@@ -13,11 +13,12 @@ from django.utils import timezone
 from django.http import HttpResponse
 from django.conf import settings
 from io import BytesIO
-from .models import Firm, FirmMembership, Invite, FirmActionLog, FirmPartnershipPolicy, PartnershipRequest
+from .models import Firm, FirmMembership, Invite, FirmActionLog, FirmPartnershipPolicy, PartnershipRequest, FirmGalleryImage
 from .serializers import (
     FirmSerializer, FirmMembershipSerializer,
     InviteSerializer, FirmActionLogSerializer,
     FirmPartnershipPolicySerializer, PartnershipRequestSerializer,
+    FirmGalleryImageSerializer,
 )
 from django.contrib.auth import get_user_model
 
@@ -693,3 +694,102 @@ class PartnershipRequestRespondView(APIView):
         req_obj.responded_by_id = uid
         req_obj.save()
         return Response(PartnershipRequestSerializer(req_obj).data)
+
+
+# ── Firm Gallery ───────────────────────────────────────────────────────────────
+
+class FirmGalleryView(APIView):
+    """GET/POST /api/v1/firms/{firm_id}/gallery/"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, firm_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        images = FirmGalleryImage.objects.filter(firm=firm)
+        return Response(FirmGalleryImageSerializer(images, many=True).data)
+
+    def post(self, request, firm_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        payload = getattr(request, 'auth_payload', None)
+        if not payload:
+            return Response({'detail': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+        if not user_has_firm_admin(request.user, firm):
+            return Response({'detail': 'Firm admin access required'}, status=status.HTTP_403_FORBIDDEN)
+
+        file = request.FILES.get('image')
+        if not file:
+            return Response({'detail': 'image file is required (multipart field: image)'}, status=status.HTTP_400_BAD_REQUEST)
+
+        allowed_types = {'image/jpeg', 'image/png', 'image/webp'}
+        if file.content_type not in allowed_types:
+            return Response({'detail': 'Only JPEG, PNG, or WebP images are accepted.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if file.size > 10 * 1024 * 1024:
+            return Response({'detail': 'Image must be under 10 MB.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if FirmGalleryImage.objects.filter(firm=firm).count() >= 20:
+            return Response({'detail': 'Maximum 20 gallery images per firm.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            from PIL import Image
+            img = Image.open(file).convert('RGB')
+            img.thumbnail((1920, 1920), Image.LANCZOS)
+            buf = BytesIO()
+            img.save(buf, format='JPEG', quality=85, optimize=True)
+            data = buf.getvalue()
+        except Exception:
+            return Response({'detail': 'Could not process the image.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        import uuid as _uuid
+        object_name = f'firm-gallery/{firm.id}/{_uuid.uuid4()}.jpg'
+        try:
+            client = _minio_client()
+            bucket = _ensure_bucket(client)
+            client.put_object(bucket, object_name, BytesIO(data), len(data), content_type='image/jpeg')
+        except Exception as exc:
+            return Response({'detail': f'Storage error: {exc}'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        caption = (request.data.get('caption') or '').strip()
+        order = FirmGalleryImage.objects.filter(firm=firm).count()
+        gallery_image = FirmGalleryImage.objects.create(
+            firm=firm,
+            image_url=object_name,
+            caption=caption,
+            order=order,
+        )
+        return Response(FirmGalleryImageSerializer(gallery_image).data, status=status.HTTP_201_CREATED)
+
+
+class FirmGalleryImageServeView(APIView):
+    """GET /api/v1/firms/gallery/<image_id>/ — serve a gallery image (public)."""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, image_id):
+        gallery_image = get_object_or_404(FirmGalleryImage, id=image_id)
+        try:
+            client = _minio_client()
+            obj = client.get_object(settings.MINIO_BUCKET_NAME, gallery_image.image_url)
+            data = obj.read()
+            content_type = obj.headers.get('content-type', 'image/jpeg')
+            response = HttpResponse(data, content_type=content_type)
+            response['Cache-Control'] = 'public, max-age=86400'
+            return response
+        except Exception:
+            return Response({'detail': 'Image not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+class FirmGalleryImageDeleteView(APIView):
+    """DELETE /api/v1/firms/{firm_id}/gallery/{image_id}/"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, firm_id, image_id):
+        firm = get_object_or_404(Firm, id=firm_id)
+        if not user_has_firm_admin(request.user, firm):
+            return Response({'detail': 'Firm admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        gallery_image = get_object_or_404(FirmGalleryImage, id=image_id, firm=firm)
+        try:
+            client = _minio_client()
+            client.remove_object(settings.MINIO_BUCKET_NAME, gallery_image.image_url)
+        except Exception:
+            pass
+        gallery_image.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

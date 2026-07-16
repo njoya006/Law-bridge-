@@ -8,10 +8,12 @@ import { getFirmLawyers, type LawyerDiscovery } from '../../../../lib/discoveryA
 import {
   type FirmDiscovery,
   type PartnershipPolicy,
+  type FirmGalleryImage,
   getPartnershipPolicy,
   getMyFirmMemberships,
   sendPartnershipRequest,
   updatePartnershipPolicy,
+  getFirmGallery,
 } from '../../../../lib/firmsApi'
 
 function isStaffPortal(): boolean {
@@ -292,19 +294,21 @@ function PartnershipSection({
 }
 
 type FirmWithCount = FirmDiscovery & { member_count?: number }
-type FirmTab = 'team' | 'about' | 'partnership'
+type FirmTab = 'team' | 'about' | 'partnership' | 'gallery'
 
 export default function FirmDetailPage() {
   const params = useParams<{ id: string }>()
   const [firm, setFirm] = useState<FirmWithCount | null>(null)
   const [lawyers, setLawyers] = useState<LawyerDiscovery[]>([])
   const [policy, setPolicy] = useState<PartnershipPolicy | null>(null)
+  const [gallery, setGallery] = useState<FirmGalleryImage[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isStaff, setIsStaff] = useState(false)
   const [isOwnAdmin, setIsOwnAdmin] = useState(false)
   const [token, setToken] = useState('')
   const [activeTab, setActiveTab] = useState<FirmTab>('team')
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const partnershipRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -314,11 +318,12 @@ export default function FirmDetailPage() {
       setIsStaff(isStaffPortal())
 
       try {
-        const [firmData, lawyersData, policyData, membershipsData] = await Promise.allSettled([
+        const [firmData, lawyersData, policyData, membershipsData, galleryData] = await Promise.allSettled([
           api.get<FirmWithCount>('firms', `/${params.id}/`, tk || null),
           getFirmLawyers(params.id, tk || null),
           tk ? getPartnershipPolicy(Number(params.id), tk) : Promise.reject('no token'),
           tk ? getMyFirmMemberships(tk) : Promise.reject('no token'),
+          getFirmGallery(Number(params.id), tk || null),
         ])
         if (firmData.status === 'fulfilled') setFirm(firmData.value)
         else throw new Error('Firm not found')
@@ -328,6 +333,7 @@ export default function FirmDetailPage() {
           const myMems = membershipsData.value ?? []
           setIsOwnAdmin(myMems.some(m => String(m.firm) === params.id && ['owner', 'firm_admin'].includes(m.role)))
         }
+        if (galleryData.status === 'fulfilled') setGallery(Array.isArray(galleryData.value) ? galleryData.value : [])
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load firm')
       } finally {
@@ -384,6 +390,7 @@ export default function FirmDetailPage() {
   const tabs: { id: FirmTab; label: string; count?: number }[] = [
     { id: 'team', label: 'Team', count: lawyers.length },
     { id: 'about', label: 'About & Practice Areas' },
+    ...(gallery.length > 0 ? [{ id: 'gallery' as FirmTab, label: 'Gallery', count: gallery.length }] : []),
     ...(isStaff || isOwnAdmin ? [{ id: 'partnership' as FirmTab, label: 'Partnership' }] : []),
   ]
 
@@ -601,6 +608,36 @@ export default function FirmDetailPage() {
                 </div>
               )}
 
+              {/* GALLERY TAB */}
+              {activeTab === 'gallery' && (
+                gallery.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="text-neutral-500 text-sm">No gallery photos available for this firm.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {gallery.map((img, idx) => (
+                      <button
+                        key={img.id}
+                        onClick={() => setLightboxIndex(idx)}
+                        className="relative group aspect-[4/3] rounded-xl overflow-hidden bg-primary-900/50 border border-white/8 hover:border-white/20 transition-all"
+                      >
+                        <img
+                          src={`/api/v1/firms/gallery/${img.id}/`}
+                          alt={img.caption || `${firm.name} photo ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {img.caption && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <p className="text-[10px] text-white/80 truncate">{img.caption}</p>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )
+              )}
+
               {/* PARTNERSHIP TAB */}
               {activeTab === 'partnership' && (isStaff || isOwnAdmin) && token && (
                 <PartnershipSection firm={firm} policy={policy} token={token} isOwnAdmin={isOwnAdmin} />
@@ -687,6 +724,50 @@ export default function FirmDetailPage() {
           )}
         </aside>
       </div>
+
+      {/* Lightbox */}
+      {lightboxIndex !== null && gallery[lightboxIndex] && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <button
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+            onClick={() => setLightboxIndex(null)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          {lightboxIndex > 0 && (
+            <button
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+              onClick={e => { e.stopPropagation(); setLightboxIndex(i => (i ?? 0) - 1) }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+          )}
+          {lightboxIndex < gallery.length - 1 && (
+            <button
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+              onClick={e => { e.stopPropagation(); setLightboxIndex(i => (i ?? 0) + 1) }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+          )}
+          <div onClick={e => e.stopPropagation()} className="max-w-4xl max-h-[80vh] flex flex-col items-center gap-3">
+            <img
+              src={`/api/v1/firms/gallery/${gallery[lightboxIndex].id}/`}
+              alt={gallery[lightboxIndex].caption || `${firm?.name ?? ''} photo`}
+              className="max-w-full max-h-[72vh] rounded-xl object-contain"
+            />
+            {gallery[lightboxIndex].caption && (
+              <p className="text-white/60 text-sm text-center">{gallery[lightboxIndex].caption}</p>
+            )}
+            <p className="text-white/30 text-xs">{lightboxIndex + 1} / {gallery.length}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

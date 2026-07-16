@@ -166,6 +166,66 @@ export default function VerifyPage() {
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         <StatusBanner request={existingRequest} isVerified={isVerified} />
 
+        {/* Benefits — shown before the form so lawyers understand the value first */}
+        <div className="rounded-2xl border border-white/8 p-5 bg-white/[0.015]">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="w-6 h-6 rounded-lg bg-gold-500/15 border border-gold-500/25 flex items-center justify-center flex-shrink-0">
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="currentColor" className="text-gold-400">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+              </svg>
+            </div>
+            <p className="text-xs font-semibold text-white/50 uppercase tracking-wider">
+              {isVerified ? 'Your Verification Benefits' : 'Why Get Verified?'}
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[
+              {
+                title: 'Verified badge on your profile',
+                desc: 'Gold checkmark on your profile card, in all search results, and on your firm\'s team listing',
+                d: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4',
+              },
+              {
+                title: 'Higher discovery ranking',
+                desc: 'Verified lawyers consistently appear above unverified in every browse, filter, and keyword search page',
+                d: 'M22 12h-4l-3 9L9 3l-3 9H2',
+              },
+              {
+                title: 'Greater client booking rate',
+                desc: 'Clients are significantly more likely to contact and book verified lawyers — the badge builds instant trust',
+                d: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M12 7a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+              },
+              {
+                title: 'Premium & complex case access',
+                desc: 'High-value matters, regulated sectors, and government cases are matched exclusively to verified lawyers',
+                d: 'M2 3h20v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3zM8 21h8M12 17v4',
+              },
+              {
+                title: 'Early access to new features',
+                desc: 'Verified lawyers are the first cohort for new platform tools, AI features, and revenue programmes',
+                d: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+              },
+              {
+                title: 'Referral & case priority',
+                desc: 'When LawBridge suggests lawyers to clients or firms, verified lawyers are always listed first',
+                d: 'M5 12h14M12 5l7 7-7 7',
+              },
+            ].map(({ title, desc, d }) => (
+              <div key={title} className="flex items-start gap-3 rounded-xl bg-primary-900/30 border border-white/5 p-3.5">
+                <div className="w-7 h-7 rounded-lg bg-gold-500/10 border border-gold-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gold-400">
+                    <path d={d} />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[13px] font-semibold text-white/80">{title}</p>
+                  <p className="text-[11px] text-white/35 mt-0.5 leading-relaxed">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {error && (
           <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">{error}</div>
         )}
@@ -243,32 +303,6 @@ export default function VerifyPage() {
           </div>
         )}
 
-        {/* What verification unlocks */}
-        {!isVerified && (
-          <div className="rounded-2xl bg-white/[0.02] border border-white/8 p-5">
-            <p className="text-xs font-semibold text-white/30 uppercase tracking-wider mb-4">Benefits of Verification</p>
-            <div className="space-y-3">
-              {[
-                ['Verified badge', 'Gold checkmark on your profile and in search results'],
-                ['Higher discovery ranking', 'Verified lawyers appear before unverified in browse results'],
-                ['Client trust signal', 'Clients are more likely to book verified lawyers'],
-                ['Access to premium cases', 'Some case types are only matched to verified lawyers'],
-              ].map(([title, desc]) => (
-                <div key={title} className="flex items-start gap-3">
-                  <div className="w-5 h-5 rounded-full bg-gold-500/10 border border-gold-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" className="text-gold-400">
-                      <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="text-[13px] font-medium text-white/70">{title}</p>
-                    <p className="text-xs text-white/35">{desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

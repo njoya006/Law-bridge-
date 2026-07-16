@@ -181,3 +181,17 @@ class FirmVerificationRequest(models.Model):
 
     def __str__(self):
         return f'FirmVerificationRequest({self.firm_id}, {self.status})'
+
+
+class FirmGalleryImage(models.Model):
+    firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name='gallery_images')
+    image_url = models.CharField(max_length=512)
+    caption = models.CharField(max_length=255, blank=True, default='')
+    order = models.PositiveSmallIntegerField(default=0)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'uploaded_at']
+
+    def __str__(self):
+        return f'Gallery image {self.id} for {self.firm}'

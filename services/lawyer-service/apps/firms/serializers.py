@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Firm, FirmMembership, Invite, FirmActionLog, FirmPartnershipPolicy, PartnershipRequest
+from .models import Firm, FirmMembership, Invite, FirmActionLog, FirmPartnershipPolicy, PartnershipRequest, FirmGalleryImage
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -94,3 +94,10 @@ class FirmActionLogSerializer(serializers.ModelSerializer):
         model = FirmActionLog
         fields = ['id', 'firm', 'performed_by_id', 'performed_by_email', 'action',
                   'target_email', 'old_role', 'new_role', 'reason', 'created_at']
+
+
+class FirmGalleryImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FirmGalleryImage
+        fields = ['id', 'firm', 'image_url', 'caption', 'order', 'uploaded_at']
+        read_only_fields = ('id', 'firm', 'uploaded_at')

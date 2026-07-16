@@ -30,6 +30,29 @@ export async function uploadAvatar(file: File, token: string): Promise<{ avatar_
   return res.json() as Promise<{ avatar_url: string }>
 }
 
+export async function uploadFirmGalleryImage(
+  firmId: number,
+  file: File,
+  token: string,
+  caption = '',
+): Promise<{ id: number; image_url: string; caption: string; order: number; uploaded_at: string }> {
+  const form = new FormData()
+  form.append('image', file)
+  if (caption) form.append('caption', caption)
+  const res = await fetch(`/api/v1/firms/${firmId}/gallery/`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+  if (!res.ok) {
+    const msg = await res.text().catch(() => '')
+    let detail = `Upload failed (${res.status})`
+    try { detail = JSON.parse(msg).detail ?? detail } catch { /* */ }
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
 export async function uploadFirmLogo(firmId: number, file: File, token: string): Promise<{ logo_url: string }> {
   const form = new FormData()
   form.append('logo', file)

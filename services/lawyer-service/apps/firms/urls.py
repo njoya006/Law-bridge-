@@ -27,6 +27,9 @@ from .views import (
     PartnershipRequestCreateView,
     PartnershipRequestListView,
     PartnershipRequestRespondView,
+    FirmGalleryView,
+    FirmGalleryImageServeView,
+    FirmGalleryImageDeleteView,
 )
 
 urlpatterns = [
@@ -57,4 +60,8 @@ urlpatterns = [
     path('verification/', FirmVerificationSubmitView.as_view(), name='firm-verification-submit'),
     path('verification/queue/', FirmVerificationQueueView.as_view(), name='firm-verification-queue'),
     path('verification/<uuid:pk>/<str:action>/', FirmVerificationActionView.as_view(), name='firm-verification-action'),
+    # Gallery
+    path('<int:firm_id>/gallery/', FirmGalleryView.as_view(), name='firm-gallery'),
+    path('<int:firm_id>/gallery/<int:image_id>/', FirmGalleryImageDeleteView.as_view(), name='firm-gallery-image-delete'),
+    path('gallery/<int:image_id>/', FirmGalleryImageServeView.as_view(), name='firm-gallery-image-serve'),
 ]
