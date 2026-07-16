@@ -186,7 +186,7 @@ services:
 
   ai-assistant-service:
     <<: *django-common
-    image: ${AI_SERVICE_IMAGE}
+    image: ${AI_SERVICE_IMAGE:-820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/ai-assistant-service:latest}
     expose: ["8011"]
     environment:
       DB_HOST: postgres
@@ -196,6 +196,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       REDIS_URL: redis://redis:6379/0
       CASE_SERVICE_URL: http://case-service:8004
+      GROQ_API_KEY: ${GROQ_API_KEY}
       GROQ_MODEL: llama-3.3-70b-versatile
 
   messaging-service:

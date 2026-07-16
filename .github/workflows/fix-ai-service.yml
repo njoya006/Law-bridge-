@@ -1,0 +1,155 @@
+name: Fix AI Service — Set Groq Key & Restart
+
+# Fixes the AI assistant by writing GROQ_API_KEY into the EC2 .env file,
+# pulling the latest docker-compose.yml, restarting the container, and
+# running Django migrations. Trigger manually from GitHub Actions.
+
+on:
+  workflow_dispatch:
+    inputs:
+      groq_api_key:
+        description: 'Groq API key (gsk_...). Leave blank to use the GROQ_API_KEY repo secret.'
+        required: false
+        default: ''
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    env:
+      EC2_INSTANCE_ID: i-031445edd3e88f5fe
+      AWS_REGION: us-east-1
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      # ── 1. Resolve Groq key (workflow input wins over repo secret) ──────────
+      - name: Resolve Groq API key
+        id: groq
+        run: |
+          KEY="${{ github.event.inputs.groq_api_key }}"
+          if [ -z "$KEY" ]; then
+            KEY="${{ secrets.GROQ_API_KEY }}"
+          fi
+          if [ -z "$KEY" ]; then
+            echo "ERROR: No Groq API key provided."
+            echo "Either pass it as the workflow input or add GROQ_API_KEY to repository Secrets."
+            echo ""
+            echo "Get a free key at: https://console.groq.com"
+            exit 1
+          fi
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+          echo "Groq key resolved (prefix: ${KEY:0:8}...)"
+
+      # ── 2. Persist Groq key in SSM for future re-provisions ───────────────
+      - name: Update SSM parameter /lawbridge/GROQ_API_KEY
+        run: |
+          GROQ_KEY="${{ steps.groq.outputs.key }}"
+          aws ssm put-parameter \
+            --name "/lawbridge/GROQ_API_KEY" \
+            --value "$GROQ_KEY" \
+            --type SecureString \
+            --overwrite \
+            --region us-east-1
+          echo "SSM /lawbridge/GROQ_API_KEY updated."
+
+      # ── 3. Write GROQ_API_KEY to EC2 .env and restart container ───────────
+      - name: Fix AI service on EC2
+        run: |
+          GROQ_KEY="${{ steps.groq.outputs.key }}"
+
+          # Escape key for sed
+          ESCAPED_KEY=$(printf '%s\n' "$GROQ_KEY" | sed 's/[[\.*^$()+?{|]/\\&/g')
+
+          SCRIPT=$(cat <<BASH
+          set -e
+          cd /opt/lawbridge
+
+          # Pull latest code (includes docker-compose.yml fix)
+          git pull origin main
+
+          # Upsert GROQ_API_KEY in .env
+          if grep -q '^GROQ_API_KEY=' .env 2>/dev/null; then
+            sed -i "s|^GROQ_API_KEY=.*|GROQ_API_KEY=${ESCAPED_KEY}|" .env
+            echo "Updated existing GROQ_API_KEY in .env"
+          else
+            echo "GROQ_API_KEY=${ESCAPED_KEY}" >> .env
+            echo "Added GROQ_API_KEY to .env"
+          fi
+
+          # Confirm it's there (show prefix only)
+          echo "Stored key prefix: \$(grep '^GROQ_API_KEY=' .env | cut -c13-20)..."
+
+          # ECR login so docker-compose can pull the image
+          aws ecr get-login-password --region us-east-1 \
+            | docker login --username AWS --password-stdin \
+              820561684310.dkr.ecr.us-east-1.amazonaws.com 2>/dev/null || true
+
+          # Restart only the AI service (leaves all other containers running)
+          docker compose up -d --no-deps --pull always ai-assistant-service
+          echo "Container restarted."
+
+          # Wait for startup
+          sleep 20
+
+          # Run Django migrations
+          echo "=== Running migrations ==="
+          docker compose exec -T ai-assistant-service python manage.py migrate --no-input
+          echo "Migrations complete."
+          BASH
+          )
+
+          ENCODED=$(echo "$SCRIPT" | base64 -w 0)
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --parameters "commands=[\"echo \$ENCODED | base64 -d | bash\"]" \
+            --query Command.CommandId --output text)
+
+          echo "SSM command ID: $CMD_ID"
+          echo "Waiting 90s for restart + migrations..."
+          sleep 90
+
+          aws ssm get-command-invocation \
+            --command-id "$CMD_ID" \
+            --instance-id "$EC2_INSTANCE_ID" \
+            --query '[StandardOutputContent,StandardErrorContent]' \
+            --output text
+
+      # ── 3. Smoke test + show logs ───────────────────────────────────────────
+      - name: Smoke test and show container logs
+        run: |
+          SCRIPT=$(cat <<'BASH'
+          cd /opt/lawbridge
+          echo "=== Container status ==="
+          docker compose ps ai-assistant-service
+
+          echo ""
+          echo "=== Health check ==="
+          curl -sf http://localhost/api/v1/ai/health/live/ \
+            && echo "HEALTH: OK" \
+            || echo "HEALTH: endpoint not responding (may need more startup time)"
+
+          echo ""
+          echo "=== Recent container logs ==="
+          docker compose logs ai-assistant-service --tail=40
+          BASH
+          )
+
+          ENCODED=$(echo "$SCRIPT" | base64 -w 0)
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --parameters "commands=[\"echo \$ENCODED | base64 -d | bash\"]" \
+            --query Command.CommandId --output text)
+
+          sleep 20
+          aws ssm get-command-invocation \
+            --command-id "$CMD_ID" \
+            --instance-id "$EC2_INSTANCE_ID" \
+            --query '[StandardOutputContent,StandardErrorContent]' \
+            --output text
