@@ -321,7 +321,7 @@ export default function LawyerDashboardPage() {
                       <p className="text-sm font-medium text-neutral-100 truncate group-hover:text-gold-300 transition-colors">{c.title}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] uppercase text-neutral-600 font-medium tracking-wide">{c.case_type}</span>
-                        {c.case_ref && <span className="text-[10px] text-neutral-600">· {c.case_ref}</span>}
+                        <span className="text-[10px] text-neutral-600">· #{c.id.slice(0, 8)}</span>
                       </div>
                     </div>
                     <span className={`flex-shrink-0 text-[11px] px-2 py-0.5 rounded-full border capitalize ${statusColor(c.status)}`}>

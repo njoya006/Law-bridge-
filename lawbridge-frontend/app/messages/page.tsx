@@ -554,6 +554,7 @@ function MessageView({
       <div className="flex items-center gap-3 p-4 border-b border-neutral-700/30 flex-shrink-0">
         <button
           onClick={onBack}
+          aria-label="Back to conversations"
           className="lg:hidden text-neutral-400 hover:text-neutral-100 mr-1"
         >
           ←
@@ -651,6 +652,7 @@ function MessageView({
           <button
             onClick={handleSend}
             disabled={!input.trim()}
+            aria-label="Send message"
             className="h-11 w-11 flex items-center justify-center rounded-2xl bg-gold-500 hover:bg-gold-400 text-primary-900 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
           >
             <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
