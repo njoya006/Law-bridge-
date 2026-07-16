@@ -122,6 +122,19 @@ class ThreadDetailView(APIView):
             return Response({'error': 'Not found'}, status=404)
         return Response(ThreadSerializer(thread, context={'request': request}).data)
 
+    def patch(self, request, pk):
+        """Toggle AI assistance on a client_lawyer thread. Lawyer participants only."""
+        thread, uid = self._get_thread(request, pk)
+        if not thread:
+            return Response({'error': 'Not found'}, status=404)
+        if thread.thread_type != 'client_lawyer':
+            return Response({'error': 'AI toggle only available on lawyer threads.'}, status=400)
+        if _role(request) not in ('lawyer', 'admin'):
+            return Response({'detail': 'Only the assigned lawyer can toggle AI.'}, status=403)
+        thread.is_ai_support = not thread.is_ai_support
+        thread.save(update_fields=['is_ai_support'])
+        return Response({'is_ai_support': thread.is_ai_support})
+
 
 class MessageListView(APIView):
     permission_classes = [IsAuthenticated]

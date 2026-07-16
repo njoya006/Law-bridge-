@@ -9,7 +9,7 @@ class Thread(models.Model):
         ('firm_internal', 'Firm Internal'),
     ]
     thread_type = models.CharField(max_length=20, choices=THREAD_TYPES, db_index=True)
-    case_id = models.IntegerField(db_index=True)
+    case_id = models.CharField(max_length=50, blank=True, default='', db_index=True)
     case_ref = models.CharField(max_length=50, blank=True)
     case_title = models.CharField(max_length=200, blank=True)
     subject = models.CharField(max_length=200, blank=True)

@@ -4,7 +4,7 @@ import React, { Suspense, useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import {
   listThreads, createThread, listMessages, sendMessage,
-  markRead, escalateToHuman, toggleReaction, getWebSocketUrl,
+  markRead, escalateToHuman, toggleReaction, toggleThreadAI, getWebSocketUrl,
   type Thread, type Message, type CreateThreadPayload,
   THREAD_TYPE_LABELS, THREAD_TYPE_COLORS,
 } from '../../lib/messagesApi'
@@ -56,16 +56,15 @@ function NewThreadModal({
   const [error, setError] = useState('')
 
   async function handleCreate() {
-    if (!caseId) { setError('Please enter a case ID'); return }
     setLoading(true)
     setError('')
     try {
       const payload: CreateThreadPayload = {
         thread_type: threadType,
-        case_id: Number(caseId),
+        case_id: caseId || undefined,
         case_ref: caseRef,
         case_title: caseTitle,
-        subject: caseTitle || `${THREAD_TYPE_LABELS[threadType]} — Case #${caseId}`,
+        subject: caseTitle || (caseId ? `${THREAD_TYPE_LABELS[threadType]} — Case ${caseId}` : THREAD_TYPE_LABELS[threadType]),
       }
       const thread = await createThread(payload, token)
       onCreated(thread)
@@ -105,12 +104,12 @@ function NewThreadModal({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Case ID *</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">Case ID <span className="text-neutral-600 normal-case font-normal">(optional)</span></label>
             <input
-              type="number"
+              type="text"
               value={caseId}
               onChange={e => setCaseId(e.target.value)}
-              placeholder="e.g. 42"
+              placeholder="e.g. case reference or ID"
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-gold-400/40 focus:bg-white/8"
             />
           </div>
@@ -365,12 +364,14 @@ function MessageView({
   thread,
   token,
   currentUserId,
+  userRole,
   onBack,
   onUpdate,
 }: {
   thread: Thread
   token: string
   currentUserId: string
+  userRole: string
   onBack: () => void
   onUpdate: (t: Thread) => void
 }) {
@@ -533,6 +534,15 @@ function MessageView({
     onUpdate({ ...thread, escalated_to_human: true })
   }
 
+  // ── AI toggle (lawyer only) ─────────────────────────────────────────────────
+
+  async function handleToggleAI() {
+    try {
+      const result = await toggleThreadAI(thread.id, token)
+      onUpdate({ ...thread, is_ai_support: result.is_ai_support })
+    } catch { /* ignore */ }
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   const otherParticipants = thread.participants.filter(p => p.user_id !== currentUserId)
@@ -567,8 +577,8 @@ function MessageView({
           </div>
         </div>
 
-        {/* Escalate button for support threads */}
-        {thread.is_ai_support && !thread.escalated_to_human && (
+        {/* Escalate button — support threads only */}
+        {thread.thread_type === 'client_support' && thread.is_ai_support && !thread.escalated_to_human && (
           <button
             onClick={handleEscalate}
             className="text-xs px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-all flex-shrink-0"
@@ -576,10 +586,25 @@ function MessageView({
             Escalate
           </button>
         )}
-        {thread.escalated_to_human && (
+        {thread.thread_type === 'client_support' && thread.escalated_to_human && (
           <span className="text-[10px] px-2 py-1 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-300 flex-shrink-0">
-            Human agent assigned
+            Human agent
           </span>
+        )}
+        {/* AI toggle — lawyer threads, visible to lawyers only */}
+        {thread.thread_type === 'client_lawyer' && userRole === 'lawyer' && (
+          <button
+            onClick={() => void handleToggleAI()}
+            title={thread.is_ai_support ? 'AI assistant is ON — click to disable' : 'Enable AI assistant for this conversation'}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all flex-shrink-0 ${
+              thread.is_ai_support
+                ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300 hover:bg-emerald-500/20'
+                : 'bg-white/5 border-white/10 text-neutral-500 hover:border-white/20 hover:text-neutral-300'
+            }`}
+          >
+            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/></svg>
+            {thread.is_ai_support ? 'AI on' : 'AI off'}
+          </button>
         )}
       </div>
 
@@ -679,6 +704,7 @@ function MessagesPageInner() {
   const searchParams = useSearchParams()
   const [token, setToken] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string>('')
+  const [userRole, setUserRole] = useState<string>('')
   const [threads, setThreads] = useState<Thread[]>([])
   const [selectedThread, setSelectedThread] = useState<Thread | null>(null)
   const [loading, setLoading] = useState(true)
@@ -689,8 +715,10 @@ function MessagesPageInner() {
   useEffect(() => {
     const t = localStorage.getItem('access')
     const uid = localStorage.getItem('authUserId') || ''
+    const role = localStorage.getItem('portalRole') || ''
     setToken(t)
     setCurrentUserId(uid)
+    setUserRole(role)
     setPreference(getPreferredContact())
 
     const threadParam = searchParams.get('thread')
@@ -847,6 +875,7 @@ function MessagesPageInner() {
                 thread={selectedThread}
                 token={token}
                 currentUserId={currentUserId}
+                userRole={userRole}
                 onBack={() => setMobileView('list')}
                 onUpdate={handleThreadUpdate}
               />

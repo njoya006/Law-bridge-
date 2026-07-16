@@ -16,6 +16,7 @@ import { buildWorkflow, LAWYER_ACTIONS } from '../../../lib/workflow'
 import { ClientCard, LawyerCard } from '../../../components/IdentityCards'
 import { useCaseWebSocket } from '../../../lib/useCaseWebSocket'
 import { SERVICE_URLS } from '../../../lib/serviceUrls'
+import { getOrCreateCaseThread } from '../../../lib/messagesApi'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -1948,6 +1949,28 @@ export default function CaseDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [role, setRole] = useState<'lawyer' | 'client'>('client')
+  const [msgLoading, setMsgLoading] = useState(false)
+
+  async function handleOpenChat(otherUserId: string, otherName: string, otherRole: 'lawyer' | 'client' | 'firm_admin') {
+    if (!item) return
+    const token = localStorage.getItem('access')
+    if (!token) return
+    setMsgLoading(true)
+    try {
+      const thread = await getOrCreateCaseThread({
+        caseId: item.id,
+        caseTitle: item.title,
+        caseRef: item.id.slice(0, 8).toUpperCase(),
+        otherUserId,
+        otherDisplayName: otherName,
+        otherRole,
+        token,
+      })
+      router.push(`/messages?thread=${thread.id}`)
+    } catch {
+      setMsgLoading(false)
+    }
+  }
 
   const load = useCallback(async () => {
     const access = localStorage.getItem('access')
@@ -2129,13 +2152,37 @@ export default function CaseDetailPage() {
           ))}
         </div>
         {item.client_id && isLawyer && (
-          <div className="p-2">
+          <div className="p-2 space-y-2">
             <ClientCard clientId={item.client_id} clientEmail={item.booking_metadata?.client_email} />
+            <button
+              onClick={() => void handleOpenChat(item.client_id!, item.booking_metadata?.client_email || 'Client', 'client')}
+              disabled={msgLoading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gold-500/10 border border-gold-400/20 text-gold-300 text-sm font-medium hover:bg-gold-500/20 transition-all disabled:opacity-40"
+            >
+              {msgLoading ? (
+                <span className="h-4 w-4 rounded-full border-2 border-gold-400/40 border-t-gold-400 animate-spin" />
+              ) : (
+                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+              )}
+              Message Client
+            </button>
           </div>
         )}
         {item.assigned_lawyer_id && !isLawyer && (
-          <div className="p-2">
+          <div className="p-2 space-y-2">
             <LawyerCard lawyerUserId={item.assigned_lawyer_id} fallbackName={item.booking_metadata?.target_name} />
+            <button
+              onClick={() => void handleOpenChat(item.assigned_lawyer_id!, item.booking_metadata?.target_name || 'Your Lawyer', 'lawyer')}
+              disabled={msgLoading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-gold-500/10 border border-gold-400/20 text-gold-300 text-sm font-medium hover:bg-gold-500/20 transition-all disabled:opacity-40"
+            >
+              {msgLoading ? (
+                <span className="h-4 w-4 rounded-full border-2 border-gold-400/40 border-t-gold-400 animate-spin" />
+              ) : (
+                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+              )}
+              Message Lawyer
+            </button>
           </div>
         )}
       </div>

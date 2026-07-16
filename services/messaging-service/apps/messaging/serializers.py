@@ -70,7 +70,7 @@ class ThreadSerializer(serializers.ModelSerializer):
 
 class ThreadCreateSerializer(serializers.Serializer):
     thread_type = serializers.ChoiceField(choices=['client_lawyer', 'client_firm', 'client_support', 'firm_internal'])
-    case_id = serializers.IntegerField()
+    case_id = serializers.CharField(max_length=50, default='', required=False)
     case_ref = serializers.CharField(required=False, default='')
     case_title = serializers.CharField(required=False, default='')
     subject = serializers.CharField(required=False, default='')
