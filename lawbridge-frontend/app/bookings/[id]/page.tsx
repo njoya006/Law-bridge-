@@ -296,13 +296,22 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
+        {status === 'accepted' && (
+          <Link
+            href="/messages"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            Message Lawyer
+          </Link>
+        )}
         {status === 'declined' && (
           <Link href="/discover" className="flex-1 text-center px-4 py-2.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-black font-semibold text-sm transition-colors">
             Find Another Lawyer
           </Link>
         )}
-        <Link href="/bookings" className={`${status === 'declined' ? 'flex-none' : 'flex-1'} text-center px-4 py-2.5 rounded-lg border border-neutral-600 text-neutral-300 text-sm hover:border-gold-500/50 hover:text-gold-400 transition-colors`}>
+        <Link href="/bookings" className={`${status === 'accepted' || status === 'declined' ? 'flex-none' : 'flex-1'} text-center px-4 py-2.5 rounded-lg border border-neutral-600 text-neutral-300 text-sm hover:border-gold-500/50 hover:text-gold-400 transition-colors`}>
           Back to My Bookings
         </Link>
       </div>
@@ -602,10 +611,21 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
         </div>
       )}
 
-      <Link href="/lawyer/bookings"
-        className="block text-center px-4 py-2.5 rounded-lg border border-neutral-600 text-neutral-300 text-sm hover:border-gold-500/50 hover:text-gold-400 transition-colors">
-        Back to Booking Requests
-      </Link>
+      <div className="flex gap-3">
+        {status === 'accepted' && (
+          <Link
+            href="/messages"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            Message Client
+          </Link>
+        )}
+        <Link href="/lawyer/bookings"
+          className={`${status === 'accepted' ? 'flex-none' : 'flex-1'} text-center px-4 py-2.5 rounded-lg border border-neutral-600 text-neutral-300 text-sm hover:border-gold-500/50 hover:text-gold-400 transition-colors`}>
+          Back to Booking Requests
+        </Link>
+      </div>
     </div>
   )
 }
