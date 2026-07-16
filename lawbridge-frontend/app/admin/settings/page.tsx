@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
+import { toastSuccess, toastError } from '../../../lib/toast'
 
 type Tab = 'account' | 'security' | 'system'
 
@@ -31,21 +32,8 @@ function Row({ label, desc, children }: { label: string; desc?: string; children
   )
 }
 
-function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
-  return (
-    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm shadow-xl animate-fade-up ${type === 'success' ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-red-500/15 border-red-500/30 text-red-300'}`}>
-      {type === 'success'
-        ? <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-        : <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-      }
-      {msg}
-    </div>
-  )
-}
-
 export default function AdminSettingsPage() {
   const [tab, setTab] = useState<Tab>('account')
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
 
   // Account info
   const [name, setName] = useState('')
@@ -64,11 +52,6 @@ export default function AdminSettingsPage() {
     maintenance_mode: false,
   })
 
-  function showToast(msg: string, type: 'success' | 'error') {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), 4000)
-  }
-
   useEffect(() => {
     const n = localStorage.getItem('fullName') || ''
     const e = localStorage.getItem('userEmail') || ''
@@ -77,15 +60,15 @@ export default function AdminSettingsPage() {
   }, [])
 
   async function saveAccount() {
-    if (!name.trim()) { showToast('Full name is required.', 'error'); return }
+    if (!name.trim()) { toastError('Full name is required.', 'Validation error'); return }
     setSavingAccount(true)
     try {
       const token = localStorage.getItem('access') || ''
       await api.patch('auth', '/auth/me/', { full_name: name }, token)
       localStorage.setItem('fullName', name)
-      showToast('Profile updated successfully.', 'success')
+      toastSuccess('Profile updated successfully.')
     } catch (e) {
-      showToast(e instanceof Error ? e.message.replace(/^\d+ .*?: /, '') : 'Failed to save profile.', 'error')
+      toastError(e instanceof Error ? e.message.replace(/^\d+ .*?: /, '') : 'Failed to save profile.', 'Profile update failed')
     } finally {
       setSavingAccount(false)
     }
@@ -105,7 +88,7 @@ export default function AdminSettingsPage() {
         confirm_password: pw.confirm,
       }, token)
       setPw({ current: '', next: '', confirm: '' })
-      showToast('Password changed successfully.', 'success')
+      toastSuccess('Password changed successfully.')
     } catch (e) {
       setPwError(e instanceof Error ? e.message.replace(/^\d+ .*?: /, '') : 'Failed to change password.')
     } finally {
@@ -121,8 +104,6 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      {toast && <Toast {...toast} />}
-
       <div>
         <h1 className="font-display text-2xl text-neutral-50">System Settings</h1>
         <p className="text-sm text-neutral-500 mt-1">Manage your admin account and system configuration.</p>
@@ -267,7 +248,7 @@ export default function AdminSettingsPage() {
               )}
               <div className="mt-6">
                 <button
-                  onClick={() => showToast('System settings saved.', 'success')}
+                  onClick={() => toastSuccess('System settings saved.')}
                   className="px-5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors"
                 >
                   Save Settings

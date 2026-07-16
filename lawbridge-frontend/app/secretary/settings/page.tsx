@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
+import { toastSuccess, toastError } from '../../../lib/toast'
 
 type Tab = 'account' | 'notifications' | 'security'
 
@@ -33,7 +34,6 @@ function Row({ label, desc, children }: { label: string; desc?: string; children
 
 export default function SecretarySettingsPage() {
   const [tab, setTab] = useState<Tab>('account')
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -49,11 +49,6 @@ export default function SecretarySettingsPage() {
     notify_reminders: true,
   })
 
-  function showToast(msg: string, type: 'success' | 'error') {
-    setToast({ msg, type })
-    setTimeout(() => setToast(null), 4000)
-  }
-
   useEffect(() => {
     setName(localStorage.getItem('fullName') || '')
     setEmail(localStorage.getItem('userEmail') || '')
@@ -67,15 +62,15 @@ export default function SecretarySettingsPage() {
   }, [])
 
   async function saveAccount() {
-    if (!name.trim()) { showToast('Full name is required.', 'error'); return }
+    if (!name.trim()) { toastError('Full name is required.', 'Validation error'); return }
     setSavingAccount(true)
     try {
       const token = localStorage.getItem('access') || ''
       await api.patch('auth', '/auth/me/', { full_name: name }, token)
       localStorage.setItem('fullName', name)
-      showToast('Profile saved.', 'success')
+      toastSuccess('Profile saved successfully.')
     } catch (e) {
-      showToast(e instanceof Error ? e.message.replace(/^\d+ .*?: /, '') : 'Failed to save.', 'error')
+      toastError(e instanceof Error ? e.message.replace(/^\d+ .*?: /, '') : 'Failed to save.', 'Profile update failed')
     } finally {
       setSavingAccount(false)
     }
@@ -87,9 +82,9 @@ export default function SecretarySettingsPage() {
     try {
       await api.patch('auth', '/auth/preferences/', notifs, token)
       localStorage.setItem('userSettings', JSON.stringify(notifs))
-      showToast('Notification preferences saved.', 'success')
+      toastSuccess('Notification preferences saved.')
     } catch {
-      showToast('Failed to save preferences.', 'error')
+      toastError('Failed to save notification preferences.', 'Save failed')
     }
   }
 
@@ -107,7 +102,7 @@ export default function SecretarySettingsPage() {
         confirm_password: pw.confirm,
       }, token)
       setPw({ current: '', next: '', confirm: '' })
-      showToast('Password changed successfully.', 'success')
+      toastSuccess('Password changed successfully.')
     } catch (e) {
       setPwError(e instanceof Error ? e.message.replace(/^\d+ .*?: /, '') : 'Failed to change password.')
     } finally {
@@ -117,15 +112,6 @@ export default function SecretarySettingsPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      {toast && (
-        <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm shadow-xl animate-fade-up ${toast.type === 'success' ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-red-500/15 border-red-500/30 text-red-300'}`}>
-          {toast.type === 'success'
-            ? <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-            : <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-          }
-          {toast.msg}
-        </div>
-      )}
 
       <div>
         <h1 className="font-display text-2xl text-neutral-50">Settings</h1>

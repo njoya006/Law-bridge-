@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getIncomingBookings, acceptBooking, declineBooking, type CaseItem } from '../../../lib/casesApi'
+import { toastSuccess, toastError } from '../../../lib/toast'
 
 type Tab = 'pending' | 'accepted' | 'declined'
 
@@ -205,15 +206,25 @@ export default function LawyerBookingsPage() {
   const handleAccept = async (id: string) => {
     const access = localStorage.getItem('access')
     if (!access) return
-    await acceptBooking(id, access)
-    await fetchAll()
+    try {
+      await acceptBooking(id, access)
+      toastSuccess('Booking accepted — the client will be notified.')
+      await fetchAll()
+    } catch (e) {
+      toastError(e instanceof Error ? e.message.replace(/^\d+[^:]*:\s*/, '') : 'Failed to accept booking.', 'Accept failed')
+    }
   }
 
   const handleDecline = async (id: string, reason: string) => {
     const access = localStorage.getItem('access')
     if (!access) return
-    await declineBooking(id, reason, access)
-    await fetchAll()
+    try {
+      await declineBooking(id, reason, access)
+      toastSuccess('Booking declined — the client will be notified.')
+      await fetchAll()
+    } catch (e) {
+      toastError(e instanceof Error ? e.message.replace(/^\d+[^:]*:\s*/, '') : 'Failed to decline booking.', 'Decline failed')
+    }
   }
 
   const TABS: { id: Tab; label: string }[] = [

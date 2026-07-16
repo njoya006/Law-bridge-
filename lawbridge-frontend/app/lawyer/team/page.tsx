@@ -9,6 +9,7 @@ import {
   type FirmMembership, type FirmInvite, type FirmActionLog, type Firm,
 } from '../../../lib/firmsApi'
 import { uploadFirmLogo, validateImageFile } from '../../../lib/avatarApi'
+import { toastSuccess, toastError } from '../../../lib/toast'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -489,8 +490,11 @@ function FirmLogoUploader({ firmId, currentLogoUrl, onUploaded }: {
       const token = localStorage.getItem('access') ?? ''
       const { logo_url } = await uploadFirmLogo(firmId, file, token)
       onUploaded(logo_url)
+      toastSuccess('Firm logo updated.')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Upload failed')
+      const msg = e instanceof Error ? e.message : 'Upload failed'
+      setError(msg)
+      toastError(msg, 'Logo upload failed')
       setPreview(null)
     } finally {
       setUploading(false)
@@ -656,8 +660,18 @@ export default function LawyerTeamPage() {
     setInviteDone(true)
     void load()
   }
-  const handleRoleDone = () => { setRoleTarget(null); void load() }
-  const handleRemoveDone = () => { setRemoveTarget(null); void load() }
+  const handleRoleDone = () => {
+    const name = roleTarget?.user_full_name || roleTarget?.user_email || 'Member'
+    setRoleTarget(null)
+    toastSuccess(`Role updated for ${name}`)
+    void load()
+  }
+  const handleRemoveDone = () => {
+    const name = removeTarget?.user_full_name || removeTarget?.user_email || 'Member'
+    setRemoveTarget(null)
+    toastSuccess(`${name} has been removed from the firm`)
+    void load()
+  }
 
   if (loading) {
     return (
