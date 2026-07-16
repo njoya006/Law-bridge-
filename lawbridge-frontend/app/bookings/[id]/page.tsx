@@ -297,15 +297,24 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
       )}
 
       <div className="flex gap-3 flex-wrap">
-        {status === 'accepted' && (
-          <Link
-            href="/messages"
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-            Message Lawyer
-          </Link>
-        )}
+        {status === 'accepted' && (() => {
+          const params = new URLSearchParams({
+            case_id: booking.id,
+            case_title: booking.title || `Case ${booking.id.slice(0, 8)}`,
+          })
+          if (booking.assigned_lawyer_id) params.set('other_id', booking.assigned_lawyer_id)
+          if (meta.target_name) params.set('other_name', meta.target_name)
+          params.set('other_role', 'lawyer')
+          return (
+            <Link
+              href={`/messages?${params.toString()}`}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              Message Lawyer
+            </Link>
+          )
+        })()}
         {status === 'declined' && (
           <Link href="/discover" className="flex-1 text-center px-4 py-2.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-black font-semibold text-sm transition-colors">
             Find Another Lawyer
@@ -612,15 +621,26 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
       )}
 
       <div className="flex gap-3">
-        {status === 'accepted' && (
-          <Link
-            href="/messages"
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-            Message Client
-          </Link>
-        )}
+        {status === 'accepted' && (() => {
+          const clientUserId = booking.client_id || ''
+          const clientName = meta.client_email?.split('@')[0]?.replace(/[._-]/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'Client'
+          const msgParams = new URLSearchParams({
+            case_id: booking.id,
+            case_title: booking.title || `Case ${booking.id.slice(0, 8)}`,
+            other_role: 'client',
+          })
+          if (clientUserId) msgParams.set('other_id', clientUserId)
+          if (clientName) msgParams.set('other_name', clientName)
+          return (
+            <Link
+              href={`/messages?${msgParams.toString()}`}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              Message Client
+            </Link>
+          )
+        })()}
         <Link href="/lawyer/bookings"
           className={`${status === 'accepted' ? 'flex-none' : 'flex-1'} text-center px-4 py-2.5 rounded-lg border border-neutral-600 text-neutral-300 text-sm hover:border-gold-500/50 hover:text-gold-400 transition-colors`}>
           Back to Booking Requests

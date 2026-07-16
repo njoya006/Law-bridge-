@@ -732,13 +732,51 @@ function MessagesPageInner() {
 
     const fetchThreads = (initial: boolean) => {
       return listThreads(token)
-        .then(data => {
+        .then(async data => {
           setThreads(data)
           if (initial) {
             const threadParam = searchParams.get('thread')
+            const caseIdParam = searchParams.get('case_id')
+            const otherIdParam = searchParams.get('other_id')
+            const otherNameParam = searchParams.get('other_name')
+            const otherRoleParam = searchParams.get('other_role')
+            const caseTitleParam = searchParams.get('case_title')
+
             if (threadParam) {
               const found = data.find(t => t.id === Number(threadParam))
               if (found) { setSelectedThread(found); setMobileView('thread') }
+            } else if (caseIdParam && otherIdParam) {
+              // Auto-find or create the thread for this case
+              const existing = data.find(t =>
+                t.case_id === caseIdParam && (
+                  t.thread_type === 'client_lawyer' || t.thread_type === 'client_firm'
+                )
+              )
+              if (existing) {
+                setSelectedThread(existing)
+                setMobileView('thread')
+              } else {
+                // Create a new thread for this case
+                try {
+                  const newThread = await createThread(
+                    {
+                      thread_type: 'client_lawyer',
+                      case_id: caseIdParam,
+                      case_title: caseTitleParam || `Case ${caseIdParam.slice(0, 8)}`,
+                      subject: caseTitleParam || `Consultation — ${otherNameParam || 'Lawyer'}`,
+                      participants: otherIdParam ? [{
+                        user_id: otherIdParam,
+                        display_name: otherNameParam || 'Lawyer',
+                        role: otherRoleParam || 'lawyer',
+                      }] : [],
+                    },
+                    token,
+                  )
+                  setThreads(prev => [newThread, ...prev])
+                  setSelectedThread(newThread)
+                  setMobileView('thread')
+                } catch { /* fall through to normal list view */ }
+              }
             }
             setLoading(false)
           }
