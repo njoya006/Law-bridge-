@@ -1,0 +1,64 @@
+name: Debug — AI Service Status
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    env:
+      EC2_INSTANCE_ID: i-031445edd3e88f5fe
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Check AI service container status and logs
+        run: |
+          SCRIPT=$(cat <<'BASH'
+          cd /opt/lawbridge
+          echo "=== All containers ==="
+          docker compose ps
+
+          echo ""
+          echo "=== AI service container state ==="
+          docker compose ps ai-assistant-service
+
+          echo ""
+          echo "=== GROQ_API_KEY set? ==="
+          grep 'GROQ_API_KEY' .env | sed 's/=.*/=<hidden>/'
+
+          echo ""
+          echo "=== AI service image ==="
+          grep 'AI_SERVICE_IMAGE\|ai-assistant' .env || echo "(not in .env)"
+          docker images | grep ai-assistant || echo "(image not found locally)"
+
+          echo ""
+          echo "=== Last 60 lines of AI service logs ==="
+          docker compose logs ai-assistant-service --tail=60 2>&1 || echo "No logs (container may not exist)"
+
+          echo ""
+          echo "=== Nginx 502 test ==="
+          curl -s -o /dev/null -w "%{http_code}" http://localhost/api/v1/ai/sessions/ \
+            -H "Authorization: Bearer test" && echo "" || echo "Connection error"
+          BASH
+          )
+
+          ENCODED=$(echo "$SCRIPT" | base64 -w 0)
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "$EC2_INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --parameters "commands=[\"echo \$ENCODED | base64 -d | bash\"]" \
+            --query Command.CommandId --output text)
+
+          echo "SSM command: $CMD_ID"
+          sleep 25
+          aws ssm get-command-invocation \
+            --command-id "$CMD_ID" \
+            --instance-id "$EC2_INSTANCE_ID" \
+            --query '[StandardOutputContent,StandardErrorContent]' \
+            --output text
