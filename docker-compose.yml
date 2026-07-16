@@ -131,6 +131,7 @@ services:
       DB_NAME: document_db
       REDIS_URL: redis://redis:6379/0
       CASE_SERVICE_URL: http://case-service:8004/api/v1/cases
+      NOTIFICATION_SERVICE_URL: http://notification-service:8006
 
   notification-service:
     <<: *django-common

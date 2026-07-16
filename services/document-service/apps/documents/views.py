@@ -7,6 +7,7 @@ from io import BytesIO
 from minio import Minio
 from minio.error import S3Error
 import jwt
+import json
 from decouple import config
 from .models import Document
 from .serializers import DocumentSerializer
@@ -99,6 +100,70 @@ def _access_error_response(access_result):
     )
 
 
+def _get_case_info(case_id, auth_header):
+    """Fetch case details from case service. Returns dict or None."""
+    base_url = settings.CASE_SERVICE_URL.rstrip('/')
+    url = f'{base_url}/{case_id}/'
+    try:
+        req = Request(url, headers={'Authorization': auth_header})
+        with urlopen(req, timeout=5) as response:
+            return json.loads(response.read().decode('utf-8'))
+    except Exception:
+        return None
+
+
+def _notify_document_uploaded(case_id, document, uploader_role, auth_header):
+    """Fire-and-forget: notify the relevant party when a document is uploaded."""
+    try:
+        case = _get_case_info(case_id, auth_header)
+        if not case:
+            return
+
+        if uploader_role in STAFF_ROLES:
+            recipient_id = case.get('client_id')
+            title_en = 'New Document Added by Your Lawyer'
+            title_fr = 'Nouveau Document Ajouté par Votre Avocat'
+            msg_en = f'A new document "{document.filename}" has been added to your case "{case.get("title", "")}".'
+            msg_fr = f'Un nouveau document "{document.filename}" a été ajouté à votre dossier "{case.get("title", "")}".'
+        else:
+            recipient_id = case.get('assigned_lawyer_id')
+            title_en = 'New Document Uploaded by Client'
+            title_fr = 'Nouveau Document Téléchargé par le Client'
+            msg_en = f'Your client uploaded "{document.filename}" to case "{case.get("title", "")}".'
+            msg_fr = f'Votre client a téléchargé "{document.filename}" dans le dossier "{case.get("title", "")}".'
+
+        if not recipient_id:
+            return
+
+        notify_url = getattr(settings, 'NOTIFICATION_SERVICE_URL', 'http://notification-service:8006').rstrip('/') + '/api/v1/notifications/internal/create/'
+        internal_key = config('INTERNAL_API_KEY', default='dev-internal-key')
+
+        payload = json.dumps({
+            'user_id': str(recipient_id),
+            'event_type': 'document_uploaded',
+            'title_en': title_en,
+            'title_fr': title_fr,
+            'message_en': msg_en,
+            'message_fr': msg_fr,
+            'metadata': {
+                'document_id': str(document.id),
+                'case_id': str(case_id),
+                'filename': document.filename,
+            },
+        }).encode('utf-8')
+
+        req = Request(
+            notify_url,
+            data=payload,
+            headers={'X-Internal-Key': internal_key, 'Content-Type': 'application/json'},
+            method='POST',
+        )
+        with urlopen(req, timeout=5):
+            pass
+    except Exception as exc:
+        print(f'[notify_document_uploaded] non-fatal: {exc}')
+
+
 class DocumentUploadView(APIView):
     """Upload a document for a case"""
 
@@ -151,6 +216,10 @@ class DocumentUploadView(APIView):
         except Exception as exc:
             document.delete()
             return Response({'error': f'failed to store document: {exc}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        caller_role = extract_auth_payload(request).get('role', '')
+        _notify_document_uploaded(case_id, document, caller_role, auth_header)
 
         return Response(
             DocumentSerializer(document).data,

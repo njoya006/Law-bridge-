@@ -430,7 +430,33 @@ export default function LawyerMattersPage() {
       )}
 
       {!loading && !error && visibleItems.length === 0 && (
-        <Card className="mt-6 text-neutral-400">No matters assigned to you yet. Booking requests will appear here when clients select you.</Card>
+        <div className="mt-6 rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-14 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500/10 text-gold-400">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+              </svg>
+            </div>
+          </div>
+          <h3 className="font-semibold text-neutral-200 text-base">No matters yet</h3>
+          <p className="mt-1.5 max-w-sm mx-auto text-sm text-neutral-500 leading-relaxed">
+            Your caseload will appear here once clients book a consultation with you and you accept their request.
+          </p>
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg mx-auto text-left">
+            {[
+              { icon: '⚙️', title: 'Set up your profile', text: 'Complete your specialization, fees, and availability so clients can find you.', href: '/lawyer/settings' },
+              { icon: '📋', title: 'Check Bookings', text: 'New client consultation requests arrive in the Bookings section for your review.', href: '/lawyer/bookings' },
+              { icon: '🔍', title: 'Get discovered', text: 'Clients search for lawyers by practice area and circuit. Make sure your profile is public.', href: '/lawyer/profile' },
+            ].map(({ icon, title, text, href }) => (
+              <Link key={title} href={href} className="flex flex-col gap-1.5 rounded-xl border border-white/6 bg-primary-900/40 px-4 py-3 hover:border-gold-500/20 hover:bg-primary-900/60 transition-colors">
+                <span className="text-xl">{icon}</span>
+                <p className="text-xs font-semibold text-neutral-300">{title}</p>
+                <p className="text-[11px] text-neutral-500 leading-relaxed">{text}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
 
       {!loading && visibleItems.length > 0 && (

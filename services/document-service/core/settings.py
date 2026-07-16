@@ -111,6 +111,7 @@ CORS_ALLOW_HEADERS = [
     'x-document-password',
 ]
 CASE_SERVICE_URL = config('CASE_SERVICE_URL', default='http://case-service/api/v1/cases')
+NOTIFICATION_SERVICE_URL = config('NOTIFICATION_SERVICE_URL', default='http://notification-service:8006')
 
 from datetime import timedelta
 SIMPLE_JWT = {

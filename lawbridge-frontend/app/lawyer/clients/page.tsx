@@ -87,10 +87,33 @@ export default function LawyerClientsPage() {
       )}
 
       {!loading && !error && clients.length === 0 && (
-        <Card className="p-8 text-center">
-          <p className="text-neutral-400">No clients yet.</p>
-          <p className="text-neutral-500 text-sm mt-1">Clients appear once a booking is accepted and cases are assigned to you.</p>
-        </Card>
+        <div className="rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-14 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+          </div>
+          <h3 className="font-semibold text-neutral-200 text-base">No clients yet</h3>
+          <p className="mt-1.5 max-w-xs mx-auto text-sm text-neutral-500 leading-relaxed">
+            Your clients will appear here once you accept their booking requests and cases are opened.
+          </p>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/lawyer/bookings" className="rounded-xl border border-gold-500/30 bg-gold-500/10 px-5 py-2.5 text-sm font-semibold text-gold-400 hover:bg-gold-500/20 transition-colors">
+              Review Bookings
+            </Link>
+            <Link href="/lawyer/settings" className="rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-neutral-300 hover:bg-white/10 transition-colors">
+              Update Profile
+            </Link>
+          </div>
+          <p className="mt-5 text-xs text-neutral-600">
+            Tip: Clients search for lawyers by specialization and circuit. Keep your profile complete to appear in more searches.
+          </p>
+        </div>
       )}
 
       {!loading && !error && clients.length > 0 && (

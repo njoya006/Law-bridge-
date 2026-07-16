@@ -100,7 +100,20 @@ export default function LawyerBillingPage() {
         )}
 
         {!loading && !error && invoices.length === 0 && (
-          <p className="text-neutral-400 text-sm py-8 text-center">No invoices found.</p>
+          <div className="py-10 text-center">
+            <div className="flex justify-center mb-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500/10 text-gold-400">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <rect x="2" y="5" width="20" height="14" rx="2"/>
+                  <line x1="2" y1="10" x2="22" y2="10"/>
+                </svg>
+              </div>
+            </div>
+            <p className="text-sm font-medium text-neutral-300">No invoices yet</p>
+            <p className="text-xs text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">
+              Invoices are generated automatically when clients pay their booking fees. Accept a booking and receive payment to see records here.
+            </p>
+          </div>
         )}
 
         {!loading && !error && invoices.length > 0 && (

@@ -107,9 +107,24 @@ export default function SecretaryBookingsPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-20 text-neutral-500">
-          <p className="text-lg font-semibold text-neutral-400">No {tab === 'all' ? '' : tab} bookings</p>
-          <p className="text-sm mt-1">Booking requests from clients will appear here.</p>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-14 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-500/10 text-gold-400 mb-4">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <p className="font-semibold text-neutral-200 text-base">
+            {tab === 'all' ? 'No bookings yet' : `No ${tab} bookings`}
+          </p>
+          <p className="mt-1.5 max-w-xs text-sm text-neutral-500 leading-relaxed">
+            {tab === 'all'
+              ? 'Client consultation requests routed to your firm will appear here. Make sure the firm has published lawyers in the directory.'
+              : tab === 'pending'
+              ? 'No pending requests right now. New client bookings will appear here for lawyer review.'
+              : tab === 'accepted'
+              ? 'No accepted bookings yet. Once a lawyer accepts a request, it appears in this list.'
+              : 'No declined requests at this time.'}
+          </p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

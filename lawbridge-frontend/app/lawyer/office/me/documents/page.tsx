@@ -1,47 +1,142 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { Card } from '../../../../../components/ui/Card'
-import { getCaseProgress } from '../../../../../lib/monitoringApi'
-import { listDocuments, type DocumentItem } from '../../../../../lib/documentsApi'
-
-function fileIcon(mime: string) {
-  if (mime?.includes('pdf')) return '📄'
-  if (mime?.includes('image')) return '🖼'
-  if (mime?.includes('word') || mime?.includes('document')) return '📝'
-  if (mime?.includes('sheet') || mime?.includes('excel')) return '📊'
-  return '📎'
-}
+import React, { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
+import { getMyCases, type CaseItem } from '../../../../../lib/casesApi'
+import { listDocuments, fetchDocumentBlob, downloadDocument, type DocumentItem } from '../../../../../lib/documentsApi'
+import { toastError } from '../../../../../lib/toast'
 
 function formatBytes(bytes: number) {
   if (!bytes) return '—'
   if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1048576).toFixed(1)} MB`
+}
+
+function formatDate(iso: string) {
+  try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) }
+  catch { return '—' }
+}
+
+function FileIcon({ mime }: { mime: string }) {
+  const base = 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg'
+  if (mime?.includes('pdf')) return <div className={`${base} bg-red-500/12 text-red-400`}>📄</div>
+  if (mime?.includes('image')) return <div className={`${base} bg-emerald-500/12 text-emerald-400`}>🖼️</div>
+  if (mime?.includes('word') || mime?.includes('document')) return <div className={`${base} bg-blue-500/12 text-blue-400`}>📝</div>
+  if (mime?.includes('sheet') || mime?.includes('excel')) return <div className={`${base} bg-green-500/12 text-green-400`}>📊</div>
+  return <div className={`${base} bg-gold-500/12 text-gold-400`}>📎</div>
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const cls = status === 'stored'
+    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+    : status === 'pending_scan'
+    ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
+    : 'text-neutral-400 bg-neutral-700/30 border-neutral-600/30'
+  return (
+    <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full border ${cls}`}>
+      {status === 'pending_scan' ? 'scanning' : status}
+    </span>
+  )
+}
+
+function EmptyVault() {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-14 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-500/10 text-gold-400 text-2xl">
+        📁
+      </div>
+      <h3 className="mt-4 font-semibold text-neutral-200">No documents yet</h3>
+      <p className="mt-1.5 max-w-xs text-sm text-neutral-500 leading-relaxed">
+        Documents from all your active matters appear here once clients or you upload files.
+      </p>
+      <div className="mt-5 flex flex-col sm:flex-row gap-3 text-sm">
+        <Link
+          href="/lawyer/bookings"
+          className="rounded-xl border border-gold-500/30 bg-gold-500/10 px-4 py-2.5 font-semibold text-gold-400 hover:bg-gold-500/20 transition-colors"
+        >
+          View Bookings
+        </Link>
+        <Link
+          href="/upload"
+          className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 font-medium text-neutral-300 hover:bg-white/10 transition-colors"
+        >
+          Upload a File
+        </Link>
+      </div>
+    </div>
+  )
 }
 
 export default function MyOfficeDocumentsPage() {
-  const [documents, setDocuments] = useState<DocumentItem[]>([])
+  const [groups, setGroups] = useState<{ caseId: string; title: string; items: DocumentItem[] }[]>([])
+  const [cases, setCases] = useState<CaseItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewMime, setPreviewMime] = useState('')
+  const [previewName, setPreviewName] = useState('')
+  const [previewDocId, setPreviewDocId] = useState('')
+  const [previewToken, setPreviewToken] = useState('')
+
+  const totalDocs = groups.reduce((n, g) => n + g.items.length, 0)
+
+  const closePreview = useCallback(() => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null); setPreviewMime(''); setPreviewName(''); setPreviewDocId('')
+  }, [previewUrl])
+
+  const handleOpen = useCallback(async (doc: DocumentItem) => {
+    const token = localStorage.getItem('access')
+    if (!token) return
+    try {
+      const blob = await fetchDocumentBlob(doc.id, token)
+      closePreview()
+      const url = URL.createObjectURL(blob)
+      setPreviewUrl(url)
+      setPreviewMime(blob.type || doc.mime_type || 'application/pdf')
+      setPreviewName(doc.filename)
+      setPreviewDocId(doc.id)
+      setPreviewToken(token)
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Unable to open document', 'Open failed')
+    }
+  }, [closePreview])
+
+  const handleDownload = useCallback(async (doc: DocumentItem) => {
+    const token = localStorage.getItem('access')
+    if (!token) return
+    try {
+      await downloadDocument(doc.id, token, undefined, doc.filename)
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Unable to download', 'Download failed')
+    }
+  }, [])
 
   useEffect(() => {
     let mounted = true
     const run = async () => {
       const access = localStorage.getItem('access')
-      const lawyerId = localStorage.getItem('authUserId')
-      if (!access || !lawyerId) {
-        setError('Sign in as a lawyer to view documents.')
-        setLoading(false)
+      if (!access) {
+        if (mounted) { setError('Sign in as a lawyer to view documents.'); setLoading(false) }
         return
       }
       try {
-        const progress = await getCaseProgress(access)
-        const caseIds = (progress.results ?? [])
-          .filter(item => item.assigned_lawyer_id === lawyerId)
-          .map(item => item.case_id)
-        const lists = await Promise.all(caseIds.map(caseId => listDocuments(caseId, access)))
-        if (mounted) setDocuments(lists.flatMap(item => item.results))
+        const result = await getMyCases(access)
+        const allCases = result.results ?? []
+        if (mounted) setCases(allCases)
+
+        const nextGroups = await Promise.all(
+          allCases.map(async (c) => {
+            try {
+              const { results } = await listDocuments(c.id, access)
+              return { caseId: c.id, title: c.title, items: results }
+            } catch {
+              return { caseId: c.id, title: c.title, items: [] }
+            }
+          })
+        )
+        if (mounted) setGroups(nextGroups)
       } catch (cause) {
         if (mounted) setError(cause instanceof Error ? cause.message : 'Unable to load documents')
       } finally {
@@ -54,9 +149,23 @@ export default function MyOfficeDocumentsPage() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h2 className="font-display text-display-md text-neutral-50">Documents</h2>
-        <p className="mt-1 text-neutral-400">Files linked to your assigned matters</p>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-display text-display-md text-neutral-50">Documents</h2>
+          <p className="mt-1 text-neutral-400 text-sm">
+            {loading ? 'Loading…' : `${cases.length} matter${cases.length !== 1 ? 's' : ''} · ${totalDocs} document${totalDocs !== 1 ? 's' : ''}`}
+          </p>
+        </div>
+        <Link
+          href="/upload"
+          className="flex flex-shrink-0 items-center gap-2 rounded-xl border border-gold-500/30 bg-gold-500/10 px-4 py-2.5 text-sm font-semibold text-gold-400 hover:bg-gold-500/20 transition-colors"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+          </svg>
+          Upload
+        </Link>
       </header>
 
       {loading && (
@@ -67,48 +176,104 @@ export default function MyOfficeDocumentsPage() {
       )}
 
       {!loading && error && (
-        <Card className="border border-crimson-500/30 p-4">
-          <p className="text-crimson-300 text-sm">{error}</p>
-        </Card>
+        <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/8 px-4 py-4">
+          <svg className="mt-0.5 flex-shrink-0 text-red-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <p className="text-sm text-red-300">{error}</p>
+        </div>
       )}
 
-      {!loading && !error && documents.length === 0 && (
-        <Card className="p-8 text-center">
-          <p className="text-neutral-400">No documents found across your assigned matters.</p>
-        </Card>
+      {!loading && !error && cases.length === 0 && <EmptyVault />}
+
+      {!loading && !error && cases.length > 0 && groups.every(g => g.items.length === 0) && (
+        <EmptyVault />
       )}
 
-      {!loading && !error && documents.length > 0 && (
-        <Card className="p-0 overflow-hidden">
-          <div className="px-5 py-3 border-b border-neutral-700/40 flex items-center justify-between">
-            <span className="text-sm font-medium text-neutral-300">{documents.length} document{documents.length !== 1 ? 's' : ''}</span>
+      {!loading && !error && groups.map(group => (
+        <div key={group.caseId} className="rounded-xl border border-white/8 bg-primary-800/30 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-white/6 bg-primary-800/40">
+            <p className="text-sm font-semibold text-neutral-100 truncate">{group.title}</p>
+            <span className="ml-3 flex-shrink-0 text-[10px] uppercase tracking-wider text-neutral-500">
+              {group.items.length} {group.items.length === 1 ? 'file' : 'files'}
+            </span>
           </div>
-          <div className="divide-y divide-neutral-700/20">
-            {documents.map(doc => (
-              <div key={doc.id} className="flex items-center gap-4 px-5 py-3 hover:bg-white/[0.02] transition-colors">
-                <span className="text-2xl flex-shrink-0">{fileIcon(doc.mime_type)}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-neutral-100 truncate">{doc.filename}</p>
-                  <p className="text-xs text-neutral-400 mt-0.5">
-                    {doc.document_type} · {formatBytes(doc.file_size)} · v{doc.version}
-                  </p>
+          {group.items.length === 0 ? (
+            <div className="flex items-center gap-3 px-5 py-4 text-xs text-neutral-500">
+              <span className="opacity-50">📄</span>
+              No files yet — your client can upload from their portal, or add one yourself.
+            </div>
+          ) : (
+            <div className="divide-y divide-white/5">
+              {group.items.map(doc => (
+                <div key={doc.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-white/[0.02] transition-colors">
+                  <FileIcon mime={doc.mime_type} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-100 truncate">{doc.filename}</p>
+                    <div className="mt-0.5 flex items-center gap-2 flex-wrap">
+                      <StatusBadge status={doc.status} />
+                      <span className="text-[11px] text-neutral-500 capitalize">{doc.document_type?.replace(/_/g, ' ')}</span>
+                      <span className="text-[11px] text-neutral-600">{formatBytes(doc.file_size)}</span>
+                      {doc.created_at && <span className="text-[11px] text-neutral-600">{formatDate(doc.created_at)}</span>}
+                    </div>
+                  </div>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    {doc.is_encrypted && (
+                      <span className="text-[10px] text-gold-400 border border-gold-500/30 rounded px-1.5 py-0.5">encrypted</span>
+                    )}
+                    <button
+                      onClick={() => void handleOpen(doc)}
+                      className="min-h-[32px] rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-neutral-300 hover:bg-white/10 hover:text-neutral-100 transition-colors"
+                    >
+                      Open
+                    </button>
+                    <button
+                      onClick={() => void handleDownload(doc)}
+                      className="min-h-[32px] flex items-center justify-center rounded-lg border border-gold-500/25 bg-gold-500/10 px-2.5 py-1 text-xs text-gold-400 hover:bg-gold-500/20 transition-colors"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/>
+                        <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  {doc.is_encrypted && (
-                    <span className="text-xs text-gold-400 border border-gold-500/30 rounded px-1.5 py-0.5">encrypted</span>
-                  )}
-                  <span className={`text-xs px-2 py-0.5 rounded-full border ${
-                    doc.status === 'approved'
-                      ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-                      : 'text-neutral-400 bg-neutral-700/30 border-neutral-600/30'
-                  }`}>
-                    {doc.status}
-                  </span>
-                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Preview modal */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="flex w-full max-w-5xl flex-col rounded-2xl border border-white/10 bg-primary-950 shadow-2xl" style={{ height: 'calc(100dvh - 6rem)', maxHeight: '90dvh' }}>
+            <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-5 py-4">
+              <p className="truncate font-semibold text-neutral-100 flex-1 min-w-0">{previewName}</p>
+              <div className="flex flex-shrink-0 items-center gap-2 ml-4">
+                <button
+                  onClick={() => void downloadDocument(previewDocId, previewToken, undefined, previewName)}
+                  className="min-h-[38px] rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-neutral-300 hover:bg-white/10 transition-colors"
+                >
+                  Download
+                </button>
+                <button onClick={closePreview} className="min-h-[38px] min-w-[38px] flex items-center justify-center rounded-xl bg-gold-500 text-sm font-semibold text-primary-950 hover:bg-gold-400 transition-colors px-3">
+                  Close
+                </button>
               </div>
-            ))}
+            </div>
+            <div className="flex-1 min-h-0 rounded-b-2xl bg-white">
+              <object data={previewUrl} type={previewMime || 'application/pdf'} className="h-full w-full">
+                <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-700">
+                  <div>
+                    <p className="font-semibold">Preview unavailable.</p>
+                    <p className="mt-2">Use Download to save the file.</p>
+                  </div>
+                </div>
+              </object>
+            </div>
           </div>
-        </Card>
+        </div>
       )}
     </div>
   )

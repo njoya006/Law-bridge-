@@ -219,15 +219,39 @@ export default function DocumentsPage() {
 
       {/* Groups */}
       {!loading && groups.length === 0 && !error && (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/8 bg-primary-800/20 py-16 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 text-neutral-600">
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-16 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
               <polyline points="13 2 13 9 20 9"/>
             </svg>
           </div>
-          <p className="mt-4 text-sm font-medium text-neutral-400">No documents yet</p>
-          <p className="mt-1 text-xs text-neutral-600">Upload documents from the Upload page and they'll appear here.</p>
+          <h3 className="mt-4 font-semibold text-neutral-200 text-base">Your document vault is empty</h3>
+          <p className="mt-1.5 max-w-sm text-sm text-neutral-500 leading-relaxed">
+            Every file you share with your lawyer is stored here, organized by case. Uploads are end-to-end secure.
+          </p>
+          <div className="mt-6 w-full max-w-sm space-y-3 text-left">
+            {[
+              { step: '1', text: 'Book a lawyer from the Lawyers page — this opens your first case', href: '/lawyers', label: 'Find a Lawyer' },
+              { step: '2', text: 'Once your case is active, use the Upload button above to share evidence, contracts, or identity documents', href: '/upload', label: 'Upload Now' },
+              { step: '3', text: 'Your lawyer gets notified instantly and can view files from their portal', href: null, label: null },
+            ].map(({ step, text, href, label }) => (
+              <div key={step} className="flex items-start gap-3 rounded-xl border border-white/6 bg-primary-900/40 px-4 py-3">
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-xs font-bold text-blue-400">{step}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-neutral-400 leading-relaxed">{text}</p>
+                  {href && label && (
+                    <Link href={href} className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors">
+                      {label}
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <polyline points="9 18 15 12 9 6"/>
+                      </svg>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
