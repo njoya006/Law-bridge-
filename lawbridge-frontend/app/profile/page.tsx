@@ -12,6 +12,7 @@ import { clearSession } from '../../lib/authSession'
 import { getMyCases } from '../../lib/casesApi'
 import { listDocuments } from '../../lib/documentsApi'
 import { unreadNotificationCount } from '../../lib/notificationsApi'
+import { toastSuccess, toastError } from '../../lib/toast'
 
 type AuthMe = {
   id: string
@@ -187,8 +188,11 @@ export default function ProfilePage() {
 
       setSaveSuccess(true)
       setEditing(false)
+      toastSuccess('Profile updated successfully')
     } catch (cause) {
-      setSaveError(cause instanceof Error ? cause.message : 'Failed to save changes')
+      const msg = cause instanceof Error ? cause.message.replace(/^\d{3}[^:]*:\s*/, '') : 'Failed to save changes'
+      setSaveError(msg)
+      toastError(msg, 'Profile update failed')
     } finally {
       setSaveLoading(false)
     }
