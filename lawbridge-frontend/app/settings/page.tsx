@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import AvatarUploader from '../../components/ui/AvatarUploader'
 import { api } from '../../lib/api'
 import { getLang, setLang, t, type Lang } from '../../lib/i18n'
 
@@ -27,14 +28,15 @@ const DEFAULT_PREFS: Prefs = {
   profile_visible: true,
 }
 
-type Tab = 'notifications' | 'language' | 'communication' | 'privacy' | 'security'
+type Tab = 'account' | 'notifications' | 'language' | 'communication' | 'privacy' | 'security'
 
-const TABS: { id: Tab; labelKey: string }[] = [
-  { id: 'notifications', labelKey: 'settings.tabs.notifications' },
-  { id: 'language', labelKey: 'settings.tabs.language' },
-  { id: 'communication', labelKey: 'settings.tabs.communication' },
-  { id: 'privacy', labelKey: 'settings.tabs.privacy' },
-  { id: 'security', labelKey: 'settings.tabs.security' },
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'account', label: 'Account' },
+  { id: 'notifications', label: 'Notifications' },
+  { id: 'language', label: 'Language' },
+  { id: 'communication', label: 'Communication' },
+  { id: 'privacy', label: 'Privacy' },
+  { id: 'security', label: 'Security' },
 ]
 
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
@@ -71,13 +73,22 @@ function SettingRow({
 }
 
 export default function ClientSettingsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('notifications')
+  const [activeTab, setActiveTab] = useState<Tab>('account')
   const [lang, setLangState] = useState<Lang>('en')
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT_PREFS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [saveError, setSaveError] = useState('')
+
+  // Account tab state
+  const [authMe, setAuthMe] = useState<{ id: string; email: string; full_name: string; avatar_url?: string | null } | null>(null)
+  const [profileForm, setProfileForm] = useState({ full_name: '' })
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileSuccess, setProfileSuccess] = useState(false)
+  const [profileError, setProfileError] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(null)
 
   // Password change state
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' })
@@ -102,11 +113,21 @@ export default function ClientSettingsPage() {
     const run = async () => {
       const access = localStorage.getItem('access')
       if (!access) { setLoading(false); return }
+      setAccessToken(access)
       try {
-        const data = await api.get<Prefs>('auth', '/auth/preferences/', access)
-        setPrefs(prev => ({ ...prev, ...data }))
-        // Cache for other pages (e.g. messaging preference gate)
-        localStorage.setItem('userSettings', JSON.stringify({ ...prefs, ...data }))
+        const [prefsData, meData] = await Promise.allSettled([
+          api.get<Prefs>('auth', '/auth/preferences/', access),
+          api.get<{ id: string; email: string; full_name: string; avatar_url?: string | null }>('auth', '/auth/me/', access),
+        ])
+        if (prefsData.status === 'fulfilled') {
+          setPrefs(prev => ({ ...prev, ...prefsData.value }))
+          localStorage.setItem('userSettings', JSON.stringify({ ...prefs, ...prefsData.value }))
+        }
+        if (meData.status === 'fulfilled') {
+          setAuthMe(meData.value)
+          setProfileForm({ full_name: meData.value.full_name || '' })
+          setAvatarUrl(meData.value.avatar_url || null)
+        }
       } catch {
         // falls back to defaults
       } finally {
@@ -163,7 +184,7 @@ export default function ClientSettingsPage() {
                       : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-700/30'
                     }`}
                 >
-                  {t(tab.labelKey as Parameters<typeof t>[0], lang)}
+                  {tab.label}
                 </button>
               </li>
             ))}
@@ -181,6 +202,85 @@ export default function ClientSettingsPage() {
             </Card>
           ) : (
             <>
+              {/* ── ACCOUNT ── */}
+              {activeTab === 'account' && (
+                <div className="space-y-4">
+                  <Card className="p-6">
+                    <h2 className="font-heading text-body-lg text-neutral-50 mb-1">Profile Photo</h2>
+                    <p className="text-neutral-400 text-body-sm mb-6">Upload a photo — lawyers will see this when reviewing your bookings.</p>
+                    <div className="flex items-center gap-6">
+                      <AvatarUploader
+                        currentUrl={avatarUrl}
+                        initials={(profileForm.full_name || authMe?.email || 'U').slice(0, 2).toUpperCase()}
+                        size="lg"
+                        token={accessToken}
+                        onUploaded={url => {
+                          setAvatarUrl(url)
+                          localStorage.setItem('avatarUrl', url)
+                        }}
+                      />
+                      <div>
+                        <p className="text-neutral-200 text-sm font-semibold mb-1">Click photo to upload</p>
+                        <p className="text-neutral-500 text-xs">JPEG, PNG or WebP — max 5 MB</p>
+                        {avatarUrl && <p className="text-emerald-400 text-xs mt-2">Photo saved</p>}
+                      </div>
+                    </div>
+                  </Card>
+
+                  <Card className="p-6">
+                    <h2 className="font-heading text-body-lg text-neutral-50 mb-1">Personal Information</h2>
+                    <p className="text-neutral-400 text-body-sm mb-6">Update your display name used across the platform.</p>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-2">Full Name <span className="text-crimson-400">*</span></label>
+                        <input
+                          type="text"
+                          value={profileForm.full_name}
+                          onChange={e => setProfileForm(p => ({ ...p, full_name: e.target.value }))}
+                          placeholder="Your full legal name"
+                          className="w-full rounded-lg px-4 py-3 bg-primary-800/40 text-neutral-50 border border-neutral-700/50 focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-400 font-body text-body-md"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-2">Email Address</label>
+                        <input
+                          type="email"
+                          value={authMe?.email || ''}
+                          disabled
+                          className="w-full rounded-lg px-4 py-3 bg-neutral-800/30 text-neutral-500 border border-neutral-700/30 cursor-not-allowed font-body text-body-md"
+                        />
+                        <p className="text-neutral-600 text-xs mt-1">Email cannot be changed. Contact support if needed.</p>
+                      </div>
+                      {profileError && <p className="text-crimson-300 text-sm">{profileError}</p>}
+                      {profileSuccess && <p className="text-emerald-400 text-sm">Profile updated successfully.</p>}
+                      <Button
+                        variant="gold"
+                        size="sm"
+                        disabled={profileSaving || !profileForm.full_name.trim()}
+                        onClick={async () => {
+                          if (!accessToken || !profileForm.full_name.trim()) return
+                          setProfileSaving(true)
+                          setProfileError('')
+                          setProfileSuccess(false)
+                          try {
+                            await api.patch('auth', '/auth/me/', { full_name: profileForm.full_name.trim() }, accessToken)
+                            localStorage.setItem('fullName', profileForm.full_name.trim())
+                            setProfileSuccess(true)
+                            setTimeout(() => setProfileSuccess(false), 3000)
+                          } catch (e) {
+                            setProfileError(e instanceof Error ? e.message : 'Failed to update profile')
+                          } finally {
+                            setProfileSaving(false)
+                          }
+                        }}
+                      >
+                        {profileSaving ? 'Saving…' : 'Save Profile'}
+                      </Button>
+                    </div>
+                  </Card>
+                </div>
+              )}
+
               {/* ── NOTIFICATIONS ── */}
               {activeTab === 'notifications' && (
                 <Card className="p-6">
@@ -386,8 +486,8 @@ export default function ClientSettingsPage() {
                 </div>
               )}
 
-              {/* Save bar — shown for all tabs except security */}
-              {activeTab !== 'security' && (
+              {/* Save bar — shown for preferences tabs only */}
+              {activeTab !== 'security' && activeTab !== 'account' && (
                 <div className="mt-6 flex items-center gap-4">
                   <Button variant="gold" onClick={handleSave} disabled={saving}>
                     {saving ? t('settings.saving', lang) : t('settings.save', lang)}
