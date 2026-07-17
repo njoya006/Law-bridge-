@@ -61,6 +61,110 @@ const EXAMPLE_PROMPTS = [
   { label: 'Legal research',   text: 'Explain the key differences between OHADA arbitration and UNCITRAL arbitration procedures.' },
 ]
 
+// ── Structured AI response parsing ───────────────────────────────────────────
+
+type CaseAnalysisData = {
+  strength_score?: number
+  risk_flags?: string[]
+  recommended_next_steps?: string[]
+  summary?: string
+  [key: string]: unknown
+}
+
+type ParsedAI =
+  | { type: 'case_analysis'; data: CaseAnalysisData }
+  | { type: 'text'; content: string }
+
+function parseAIContent(raw: string): ParsedAI {
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const d = parsed as Record<string, unknown>
+        if ('strength_score' in d || 'risk_flags' in d || 'recommended_next_steps' in d || 'summary' in d) {
+          return { type: 'case_analysis', data: d as CaseAnalysisData }
+        }
+      }
+      return { type: 'text', content: '```json\n' + JSON.stringify(parsed, null, 2) + '\n```' }
+    } catch { /* not valid JSON — fall through */ }
+  }
+  return { type: 'text', content: raw }
+}
+
+function CaseAnalysisCard({ data }: { data: CaseAnalysisData }) {
+  const score     = typeof data.strength_score === 'number' ? data.strength_score : null
+  const riskFlags = Array.isArray(data.risk_flags) ? (data.risk_flags as string[]) : []
+  const nextSteps = Array.isArray(data.recommended_next_steps) ? (data.recommended_next_steps as string[]) : []
+  const summary   = typeof data.summary === 'string' ? data.summary : ''
+
+  const scoreColor = score === null ? 'text-neutral-400'
+    : score >= 70 ? 'text-emerald-400' : score >= 40 ? 'text-amber-400' : 'text-red-400'
+  const scoreFill  = score === null ? 'bg-neutral-600'
+    : score >= 70 ? 'bg-emerald-500' : score >= 40 ? 'bg-amber-500' : 'bg-red-500'
+
+  return (
+    <div className="space-y-4">
+      {summary && (
+        <p className="text-sm text-neutral-200 leading-relaxed">{summary}</p>
+      )}
+
+      {score !== null && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Case Strength</span>
+            <span className={`text-xl font-bold tabular-nums ${scoreColor}`}>
+              {score}<span className="text-xs font-normal text-neutral-600 ml-0.5">/100</span>
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+            <div className={`h-full rounded-full ${scoreFill} transition-all duration-700`} style={{ width: `${Math.max(score, 2)}%` }} />
+          </div>
+        </div>
+      )}
+
+      {riskFlags.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Risk Flags</p>
+          <div className="flex flex-wrap gap-1.5">
+            {riskFlags.map((flag, i) => (
+              <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/20 px-2.5 py-1 text-xs text-red-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                {flag}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {nextSteps.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Recommended Next Steps</p>
+          <ol className="space-y-2">
+            {nextSteps.map((step, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-sm text-neutral-300 leading-relaxed">
+                <span className="flex-shrink-0 mt-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-gold-500/15 border border-gold-500/25 text-[10px] font-bold text-gold-400">
+                  {i + 1}
+                </span>
+                <span className="capitalize">{step}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AIMessageContent({ content }: { content: string }) {
+  const parsed = parseAIContent(content)
+  return parsed.type === 'case_analysis'
+    ? <CaseAnalysisCard data={parsed.data} />
+    : <MarkdownRenderer content={parsed.content} />
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+
 function LexAIAvatar({ size = 8 }: { size?: number }) {
   const px = size * 4
   return (
@@ -262,10 +366,10 @@ function ChatPanel({ token }: { token: string }) {
                   </div>
                 )
               }
-              <div className={`flex flex-col gap-1 ${m.role === 'user' ? 'items-end' : 'items-start'} max-w-[78%] min-w-0`}>
+              <div className={`flex flex-col gap-1 ${m.role === 'user' ? 'items-end' : 'items-start'} max-w-[82%] min-w-0`}>
                 {m.role === 'assistant' ? (
-                  <div className="bg-white rounded-2xl px-5 py-4 shadow-sm text-neutral-900 min-w-0 w-full">
-                    <MarkdownRenderer content={m.content} />
+                  <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-5 py-4 min-w-0 w-full">
+                    <AIMessageContent content={m.content} />
                   </div>
                 ) : (
                   <div className="bg-gold-500/12 border border-gold-500/20 rounded-2xl px-4 py-3 text-neutral-100 text-sm leading-relaxed whitespace-pre-wrap">
@@ -285,9 +389,9 @@ function ChatPanel({ token }: { token: string }) {
           {streaming && streamingText && (
             <div className="flex gap-3">
               <LexAIAvatar size={8} />
-              <div className="max-w-[78%] min-w-0">
-                <div className="bg-white rounded-2xl px-5 py-4 shadow-sm text-neutral-900">
-                  <MarkdownRenderer content={streamingText} />
+              <div className="max-w-[82%] min-w-0 w-full">
+                <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-5 py-4">
+                  <AIMessageContent content={streamingText} />
                   <span className="inline-block w-0.5 h-[1.1em] bg-gold-500 animate-pulse align-middle ml-0.5 -mb-0.5" />
                 </div>
               </div>
@@ -298,12 +402,12 @@ function ChatPanel({ token }: { token: string }) {
           {streaming && !streamingText && (
             <div className="flex gap-3">
               <LexAIAvatar size={8} />
-              <div className="bg-white rounded-2xl px-5 py-4 shadow-sm">
+              <div className="rounded-2xl border border-white/8 bg-white/[0.04] px-5 py-4">
                 <div className="flex items-center gap-1.5">
                   {[0, 1, 2].map(i => (
                     <span
                       key={i}
-                      className="h-2 w-2 rounded-full bg-neutral-300 animate-bounce"
+                      className="h-2 w-2 rounded-full bg-neutral-600 animate-bounce"
                       style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.9s' }}
                     />
                   ))}
