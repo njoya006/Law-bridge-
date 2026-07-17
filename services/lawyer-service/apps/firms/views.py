@@ -283,7 +283,7 @@ class InviteCreateView(APIView):
         if email:
             try:
                 import httpx
-                r = httpx.get('http://auth-service/api/v1/auth/users/', params={'email': email}, timeout=5.0)
+                r = httpx.get('http://auth-service:8001/api/v1/auth/users/', params={'email': email}, timeout=5.0)
                 if r.status_code == 404:
                     return Response({'detail': 'No lawyer account found with that email address.'}, status=status.HTTP_400_BAD_REQUEST)
                 r.raise_for_status()
