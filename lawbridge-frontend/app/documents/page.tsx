@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { getMyCases } from '../../lib/casesApi'
 import { listDocuments, fetchDocumentBlob, downloadDocument, type DocumentItem } from '../../lib/documentsApi'
 
@@ -78,6 +79,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function DocumentsPage() {
+  const router = useRouter()
   const [groups, setGroups] = useState<DocumentGroup[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -107,7 +109,7 @@ export default function DocumentsPage() {
 
   const runDocumentAction = async (doc: DocumentItem, action: 'open' | 'download', passwordValue?: string) => {
     const token = localStorage.getItem('access')
-    if (!token) throw new Error('Not signed in')
+    if (!token) { router.replace('/auth/login'); throw new Error('Not signed in') }
     const blob = await fetchDocumentBlob(doc.id, token, passwordValue || undefined)
     if (action === 'open') {
       closePreview()
@@ -125,13 +127,19 @@ export default function DocumentsPage() {
 
   const handleAction = (document: DocumentItem, action: 'open' | 'download') => {
     setError('')
-    // Lawyers and firm staff skip the password modal — backend grants access without it
-    if (document.is_password_protected && portalRole !== 'lawyer') {
+    // Password protection applies to ALL users — show the modal regardless of role
+    if (document.is_password_protected) {
       setPendingDocument(document); setPendingAction(action); setPassword(''); setPasswordError('')
       return
     }
     void runDocumentAction(document, action).catch(err => {
-      setError(err instanceof Error ? err.message : 'Unable to open document')
+      const msg = err instanceof Error ? err.message : 'Unable to open document'
+      // Backend may also return password_required for documents we didn't know were protected
+      if (msg === 'password_required') {
+        setPendingDocument(document); setPendingAction(action); setPassword(''); setPasswordError('')
+      } else {
+        setError(msg)
+      }
     })
   }
 
@@ -139,7 +147,10 @@ export default function DocumentsPage() {
     setPortalRole(localStorage.getItem('portalRole') || 'client')
     const run = async () => {
       const access = localStorage.getItem('access')
-      if (!access) { setError('Sign in to see your documents.'); setLoading(false); return }
+      if (!access) {
+        router.replace(portalRole === 'lawyer' ? '/auth/lawyer-login' : '/auth/login')
+        return
+      }
       try {
         const cases = await getMyCases(access)
         const nextGroups = await Promise.all(

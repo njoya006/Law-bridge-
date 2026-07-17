@@ -342,10 +342,9 @@ class DocumentDownloadView(APIView):
         if not document.minio_path:
             return Response({'error': 'document not stored'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Firm staff bypass the password requirement — they manage the case
-        # and should not be blocked by client-set document passwords.
-        is_staff = caller_role in STAFF_ROLES
-        if document.password_hash and not is_internal and not is_staff:
+        # Password protection is enforced for ALL users — both clients and staff.
+        # Only internal service-to-service calls are exempt.
+        if document.password_hash and not is_internal:
             provided = request.META.get('HTTP_X_DOCUMENT_PASSWORD') or request.GET.get('password')
             if not provided:
                 return Response({'error': 'password required'}, status=status.HTTP_403_FORBIDDEN)

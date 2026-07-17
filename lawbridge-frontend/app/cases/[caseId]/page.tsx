@@ -1669,6 +1669,9 @@ function CaseDocumentsSection({ caseId, isLawyer }: { caseId: string; isLawyer: 
   const [loading, setLoading] = useState(true)
   const [previewBlob, setPreviewBlob] = useState<{ url: string; name: string; mime: string } | null>(null)
   const [opening, setOpening] = useState<string | null>(null)
+  const [passwordDoc, setPasswordDoc] = useState<DocumentItem | null>(null)
+  const [docPw, setDocPw]             = useState('')
+  const [docPwErr, setDocPwErr]       = useState('')
 
   useEffect(() => {
     const token = localStorage.getItem('access')
@@ -1679,15 +1682,23 @@ function CaseDocumentsSection({ caseId, isLawyer }: { caseId: string; isLawyer: 
       .finally(() => setLoading(false))
   }, [caseId])
 
-  async function openDoc(doc: DocumentItem) {
+  async function openDoc(doc: DocumentItem, password?: string) {
     const token = localStorage.getItem('access')
     if (!token) return
     setOpening(doc.id)
     try {
-      const blob = await fetchDocumentBlob(doc.id, token)
+      const blob = await fetchDocumentBlob(doc.id, token, password)
       const url = URL.createObjectURL(blob)
       setPreviewBlob({ url, name: doc.filename, mime: doc.mime_type })
-    } catch { /* ignore */ }
+      setPasswordDoc(null); setDocPw(''); setDocPwErr('')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ''
+      if (msg === 'password_required') {
+        setPasswordDoc(doc); setDocPw(''); setDocPwErr('')
+      } else if (msg === 'invalid_password') {
+        setDocPwErr('Incorrect password')
+      }
+    }
     finally { setOpening(null) }
   }
 
@@ -1747,6 +1758,12 @@ function CaseDocumentsSection({ caseId, isLawyer }: { caseId: string; isLawyer: 
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[10px] text-neutral-600">{DOC_TYPE_LABELS[doc.document_type] ?? doc.document_type}</span>
                       {doc.version > 1 && <span className="text-[9px] text-neutral-700">v{doc.version}</span>}
+                      {doc.is_password_protected && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] text-amber-400 font-semibold">
+                          <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                          Protected
+                        </span>
+                      )}
                       {isSigned && (
                         <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-400 font-semibold">
                           <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
@@ -1774,6 +1791,42 @@ function CaseDocumentsSection({ caseId, isLawyer }: { caseId: string; isLawyer: 
           </div>
         )}
       </div>
+
+      {/* Password prompt for case documents */}
+      {passwordDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => { setPasswordDoc(null); setDocPw(''); setDocPwErr('') }}>
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-primary-800 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="px-6 pt-6 pb-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/12 text-amber-400">
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-neutral-100 text-sm">Password Protected</p>
+                  <p className="text-[11px] text-neutral-500 mt-0.5">Enter the document password to open</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-neutral-600 truncate mb-4">{passwordDoc.filename}</p>
+              <input
+                type="password"
+                value={docPw}
+                onChange={e => { setDocPw(e.target.value); setDocPwErr('') }}
+                onKeyDown={e => { if (e.key === 'Enter') void openDoc(passwordDoc, docPw) }}
+                autoFocus
+                placeholder="Document password"
+                className="w-full rounded-xl bg-primary-900/50 border border-white/10 px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-amber-500/40"
+              />
+              {docPwErr && <p className="mt-2 text-xs text-red-400">{docPwErr}</p>}
+            </div>
+            <div className="flex gap-3 px-6 pb-6">
+              <button onClick={() => { setPasswordDoc(null); setDocPw(''); setDocPwErr('') }} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-neutral-400 hover:text-neutral-100 transition-colors">Cancel</button>
+              <button onClick={() => void openDoc(passwordDoc, docPw)} className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors">
+                Open Document
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Document preview modal */}
       {previewBlob && (
