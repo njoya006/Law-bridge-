@@ -65,6 +65,7 @@ export async function sendChatMessage(
   callbacks: StreamCallbacks,
   sessionId?: string,
   caseId?: string,
+  documentIds?: string[],
 ): Promise<void> {
   const res = await fetch(`${aiBase()}/ai/chat/`, {
     method: 'POST',
@@ -77,6 +78,7 @@ export async function sendChatMessage(
       message,
       ...(sessionId ? { session_id: sessionId } : {}),
       ...(caseId ? { case_id: caseId } : {}),
+      ...(documentIds?.length ? { document_ids: documentIds } : {}),
     }),
   })
 

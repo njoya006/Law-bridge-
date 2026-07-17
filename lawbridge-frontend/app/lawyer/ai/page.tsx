@@ -54,6 +54,44 @@ function ChatBubbleIcon() {
 
 // ── Chat Panel ────────────────────────────────────────────────────────────────
 
+const EXAMPLE_PROMPTS = [
+  { label: 'Case strategy',    text: 'What are the strongest grounds for a civil law appeal in Cameroon under the OHADA Uniform Act?' },
+  { label: 'Evidence rules',   text: 'What types of evidence are admissible in a Cameroonian common law commercial dispute?' },
+  { label: 'Draft motion',     text: 'Help me draft a motion to dismiss for lack of jurisdiction in a Douala commercial court.' },
+  { label: 'Legal research',   text: 'Explain the key differences between OHADA arbitration and UNCITRAL arbitration procedures.' },
+]
+
+function LexAIAvatar({ size = 8 }: { size?: number }) {
+  const px = size * 4
+  return (
+    <div
+      className="flex-shrink-0 flex items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 shadow-md shadow-gold-500/20"
+      style={{ width: px, height: px, minWidth: px }}
+    >
+      <svg width={px * 0.55} height={px * 0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M12 3L3 9v3c0 5.25 3.8 10.15 9 11.32C17.2 22.15 21 17.25 21 12V9l-9-6z"/>
+        <path d="M8 12h8M10 9l2 3 2-3"/>
+      </svg>
+    </div>
+  )
+}
+
+function groupSessionsByDate(sessions: ChatSession[]) {
+  const now = new Date()
+  const todayStart  = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const yesterdayStart = todayStart - 86400000
+  const weekStart = todayStart - 6 * 86400000
+  const groups: Record<string, ChatSession[]> = { Today: [], Yesterday: [], 'This Week': [], Earlier: [] }
+  for (const s of sessions) {
+    const t = new Date(s.updated_at).getTime()
+    if (t >= todayStart)      groups['Today'].push(s)
+    else if (t >= yesterdayStart) groups['Yesterday'].push(s)
+    else if (t >= weekStart)  groups['This Week'].push(s)
+    else                       groups['Earlier'].push(s)
+  }
+  return groups
+}
+
 function ChatPanel({ token }: { token: string }) {
   const [sessions, setSessions] = useState<ChatSession[]>([])
   const [activeSession, setActiveSession] = useState<string | null>(null)
@@ -62,12 +100,16 @@ function ChatPanel({ token }: { token: string }) {
   const [streaming, setStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState('')
   const [error, setError] = useState('')
+  const [userInitials, setUserInitials] = useState('ME')
   const bottomRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    listChatSessions(token)
-      .then(setSessions)
-      .catch(() => {})
+    listChatSessions(token).then(setSessions).catch(() => {})
+    const name = localStorage.getItem('fullName') ?? ''
+    const parts = name.trim().split(' ')
+    const initials = ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'ME'
+    setUserInitials(initials)
   }, [token])
 
   async function loadSession(id: string) {
@@ -75,9 +117,14 @@ function ChatPanel({ token }: { token: string }) {
     try {
       const s = await getChatSession(id, token)
       setMessages(s.messages ?? [])
-    } catch {
-      setMessages([])
-    }
+    } catch { setMessages([]) }
+  }
+
+  function newChat() {
+    setActiveSession(null)
+    setMessages([])
+    setStreamingText('')
+    setError('')
   }
 
   async function send() {
@@ -85,6 +132,7 @@ function ChatPanel({ token }: { token: string }) {
     const msg = input.trim()
     setInput('')
     setError('')
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setMessages(prev => [...prev, { role: 'user', content: msg, timestamp: new Date().toISOString() }])
     setStreaming(true)
     setStreamingText('')
@@ -94,23 +142,19 @@ function ChatPanel({ token }: { token: string }) {
       onSessionId: (id) => {
         sid = id
         setActiveSession(id)
-        setSessions(prev => prev.some(s => s.id === id) ? prev : [{ id, title: msg.slice(0, 60), language: 'en', case_id: null, updated_at: new Date().toISOString() }, ...prev])
+        setSessions(prev => prev.some(s => s.id === id) ? prev : [{
+          id, title: msg.slice(0, 60), language: 'en', case_id: null, updated_at: new Date().toISOString()
+        }, ...prev])
       },
       onToken: (t) => setStreamingText(prev => prev + t),
       onDone: () => {
         setStreaming(false)
         setStreamingText(prev => {
-          if (prev) {
-            setMessages(m => [...m, { role: 'assistant', content: prev, timestamp: new Date().toISOString() }])
-          }
+          if (prev) setMessages(m => [...m, { role: 'assistant', content: prev, timestamp: new Date().toISOString() }])
           return ''
         })
       },
-      onError: (e) => {
-        setStreaming(false)
-        setStreamingText('')
-        setError(e)
-      },
+      onError: (e) => { setStreaming(false); setStreamingText(''); setError(e) },
     }, sid)
   }
 
@@ -118,102 +162,207 @@ function ChatPanel({ token }: { token: string }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamingText])
 
-  function newChat() {
-    setActiveSession(null)
-    setMessages([])
-    setStreamingText('')
-    setError('')
-  }
+  const grouped = groupSessionsByDate(sessions)
 
   return (
-    <div className="flex flex-col lg:flex-row gap-3 lg:gap-4 h-[75vh] lg:h-[var(--chat-height)]">
-      {/* Session list — horizontal scroll on mobile, sidebar on desktop */}
-      <aside className="flex-shrink-0 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-x-hidden lg:overflow-y-auto lg:w-56 pb-1 lg:pb-0">
-        <button
-          onClick={newChat}
-          className="flex-shrink-0 px-3 py-2 rounded-lg bg-gold-500/10 border border-gold-500/30 text-gold-400 text-sm font-medium hover:bg-gold-500/20 transition-colors whitespace-nowrap"
-        >
-          + New Chat
-        </button>
-        {sessions.map(s => (
+    <div className="flex flex-col lg:flex-row rounded-2xl border border-white/8 overflow-hidden bg-primary-900/20" style={{ height: 'min(76vh, 760px)' }}>
+
+      {/* ── Session sidebar ──────────────────────────────────────────────────── */}
+      <aside className="flex-shrink-0 flex flex-row lg:flex-col lg:w-56 border-b lg:border-b-0 lg:border-r border-white/8 bg-primary-900/30">
+        {/* New chat */}
+        <div className="p-2.5 border-r lg:border-r-0 lg:border-b border-white/8 flex-shrink-0">
           <button
-            key={s.id}
-            onClick={() => void loadSession(s.id)}
-            className={`flex-shrink-0 text-left px-3 py-2 rounded-lg text-xs transition-colors whitespace-nowrap lg:whitespace-normal lg:truncate lg:w-full ${
-              activeSession === s.id
-                ? 'bg-gold-500/15 text-gold-300 border border-gold-500/20'
-                : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'
-            }`}
+            onClick={newChat}
+            className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gold-500/10 border border-gold-500/25 text-gold-400 text-xs font-semibold hover:bg-gold-500/18 transition-colors whitespace-nowrap"
           >
-            {s.title || 'Untitled chat'}
+            <svg width={12} height={12} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
+            New conversation
           </button>
-        ))}
+        </div>
+        {/* Session list */}
+        <div className="flex-1 overflow-x-auto lg:overflow-x-hidden overflow-y-auto p-2 flex flex-row lg:flex-col gap-1 lg:gap-0 min-w-0">
+          {sessions.length === 0 ? (
+            <p className="hidden lg:block text-[10px] text-neutral-700 px-2 py-3 text-center">No sessions yet</p>
+          ) : (
+            Object.entries(grouped).map(([label, group]) => group.length === 0 ? null : (
+              <div key={label} className="hidden lg:block mb-2">
+                <p className="px-2 py-1 text-[9px] font-bold uppercase tracking-widest text-neutral-700">{label}</p>
+                {group.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => void loadSession(s.id)}
+                    className={`w-full text-left px-3 py-2 rounded-lg text-[11px] transition-all mb-0.5 ${
+                      activeSession === s.id
+                        ? 'bg-gold-500/12 border-l-[3px] border-gold-500 text-gold-300 pl-2.5 font-medium'
+                        : 'text-neutral-500 hover:text-neutral-200 hover:bg-white/4 border-l-[3px] border-transparent pl-2.5'
+                    }`}
+                  >
+                    <span className="block truncate">{s.title || 'Untitled'}</span>
+                  </button>
+                ))}
+              </div>
+            ))
+          )}
+          {/* Mobile: flat list */}
+          {sessions.map(s => (
+            <button
+              key={s.id}
+              onClick={() => void loadSession(s.id)}
+              className={`lg:hidden flex-shrink-0 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-all ${
+                activeSession === s.id
+                  ? 'bg-gold-500/15 text-gold-300 border border-gold-500/25 font-medium'
+                  : 'text-neutral-500 hover:text-neutral-200 hover:bg-white/5'
+              }`}
+            >
+              {(s.title || 'Untitled').slice(0, 30)}
+            </button>
+          ))}
+        </div>
       </aside>
 
-      {/* Chat area */}
-      <div className="flex-1 flex flex-col rounded-xl border border-neutral-700/40 bg-primary-800/30 overflow-hidden min-h-0">
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* ── Chat area ────────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-5 lg:px-6 space-y-5">
+
+          {/* Empty / welcome state */}
           {messages.length === 0 && !streaming && (
-            <div className="h-full flex items-center justify-center text-center text-neutral-500 text-sm p-8">
-              <div>
-                <div className="text-3xl mb-3">⚖️</div>
-                <p className="font-medium text-neutral-300 mb-1">LexAI — Your Legal Assistant</p>
-                <p>Ask about Cameroonian law, OHADA regulations, case strategy, or anything legal.</p>
+            <div className="h-full flex flex-col items-center justify-center gap-7 py-6 min-h-[300px]">
+              <div className="flex flex-col items-center gap-3">
+                <LexAIAvatar size={16} />
+                <div className="text-center">
+                  <h3 className="font-display font-semibold text-xl text-neutral-50 tracking-tight">LexAI</h3>
+                  <p className="text-xs text-neutral-500 mt-1">Cameroonian Civil Law · Common Law · OHADA · CEMAC</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-lg">
+                {EXAMPLE_PROMPTS.map((p, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { setInput(p.text); setTimeout(() => textareaRef.current?.focus(), 50) }}
+                    className="text-left p-3.5 rounded-2xl border border-white/8 bg-white/[0.025] hover:bg-white/[0.055] hover:border-gold-500/20 transition-all group"
+                  >
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-700 mb-1">{p.label}</p>
+                    <p className="text-xs text-neutral-400 group-hover:text-neutral-200 transition-colors leading-snug line-clamp-2">{p.text}</p>
+                  </button>
+                ))}
               </div>
             </div>
           )}
+
+          {/* Message list */}
           {messages.map((m, i) => (
             <div key={i} className={`flex gap-3 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5 ${
-                m.role === 'user' ? 'bg-gold-500/20 text-gold-400' : 'bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300'
-              }`}>
-                {m.role === 'user' ? 'Y' : 'AI'}
-              </div>
-              <div className={`max-w-[80%] rounded-xl px-4 py-3 ${
-                m.role === 'user'
-                  ? 'bg-gold-500/10 border border-gold-500/20 text-neutral-100 text-sm whitespace-pre-wrap'
-                  : 'bg-primary-900/60 border border-neutral-700/30'
-              }`}>
-                {m.role === 'user'
-                  ? m.content
-                  : <MarkdownRenderer content={m.content} />
-                }
+              {m.role === 'assistant'
+                ? <LexAIAvatar size={8} />
+                : (
+                  <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-neutral-700/80 flex items-center justify-center text-[11px] font-bold text-neutral-200">
+                    {userInitials}
+                  </div>
+                )
+              }
+              <div className={`flex flex-col gap-1 ${m.role === 'user' ? 'items-end' : 'items-start'} max-w-[78%] min-w-0`}>
+                {m.role === 'assistant' ? (
+                  <div className="bg-white rounded-2xl px-5 py-4 shadow-sm text-neutral-900 min-w-0 w-full">
+                    <MarkdownRenderer content={m.content} />
+                  </div>
+                ) : (
+                  <div className="bg-gold-500/12 border border-gold-500/20 rounded-2xl px-4 py-3 text-neutral-100 text-sm leading-relaxed whitespace-pre-wrap">
+                    {m.content}
+                  </div>
+                )}
+                {m.timestamp && (
+                  <p className="text-[9px] text-neutral-700 px-1">
+                    {new Date(m.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                )}
               </div>
             </div>
           ))}
+
+          {/* Streaming response */}
           {streaming && streamingText && (
             <div className="flex gap-3">
-              <div className="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 mt-0.5">AI</div>
-              <div className="max-w-[80%] rounded-xl px-4 py-3 bg-primary-900/60 border border-neutral-700/30">
-                <MarkdownRenderer content={streamingText} />
-                <span className="inline-block w-0.5 h-4 bg-gold-400 animate-pulse align-middle ml-0.5" />
+              <LexAIAvatar size={8} />
+              <div className="max-w-[78%] min-w-0">
+                <div className="bg-white rounded-2xl px-5 py-4 shadow-sm text-neutral-900">
+                  <MarkdownRenderer content={streamingText} />
+                  <span className="inline-block w-0.5 h-[1.1em] bg-gold-500 animate-pulse align-middle ml-0.5 -mb-0.5" />
+                </div>
               </div>
             </div>
           )}
-          {error && <div className="text-crimson-400 text-xs text-center">{error}</div>}
+
+          {/* Typing indicator — shown while waiting for first token */}
+          {streaming && !streamingText && (
+            <div className="flex gap-3">
+              <LexAIAvatar size={8} />
+              <div className="bg-white rounded-2xl px-5 py-4 shadow-sm">
+                <div className="flex items-center gap-1.5">
+                  {[0, 1, 2].map(i => (
+                    <span
+                      key={i}
+                      className="h-2 w-2 rounded-full bg-neutral-300 animate-bounce"
+                      style={{ animationDelay: `${i * 0.15}s`, animationDuration: '0.9s' }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="flex justify-center">
+              <span className="text-xs text-crimson-400 bg-crimson-500/8 border border-crimson-500/20 rounded-full px-4 py-1.5">{error}</span>
+            </div>
+          )}
+
           <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
-        <div className="p-3 border-t border-neutral-700/30">
-          <div className="flex gap-2">
+        {/* ── Input bar ──────────────────────────────────────────────────────── */}
+        <div className="flex-shrink-0 px-4 pb-4 pt-3 lg:px-5 border-t border-white/8 bg-primary-900/20">
+          <div className={`flex items-end gap-2 rounded-2xl border px-3 py-2.5 transition-colors ${streaming ? 'border-white/6 opacity-60' : 'border-white/10 focus-within:border-gold-500/35'} bg-primary-900/50`}>
+            <button
+              className="flex-shrink-0 mb-0.5 p-1.5 rounded-lg text-neutral-700 hover:text-neutral-400 hover:bg-white/5 transition-colors"
+              title="Attach document (coming soon)"
+              tabIndex={-1}
+            >
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+              </svg>
+            </button>
             <textarea
+              ref={textareaRef}
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={e => {
+                setInput(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
+              }}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() } }}
-              placeholder="Ask LexAI… (Enter to send)"
-              rows={2}
-              className="flex-1 rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50 resize-none"
+              placeholder="Ask about Cameroonian law, OHADA, case strategy…"
+              rows={1}
+              disabled={streaming}
+              className="flex-1 bg-transparent text-sm text-neutral-50 placeholder:text-neutral-600 focus:outline-none py-1 resize-none overflow-y-auto disabled:cursor-not-allowed"
+              style={{ minHeight: 28, maxHeight: 120 }}
             />
             <button
               onClick={() => void send()}
               disabled={streaming || !input.trim()}
-              className="px-4 rounded-lg bg-gold-500 text-black font-semibold text-sm hover:bg-gold-400 disabled:opacity-50 transition-colors"
+              className="flex-shrink-0 mb-0.5 p-2.5 rounded-xl transition-all bg-gold-500 hover:bg-gold-400 active:scale-95 text-black shadow-sm shadow-gold-500/20 disabled:opacity-25 disabled:cursor-not-allowed disabled:shadow-none"
             >
-              Send
+              <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
             </button>
           </div>
+          <p className="text-center text-[9px] text-neutral-700 mt-1.5 tracking-wide">
+            Enter ↵ to send · Shift + Enter for new line
+          </p>
         </div>
+
       </div>
     </div>
   )

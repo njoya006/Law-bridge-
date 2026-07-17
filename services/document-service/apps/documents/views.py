@@ -9,8 +9,8 @@ from minio.error import S3Error
 import jwt
 import json
 from decouple import config
-from .models import Document
-from .serializers import DocumentSerializer
+from .models import Document, DocumentSignature
+from .serializers import DocumentSerializer, DocumentSignatureSerializer
 import hashlib
 import os
 from urllib.request import Request, urlopen
@@ -179,6 +179,15 @@ class DocumentUploadView(APIView):
         if not file_obj:
             return Response({'error': 'file required'}, status=status.HTTP_400_BAD_REQUEST)
 
+        parent_id = request.data.get('parent_document_id') or None
+        version = 1
+        if parent_id:
+            try:
+                parent = Document.objects.get(id=parent_id)
+                version = parent.version + 1
+            except Document.DoesNotExist:
+                parent_id = None
+
         document = Document.objects.create(
             case_id=case_id,
             uploader_id=user_id,
@@ -186,7 +195,9 @@ class DocumentUploadView(APIView):
             document_type=doc_type,
             file_size=file_obj.size,
             mime_type=file_obj.content_type,
-            status='pending_scan'
+            status='pending_scan',
+            version=version,
+            parent_document_id=parent_id,
         )
 
         password = request.data.get('password')
@@ -289,9 +300,49 @@ class DocumentListView(APIView):
         if access != 'ok':
             return _access_error_response(access)
 
-        documents = Document.objects.filter(case_id=case_id)
+        documents = Document.objects.filter(case_id=case_id).prefetch_related('signatures')
         serializer = DocumentSerializer(documents, many=True)
         return Response({
             'count': documents.count(),
             'results': serializer.data
         })
+
+
+class SignDocumentView(APIView):
+    """POST /api/v1/documents/<document_id>/sign/ — lawyer/staff only."""
+
+    def post(self, request, document_id):
+        try:
+            document = Document.objects.get(id=document_id)
+        except Document.DoesNotExist:
+            return Response({'error': 'not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        access = can_access_case(request, document.case_id)
+        if access != 'ok':
+            return _access_error_response(access)
+
+        payload = extract_auth_payload(request)
+        caller_role = payload.get('role', '')
+        if caller_role not in STAFF_ROLES:
+            return Response({'error': 'Only lawyers and firm staff may sign documents.'}, status=status.HTTP_403_FORBIDDEN)
+
+        sig_type = request.data.get('signature_type', '')
+        sig_data = request.data.get('signature_data', '')
+        stamp    = request.data.get('stamp_type', '')
+        name     = request.data.get('signer_name', '')
+        signer   = str(payload.get('user_id', ''))
+
+        if sig_type not in ('draw', 'typed', 'stamp'):
+            return Response({'error': 'signature_type must be draw, typed, or stamp'}, status=status.HTTP_400_BAD_REQUEST)
+        if not sig_data:
+            return Response({'error': 'signature_data required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        sig = DocumentSignature.objects.create(
+            document=document,
+            signer_id=signer,
+            signer_name=name,
+            signature_type=sig_type,
+            signature_data=sig_data,
+            stamp_type=stamp,
+        )
+        return Response(DocumentSignatureSerializer(sig).data, status=status.HTTP_201_CREATED)

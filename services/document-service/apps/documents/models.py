@@ -71,3 +71,29 @@ class Document(models.Model):
 
     def __str__(self):
         return f"Document({self.filename}) - {self.case_id}"
+
+
+class DocumentSignature(models.Model):
+    STAMP_TYPES = [
+        ('reviewed',     'REVIEWED'),
+        ('approved',     'APPROVED'),
+        ('certified',    'CERTIFIED'),
+        ('confidential', 'CONFIDENTIAL'),
+        ('court_filed',  'COURT FILED'),
+        ('original_copy','ORIGINAL COPY'),
+    ]
+
+    id             = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    document       = models.ForeignKey(Document, on_delete=models.CASCADE, related_name='signatures')
+    signer_id      = models.CharField(max_length=64)
+    signer_name    = models.CharField(max_length=255, blank=True, default='')
+    signature_type = models.CharField(max_length=16)   # 'draw' | 'typed' | 'stamp'
+    signature_data = models.TextField()                 # base64 PNG, text, or stamp key
+    stamp_type     = models.CharField(max_length=64, blank=True, default='')
+    signed_at      = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-signed_at']
+
+    def __str__(self):
+        return f"Signature({self.signer_name}) on {self.document.filename}"

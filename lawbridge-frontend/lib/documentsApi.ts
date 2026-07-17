@@ -1,6 +1,15 @@
 import { api } from './api'
 import { SERVICE_URLS } from './serviceUrls'
 
+export type DocumentSignature = {
+  id: string
+  signer_id: string
+  signer_name: string
+  signature_type: 'draw' | 'typed' | 'stamp'
+  stamp_type: string
+  signed_at: string
+}
+
 export type DocumentItem = {
   id: string
   case_id: string
@@ -13,25 +22,52 @@ export type DocumentItem = {
   minio_path?: string | null
   is_encrypted: boolean
   version: number
+  parent_document_id?: string | null
   created_at: string
   updated_at: string
   is_password_protected?: boolean
+  signatures?: DocumentSignature[]
 }
 
 export function listDocuments(caseId: string, token?: string | null) {
   return api.get<{ count: number; results: DocumentItem[] }>('document', `/${caseId}/`, token)
 }
 
-export function uploadDocument(caseId: string, file: File, type: string, token: string, password?: string) {
+export function uploadDocument(
+  caseId: string,
+  file: File,
+  type: string,
+  token: string,
+  password?: string,
+  parentDocumentId?: string,
+) {
   const form = new FormData()
   form.append('file', file)
   form.append('type', type)
   if (password) form.append('password', password)
+  if (parentDocumentId) form.append('parent_document_id', parentDocumentId)
   return api.request<DocumentItem>('document', `/upload/${caseId}/`, {
     method: 'POST',
     token,
     headers: {},
     body: form,
+  })
+}
+
+export function signDocument(
+  documentId: string,
+  data: {
+    signature_type: 'draw' | 'typed' | 'stamp'
+    signature_data: string
+    stamp_type?: string
+    signer_name?: string
+  },
+  token: string,
+) {
+  return api.request<DocumentSignature>('document', `/${documentId}/sign/`, {
+    method: 'POST',
+    token,
+    body: JSON.stringify(data),
   })
 }
 
@@ -65,7 +101,6 @@ async function fetchDocumentResponse(documentId: string, token?: string | null, 
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => 'Request failed')
-      // Surface specific password errors so UI can prompt
       if (/password required/i.test(text)) throw new Error('password_required')
       if (/invalid password/i.test(text)) throw new Error('invalid_password')
       throw new Error(`${resp.status} ${url}: ${text}`)

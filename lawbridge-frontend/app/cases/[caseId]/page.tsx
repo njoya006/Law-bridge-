@@ -12,6 +12,7 @@ import {
   type CaseItem, type ReassignmentRequest, type ConflictFlags, type WorkflowStatusMsg,
 } from '../../../lib/casesApi'
 import { sendChatMessage, type ChatMessage } from '../../../lib/aiApi'
+import { listDocuments, fetchDocumentBlob, type DocumentItem } from '../../../lib/documentsApi'
 import { buildWorkflow, LAWYER_ACTIONS } from '../../../lib/workflow'
 import { ClientCard, LawyerCard } from '../../../components/IdentityCards'
 import { useCaseWebSocket } from '../../../lib/useCaseWebSocket'
@@ -1649,6 +1650,168 @@ type AIAnalysis = {
   summary: string
 }
 
+// ── Case documents section ─────────────────────────────────────────────────────
+
+function DocFileIcon({ mime }: { mime: string }) {
+  if (mime?.includes('pdf'))   return <span className="text-red-400 text-[10px] font-bold border border-red-400/30 rounded px-1">PDF</span>
+  if (mime?.includes('image')) return <span className="text-emerald-400 text-[10px] font-bold border border-emerald-400/30 rounded px-1">IMG</span>
+  if (mime?.includes('word') || mime?.includes('document')) return <span className="text-blue-400 text-[10px] font-bold border border-blue-400/30 rounded px-1">DOC</span>
+  return <span className="text-gold-400 text-[10px] font-bold border border-gold-400/30 rounded px-1">FILE</span>
+}
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  complaint: 'Complaint', contract: 'Contract', evidence: 'Evidence',
+  motion: 'Motion', judgment: 'Judgment', deposition: 'Deposition', other: 'Document',
+}
+
+function CaseDocumentsSection({ caseId, isLawyer }: { caseId: string; isLawyer: boolean }) {
+  const [docs, setDocs] = useState<DocumentItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [previewBlob, setPreviewBlob] = useState<{ url: string; name: string; mime: string } | null>(null)
+  const [opening, setOpening] = useState<string | null>(null)
+
+  useEffect(() => {
+    const token = localStorage.getItem('access')
+    if (!token) { setLoading(false); return }
+    listDocuments(caseId, token)
+      .then(r => setDocs(r.results ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [caseId])
+
+  async function openDoc(doc: DocumentItem) {
+    const token = localStorage.getItem('access')
+    if (!token) return
+    setOpening(doc.id)
+    try {
+      const blob = await fetchDocumentBlob(doc.id, token)
+      const url = URL.createObjectURL(blob)
+      setPreviewBlob({ url, name: doc.filename, mime: doc.mime_type })
+    } catch { /* ignore */ }
+    finally { setOpening(null) }
+  }
+
+  function closePreview() {
+    if (previewBlob) URL.revokeObjectURL(previewBlob.url)
+    setPreviewBlob(null)
+  }
+
+  const visible = docs.slice(0, 6)
+
+  return (
+    <>
+      <div className="rounded-2xl border border-neutral-700/30 bg-primary-800/20 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" className="text-neutral-400"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p className="font-heading text-sm font-semibold text-neutral-100">Case Documents</p>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary-700/60 text-neutral-500 border border-neutral-700/30">
+              {loading ? '…' : docs.length}
+            </span>
+          </div>
+          <Link
+            href={isLawyer ? '/lawyer/documents' : '/documents'}
+            className="text-xs text-gold-400 hover:text-gold-300 transition-colors"
+          >
+            View all →
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="space-y-2">
+            {[0, 1, 2].map(i => <div key={i} className="h-11 rounded-xl bg-white/3 animate-pulse" />)}
+          </div>
+        ) : docs.length === 0 ? (
+          <div className="text-center py-5">
+            <p className="text-sm text-neutral-500">No documents attached yet.</p>
+            {isLawyer && (
+              <Link href="/upload" className="mt-2 inline-block text-xs text-gold-400 hover:text-gold-300 transition-colors">
+                Upload a document →
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {visible.map(doc => {
+              const isSigned = (doc.signatures ?? []).length > 0
+              return (
+                <button
+                  key={doc.id}
+                  onClick={() => void openDoc(doc)}
+                  disabled={opening === doc.id}
+                  className="w-full flex items-center gap-3 rounded-xl border border-neutral-700/20 bg-primary-900/20 px-4 py-3 hover:border-gold-500/20 hover:bg-primary-900/50 transition-all text-left group disabled:opacity-60"
+                >
+                  <DocFileIcon mime={doc.mime_type} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-neutral-200 truncate group-hover:text-white transition-colors">{doc.filename}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-neutral-600">{DOC_TYPE_LABELS[doc.document_type] ?? doc.document_type}</span>
+                      {doc.version > 1 && <span className="text-[9px] text-neutral-700">v{doc.version}</span>}
+                      {isSigned && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-400 font-semibold">
+                          <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                          Signed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {opening === doc.id ? (
+                    <span className="h-3.5 w-3.5 rounded-full border-2 border-gold-400/30 border-t-gold-400 animate-spin flex-shrink-0" />
+                  ) : (
+                    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-neutral-700 group-hover:text-gold-400 transition-colors flex-shrink-0"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  )}
+                </button>
+              )
+            })}
+            {docs.length > 6 && (
+              <Link
+                href={isLawyer ? '/lawyer/documents' : '/documents'}
+                className="block text-center text-xs text-neutral-600 hover:text-gold-400 pt-1 transition-colors"
+              >
+                +{docs.length - 6} more files
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Document preview modal */}
+      {previewBlob && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={closePreview}>
+          <div
+            className="relative w-full max-w-4xl bg-primary-900 rounded-2xl border border-neutral-700/40 overflow-hidden flex flex-col"
+            style={{ height: '88vh' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-3 border-b border-neutral-700/30 flex-shrink-0">
+              <p className="text-sm text-neutral-300 font-medium truncate pr-4">{previewBlob.name}</p>
+              <button
+                onClick={closePreview}
+                className="flex-shrink-0 p-1.5 rounded-lg text-neutral-500 hover:text-neutral-100 hover:bg-white/8 transition-colors"
+              >
+                <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            {previewBlob.mime.includes('image') ? (
+              <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+                <img src={previewBlob.url} alt={previewBlob.name} className="max-w-full max-h-full rounded-lg object-contain" />
+              </div>
+            ) : (
+              <object data={previewBlob.url} type={previewBlob.mime} className="flex-1 w-full">
+                <div className="flex items-center justify-center h-full text-neutral-400 text-sm">
+                  <a href={previewBlob.url} download={previewBlob.name} className="text-gold-400 hover:text-gold-300">Download file to view</a>
+                </div>
+              </object>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── AI case intelligence ───────────────────────────────────────────────────────
+
 function AICaseIntelligenceCard({ caseItem }: { caseItem: CaseItem }) {
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null)
   const [loading, setLoading] = useState(false)
@@ -2194,6 +2357,9 @@ export default function CaseDetailPage() {
 
       {/* AI Case Intelligence — lawyers only */}
       {isLawyer && <AICaseIntelligenceCard caseItem={item} />}
+
+      {/* Case Documents — visible to both roles */}
+      <CaseDocumentsSection caseId={item.id} isLawyer={isLawyer} />
 
       {/* Timeline */}
       <div className="rounded-2xl border border-neutral-700/30 bg-primary-800/20 p-5">
