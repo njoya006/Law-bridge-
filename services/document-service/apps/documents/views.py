@@ -8,6 +8,7 @@ from minio import Minio
 from minio.error import S3Error
 import jwt
 import json
+import base64
 from decouple import config
 from .models import Document, DocumentSignature
 from .serializers import DocumentSerializer, DocumentSignatureSerializer
@@ -15,6 +16,80 @@ import hashlib
 import os
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
+from datetime import datetime
+
+WORD_MIME_TYPES = {
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+}
+
+
+def _build_signed_docx(doc_bytes: bytes, signer_name: str, sig_type: str,
+                        sig_data: str, stamp_type: str, date_str: str) -> bytes:
+    """Append a professional LAWYER'S SIGNATURE section to a Word document."""
+    from docx import Document as WordDoc
+    from docx.shared import Pt, RGBColor, Inches
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+    STAMP_COLORS = {
+        'reviewed':     RGBColor(0x1e, 0x9e, 0x40),
+        'approved':     RGBColor(0x14, 0x70, 0xc4),
+        'certified':    RGBColor(0x70, 0x10, 0xb4),
+        'confidential': RGBColor(0xc4, 0x14, 0x14),
+        'court_filed':  RGBColor(0xc4, 0x74, 0x10),
+        'original_copy':RGBColor(0x10, 0x5c, 0x9e),
+    }
+
+    wdoc = WordDoc(BytesIO(doc_bytes))
+
+    # separator
+    wdoc.add_paragraph('').add_run('─' * 60).font.color.rgb = RGBColor(0xcc, 0xcc, 0xcc)
+
+    # heading
+    h = wdoc.add_paragraph()
+    hr = h.add_run("LAWYER'S SIGNATURE")
+    hr.bold = True
+    hr.font.size = Pt(9)
+    hr.font.color.rgb = RGBColor(0x44, 0x44, 0x44)
+
+    # signature content
+    if sig_type == 'stamp' and stamp_type:
+        color = STAMP_COLORS.get(stamp_type, RGBColor(0x44, 0x44, 0x44))
+        label = stamp_type.replace('_', ' ').upper()
+        tbl = wdoc.add_table(rows=1, cols=1)
+        tbl.style = 'Table Grid'
+        cell = tbl.rows[0].cells[0]
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = p.add_run(label)
+        run.bold = True
+        run.font.size = Pt(20)
+        run.font.color.rgb = color
+
+    elif sig_type == 'typed':
+        p = wdoc.add_paragraph()
+        run = p.add_run(sig_data)
+        run.italic = True
+        run.font.size = Pt(22)
+        run.font.color.rgb = RGBColor(0x1a, 0x1a, 0x5e)
+
+    elif sig_type == 'draw':
+        try:
+            raw = sig_data.split(',', 1)[-1]
+            img_bytes = base64.b64decode(raw)
+            p = wdoc.add_paragraph()
+            p.add_run().add_picture(BytesIO(img_bytes), width=Inches(2.2))
+        except Exception as exc:
+            p = wdoc.add_paragraph()
+            p.add_run(f'[Signature image — {exc}]')
+
+    # footer line
+    footer = wdoc.add_paragraph()
+    footer.add_run(f'Signed by: {signer_name or "Lawyer"}   |   Date: {date_str}').font.size = Pt(8)
+
+    out = BytesIO()
+    wdoc.save(out)
+    return out.getvalue()
 
 
 def extract_user_id_from_token(request):
@@ -345,4 +420,53 @@ class SignDocumentView(APIView):
             signature_data=sig_data,
             stamp_type=stamp,
         )
-        return Response(DocumentSignatureSerializer(sig).data, status=status.HTTP_201_CREATED)
+
+        # For Word documents, build a signed .docx on the backend and
+        # store it as a new version (PDF/image baking is handled client-side).
+        signed_doc_id = None
+        if document.mime_type in WORD_MIME_TYPES and document.minio_path:
+            try:
+                minio_client = get_minio_client()
+                resp = minio_client.get_object(settings.MINIO_BUCKET_NAME, document.minio_path)
+                doc_bytes = resp.read()
+                resp.close(); resp.release_conn()
+
+                date_str = datetime.utcnow().strftime('%d %b %Y')
+                signed_bytes = _build_signed_docx(doc_bytes, name, sig_type, sig_data, stamp, date_str)
+
+                base_name = document.filename
+                if base_name.lower().endswith('.docx'):
+                    new_name = base_name[:-5] + f'_signed_v{document.version + 1}.docx'
+                elif base_name.lower().endswith('.doc'):
+                    new_name = base_name[:-4] + f'_signed_v{document.version + 1}.doc'
+                else:
+                    new_name = base_name + f'_signed_v{document.version + 1}'
+
+                new_doc = Document.objects.create(
+                    case_id=document.case_id,
+                    uploader_id=signer,
+                    filename=new_name,
+                    document_type=document.document_type,
+                    file_size=len(signed_bytes),
+                    mime_type=document.mime_type,
+                    status='pending_scan',
+                    version=document.version + 1,
+                    parent_document_id=str(document.id),
+                )
+                obj_name = f'cases/{document.case_id}/{new_doc.id}'
+                minio_client.put_object(
+                    settings.MINIO_BUCKET_NAME, obj_name,
+                    BytesIO(signed_bytes), len(signed_bytes),
+                    content_type=document.mime_type,
+                )
+                new_doc.minio_path = obj_name
+                new_doc.status = 'stored'
+                new_doc.save(update_fields=['minio_path', 'status', 'updated_at'])
+                signed_doc_id = str(new_doc.id)
+            except Exception as exc:
+                print(f'[sign_word_doc] non-fatal: {exc}')
+
+        data = DocumentSignatureSerializer(sig).data
+        if signed_doc_id:
+            data['signed_version_id'] = signed_doc_id
+        return Response(data, status=status.HTTP_201_CREATED)

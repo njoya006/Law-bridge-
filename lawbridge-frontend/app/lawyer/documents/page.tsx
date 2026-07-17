@@ -499,6 +499,7 @@ export default function LawyerDocumentsPage() {
   const [previewName, setPreviewName] = useState('')
   const [previewDocId, setPreviewDocId] = useState('')
   const [previewToken, setPreviewToken] = useState('')
+  const [previewHtml, setPreviewHtml]   = useState<string | null>(null)
 
   const [filter, setFilter]           = useState<DocFilter>('all')
   const [signingDoc, setSigningDoc]   = useState<{ doc: DocumentItem; caseId: string } | null>(null)
@@ -534,9 +535,15 @@ export default function LawyerDocumentsPage() {
     void run()
   }, [])
 
+  const WORD_MIMES = new Set([
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+  ])
+
   const closePreview = useCallback(() => {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     setPreviewUrl(null); setPreviewMime(''); setPreviewName(''); setPreviewDocId('')
+    setPreviewHtml(null)
   }, [previewUrl])
 
   const handleOpen = useCallback(async (doc: DocumentItem, password?: string) => {
@@ -545,9 +552,32 @@ export default function LawyerDocumentsPage() {
     try {
       const blob = await fetchDocumentBlob(doc.id, token, password)
       closePreview()
-      const url = URL.createObjectURL(blob)
-      setPreviewUrl(url)
-      setPreviewMime(blob.type || doc.mime_type || 'application/pdf')
+      const mime = blob.type || doc.mime_type || 'application/pdf'
+
+      if (WORD_MIMES.has(mime) || doc.filename.match(/\.docx?$/i)) {
+        // Convert Word → HTML with mammoth so it renders in the browser
+        const mammoth = (await import('mammoth')).default
+        const arrayBuffer = await blob.arrayBuffer()
+        const result = await mammoth.convertToHtml({ arrayBuffer })
+        const html = `
+          <!doctype html><html><head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Georgia, serif; font-size: 13px; line-height: 1.7;
+                   max-width: 780px; margin: 32px auto; padding: 0 24px; color: #1a1a1a; }
+            h1,h2,h3 { font-weight: 700; margin-top: 1.2em; }
+            p { margin: 0.5em 0; }
+            table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+            td, th { border: 1px solid #ccc; padding: 6px 8px; }
+          </style></head><body>${result.value}</body></html>`
+        setPreviewHtml(html)
+        setPreviewUrl(null)
+      } else {
+        const url = URL.createObjectURL(blob)
+        setPreviewUrl(url)
+        setPreviewHtml(null)
+      }
+      setPreviewMime(mime)
       setPreviewName(doc.filename)
       setPreviewDocId(doc.id)
       setPreviewToken(token)
@@ -560,6 +590,7 @@ export default function LawyerDocumentsPage() {
         toastError(msg || 'Unable to open document', 'Open failed')
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [closePreview])
 
   const handleDownload = useCallback(async (doc: DocumentItem) => {
@@ -853,7 +884,7 @@ export default function LawyerDocumentsPage() {
       )}
 
       {/* Document preview modal */}
-      {previewUrl && (
+      {(previewUrl || previewHtml) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="flex w-full max-w-6xl flex-col rounded-2xl border border-white/10 bg-primary-950 shadow-2xl" style={{ height: 'calc(100dvh - 6rem)', maxHeight: '90dvh' }}>
             <div className="flex flex-shrink-0 items-center justify-between border-b border-white/10 px-5 py-4">
@@ -877,14 +908,26 @@ export default function LawyerDocumentsPage() {
               </div>
             </div>
             <div className="flex-1 min-h-0 rounded-b-2xl bg-white">
-              <object data={previewUrl} type={previewMime || 'application/pdf'} className="h-full w-full">
-                <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-700">
-                  <div>
-                    <p className="font-semibold">Preview unavailable in this browser.</p>
-                    <p className="mt-2">Use the Download button to save the file.</p>
-                  </div>
-                </div>
-              </object>
+              {previewHtml
+                ? (
+                  <iframe
+                    srcDoc={previewHtml}
+                    className="h-full w-full border-0"
+                    sandbox="allow-same-origin"
+                    title={previewName}
+                  />
+                )
+                : (
+                  <object data={previewUrl!} type={previewMime || 'application/pdf'} className="h-full w-full">
+                    <div className="flex h-full items-center justify-center p-6 text-center text-sm text-slate-700">
+                      <div>
+                        <p className="font-semibold">Preview unavailable in this browser.</p>
+                        <p className="mt-2">Use the Download button to save the file.</p>
+                      </div>
+                    </div>
+                  </object>
+                )
+              }
             </div>
           </div>
         </div>
