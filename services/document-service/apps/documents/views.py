@@ -469,3 +469,49 @@ class SignDocumentView(APIView):
         if signed_doc_id:
             data['signed_version_id'] = signed_doc_id
         return Response(data, status=status.HTTP_201_CREATED)
+
+
+class DocumentDeleteView(APIView):
+    """DELETE /api/v1/documents/<document_id>/delete/ — remove a signed version and revert to parent."""
+
+    authentication_classes = []
+    permission_classes = []
+
+    def delete(self, request, document_id):
+        payload = extract_auth_payload(request)
+        caller_id = payload.get('user_id')
+        caller_role = payload.get('role', '')
+
+        if not caller_id:
+            return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        if caller_role not in STAFF_ROLES:
+            return Response({'error': 'Only staff may delete document versions.'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            document = Document.objects.get(id=document_id)
+        except Document.DoesNotExist:
+            return Response({'error': 'not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not document.parent_document_id:
+            return Response(
+                {'error': 'Cannot delete the original document. Only signed/versioned documents may be removed.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        access = can_access_case(request, document.case_id)
+        if access != 'ok':
+            return _access_error_response(access)
+
+        parent_id = str(document.parent_document_id)
+
+        # Remove from MinIO
+        if document.minio_path:
+            try:
+                client = get_minio_client()
+                client.remove_object(settings.MINIO_BUCKET_NAME, document.minio_path)
+            except Exception as exc:
+                print(f'[delete_doc_minio] non-fatal: {exc}')
+
+        document.delete()
+
+        return Response({'deleted': True, 'reverted_to': parent_id}, status=status.HTTP_200_OK)

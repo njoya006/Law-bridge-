@@ -123,6 +123,10 @@ export async function openDocument(documentId: string, token?: string | null, pa
   return page
 }
 
+export function deleteDocument(documentId: string, token: string) {
+  return api.del<{ deleted: boolean; reverted_to?: string }>('document', `/${documentId}/delete/`, token)
+}
+
 export async function downloadDocument(documentId: string, token?: string | null, password?: string | null, filename?: string) {
   const blob = await fetchDocumentBlob(documentId, token, password)
   const blobUrl = URL.createObjectURL(blob)
