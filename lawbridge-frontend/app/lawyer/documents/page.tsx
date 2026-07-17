@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { getMyCases, type CaseItem } from '../../../lib/casesApi'
 import { listDocuments, fetchDocumentBlob, downloadDocument, signDocument, type DocumentItem, uploadDocument } from '../../../lib/documentsApi'
 import { toastError, toastSuccess } from '../../../lib/toast'
+import { bakeSignatureIntoDocument } from '../../../lib/signatureUtils'
 
 type DocFilter = 'all' | 'evidence' | 'photo' | 'contract' | 'motion' | 'other'
 type SigTab   = 'draw' | 'typed' | 'stamp'
@@ -28,88 +29,108 @@ function filterDoc(doc: DocumentItem, filter: DocFilter) {
   return true
 }
 
-// ── Signature modal ───────────────────────────────────────────────────────────
-function SignatureModal({ doc, onClose, onSigned }: {
-  doc: DocumentItem
-  onClose: () => void
-  onSigned: (docId: string) => void
-}) {
-  const [tab, setTab] = useState<SigTab>('draw')
-  const [typedSig, setTypedSig] = useState('')
-  const [stamp, setStamp] = useState(STAMP_OPTIONS[0].key)
-  const [saving, setSaving] = useState(false)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const drawing   = useRef(false)
-  const lastPos   = useRef<{ x: number; y: number } | null>(null)
+// ── Canvas drawing hook (reused in two places) ────────────────────────────────
+function useCanvas() {
+  const ref  = useRef<HTMLCanvasElement>(null)
+  const down = useRef(false)
+  const last = useRef<{ x: number; y: number } | null>(null)
 
-  function getPos(e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) {
-    const rect = canvas.getBoundingClientRect()
+  function pos(e: React.MouseEvent | React.TouchEvent) {
+    const rect = ref.current!.getBoundingClientRect()
     const src  = 'touches' in e ? e.touches[0] : e
-    return { x: src.clientX - rect.left, y: src.clientY - rect.top }
+    return { x: (src.clientX - rect.left) * (ref.current!.width / rect.width),
+             y: (src.clientY - rect.top)  * (ref.current!.height / rect.height) }
   }
-
-  function startDraw(e: React.MouseEvent | React.TouchEvent) {
-    drawing.current = true
-    const canvas = canvasRef.current!
-    lastPos.current = getPos(e, canvas)
-  }
-
-  function draw(e: React.MouseEvent | React.TouchEvent) {
-    if (!drawing.current) return
+  const onDown  = (e: React.MouseEvent | React.TouchEvent) => { down.current = true; last.current = pos(e) }
+  const onMove  = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!down.current || !last.current) return
     e.preventDefault()
-    const canvas = canvasRef.current!
-    const ctx = canvas.getContext('2d')!
-    const pos = getPos(e, canvas)
-    ctx.strokeStyle = '#1a1a1a'
-    ctx.lineWidth = 2.5
-    ctx.lineCap = 'round'
-    ctx.beginPath()
-    ctx.moveTo(lastPos.current!.x, lastPos.current!.y)
-    ctx.lineTo(pos.x, pos.y)
-    ctx.stroke()
-    lastPos.current = pos
+    const ctx = ref.current!.getContext('2d')!
+    const p   = pos(e)
+    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'
+    ctx.beginPath(); ctx.moveTo(last.current.x, last.current.y); ctx.lineTo(p.x, p.y); ctx.stroke()
+    last.current = p
   }
-
-  function stopDraw() { drawing.current = false; lastPos.current = null }
-
-  function clearCanvas() {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
+  const onUp    = () => { down.current = false; last.current = null }
+  const clear   = () => { const c = ref.current; if (c) c.getContext('2d')!.clearRect(0, 0, c.width, c.height) }
+  const getData = () => ref.current?.toDataURL('image/png') ?? ''
+  const isEmpty = () => {
+    const c = ref.current; if (!c) return true
+    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data
+    return !d.some((v, i) => i % 4 === 3 && v > 10)
   }
+  return { ref, onDown, onMove, onUp, clear, getData, isEmpty }
+}
+
+// ── Signature modal ───────────────────────────────────────────────────────────
+function SignatureModal({ doc, caseId, onClose, onSigned }: {
+  doc: DocumentItem
+  caseId: string
+  onClose: () => void
+  onSigned: () => void
+}) {
+  const [tab, setTab]         = useState<SigTab>('draw')
+  const [typedSig, setTyped]  = useState('')
+  const [stamp, setStamp]     = useState(STAMP_OPTIONS[0].key)
+  const [saving, setSaving]   = useState(false)
+  const [step, setStep]       = useState<'choose' | 'baking' | 'done'>('choose')
+
+  const sigCanvas   = useCanvas()   // main signature canvas (draw tab)
+  const stampCanvas = useCanvas()   // optional draw-on-stamp canvas
 
   async function submit() {
-    const token = localStorage.getItem('access')
+    const token      = localStorage.getItem('access')
     if (!token) return
     const signerName = localStorage.getItem('fullName') ?? ''
 
     let sig_data = ''
+    let drawOnStamp: string | undefined
+
     if (tab === 'draw') {
-      const canvas = canvasRef.current!
-      sig_data = canvas.toDataURL('image/png')
-      if (sig_data === canvas.toDataURL('image/png').replace(/data:image\/png;base64,/, '') || sig_data.length < 200) {
-        toastError('Please draw your signature first', 'No signature')
-        return
-      }
+      if (sigCanvas.isEmpty()) { toastError('Please draw your signature first', 'No signature'); return }
+      sig_data = sigCanvas.getData()
     } else if (tab === 'typed') {
       if (!typedSig.trim()) { toastError('Please type your signature', 'No signature'); return }
       sig_data = typedSig.trim()
     } else {
       sig_data = stamp
+      if (!stampCanvas.isEmpty()) drawOnStamp = stampCanvas.getData()
     }
 
     setSaving(true)
+    setStep('baking')
+
     try {
+      // 1. Save signature record to DB
       await signDocument(doc.id, {
         signature_type: tab,
         signature_data: sig_data,
-        stamp_type: tab === 'stamp' ? stamp : '',
-        signer_name: signerName,
+        stamp_type:     tab === 'stamp' ? stamp : '',
+        signer_name:    signerName,
       }, token)
-      toastSuccess('Document signed successfully')
-      onSigned(doc.id)
+
+      // 2. Fetch the original document blob
+      const originalBlob = await fetchDocumentBlob(doc.id, token)
+
+      // 3. Bake signature into document
+      const bakedBlob = await bakeSignatureIntoDocument(originalBlob, signerName, tab, sig_data, stamp, drawOnStamp)
+
+      if (bakedBlob) {
+        // 4. Upload baked file as a new version
+        const ext       = doc.filename.split('.').pop() ?? 'pdf'
+        const baseName  = doc.filename.replace(/\.[^.]+$/, '')
+        const newName   = `${baseName}_signed_v${doc.version + 1}.${ext}`
+        const newFile   = new File([bakedBlob], newName, { type: bakedBlob.type })
+
+        await uploadDocument(caseId, newFile, doc.document_type, token, undefined, doc.id)
+      }
+
+      setStep('done')
+      toastSuccess('Signature applied and new version created')
+      onSigned()
       onClose()
     } catch (err) {
+      setStep('choose')
       toastError(err instanceof Error ? err.message : 'Failed to sign document', 'Sign failed')
     } finally {
       setSaving(false)
@@ -132,10 +153,8 @@ function SignatureModal({ doc, onClose, onSigned }: {
         {/* Tabs */}
         <div className="flex border-b border-white/8">
           {(['draw','typed','stamp'] as SigTab[]).map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 py-2.5 text-xs font-semibold capitalize transition-colors border-b-2 -mb-px ${
+            <button key={t} onClick={() => setTab(t)}
+              className={`flex-1 py-2.5 text-xs font-semibold transition-colors border-b-2 -mb-px ${
                 tab === t ? 'border-gold-500 text-gold-400' : 'border-transparent text-neutral-500 hover:text-neutral-300'
               }`}
             >
@@ -144,36 +163,24 @@ function SignatureModal({ doc, onClose, onSigned }: {
           ))}
         </div>
 
-        <div className="p-6">
+        <div className="p-6 space-y-4">
           {tab === 'draw' && (
-            <div className="space-y-3">
-              <div className="rounded-xl border-2 border-dashed border-neutral-700 bg-white overflow-hidden" style={{ height: 160 }}>
-                <canvas
-                  ref={canvasRef}
-                  width={400}
-                  height={160}
-                  className="w-full h-full cursor-crosshair"
-                  onMouseDown={startDraw}
-                  onMouseMove={draw}
-                  onMouseUp={stopDraw}
-                  onMouseLeave={stopDraw}
-                  onTouchStart={startDraw}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDraw}
-                  style={{ touchAction: 'none' }}
-                />
+            <div className="space-y-2">
+              <p className="text-[11px] text-neutral-500">Draw your signature in the box below. It will appear at the bottom-left of every page.</p>
+              <div className="rounded-xl border-2 border-dashed border-neutral-700 bg-white overflow-hidden" style={{ height: 150 }}>
+                <canvas ref={sigCanvas.ref} width={420} height={150} className="w-full h-full cursor-crosshair"
+                  onMouseDown={sigCanvas.onDown} onMouseMove={sigCanvas.onMove} onMouseUp={sigCanvas.onUp} onMouseLeave={sigCanvas.onUp}
+                  onTouchStart={sigCanvas.onDown} onTouchMove={sigCanvas.onMove} onTouchEnd={sigCanvas.onUp}
+                  style={{ touchAction: 'none' }} />
               </div>
-              <button onClick={clearCanvas} className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors">Clear</button>
+              <button onClick={sigCanvas.clear} className="text-xs text-neutral-600 hover:text-neutral-400 transition-colors">Clear</button>
             </div>
           )}
 
           {tab === 'typed' && (
             <div className="space-y-3">
-              <input
-                type="text"
-                value={typedSig}
-                onChange={e => setTypedSig(e.target.value)}
-                placeholder="Type your full name"
+              <p className="text-[11px] text-neutral-500">Your typed name will appear in italic script at the bottom-left of every page.</p>
+              <input type="text" value={typedSig} onChange={e => setTyped(e.target.value)} placeholder="Type your full name"
                 className="w-full rounded-xl bg-primary-900/50 border border-white/10 px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-gold-500/40"
               />
               {typedSig && (
@@ -185,34 +192,113 @@ function SignatureModal({ doc, onClose, onSigned }: {
           )}
 
           {tab === 'stamp' && (
-            <div className="grid grid-cols-2 gap-2">
-              {STAMP_OPTIONS.map(s => (
-                <button
-                  key={s.key}
-                  onClick={() => setStamp(s.key)}
-                  className={`py-3 px-4 rounded-xl border text-xs font-bold tracking-widest transition-all ${
-                    stamp === s.key
-                      ? 'border-gold-500 bg-gold-500/10 text-gold-400'
-                      : 'border-neutral-700 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300'
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
+            <div className="space-y-4">
+              <div>
+                <p className="text-[11px] text-neutral-500 mb-2">Choose a legal stamp — it will appear as a coloured box on every page.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {STAMP_OPTIONS.map(s => (
+                    <button key={s.key} onClick={() => setStamp(s.key)}
+                      className={`py-3 px-4 rounded-xl border text-xs font-bold tracking-widest transition-all ${
+                        stamp === s.key ? 'border-gold-500 bg-gold-500/10 text-gold-400' : 'border-neutral-700 text-neutral-500 hover:border-neutral-600 hover:text-neutral-300'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="text-[11px] text-neutral-500 mb-2">Optional — draw your signature on top of the stamp:</p>
+                <div className="rounded-xl border border-neutral-700 bg-white overflow-hidden" style={{ height: 100 }}>
+                  <canvas ref={stampCanvas.ref} width={420} height={100} className="w-full h-full cursor-crosshair"
+                    onMouseDown={stampCanvas.onDown} onMouseMove={stampCanvas.onMove} onMouseUp={stampCanvas.onUp} onMouseLeave={stampCanvas.onUp}
+                    onTouchStart={stampCanvas.onDown} onTouchMove={stampCanvas.onMove} onTouchEnd={stampCanvas.onUp}
+                    style={{ touchAction: 'none' }} />
+                </div>
+                <button onClick={stampCanvas.clear} className="mt-1 text-xs text-neutral-600 hover:text-neutral-400 transition-colors">Clear</button>
+              </div>
+            </div>
+          )}
+
+          {step === 'baking' && (
+            <div className="flex items-center gap-2 rounded-xl bg-gold-500/8 border border-gold-500/20 px-4 py-3 text-xs text-gold-400">
+              <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              Baking signature into document and uploading new version…
             </div>
           )}
         </div>
 
         <div className="flex gap-3 px-6 pb-6">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-neutral-400 hover:text-neutral-100 hover:border-white/20 transition-colors">
-            Cancel
-          </button>
-          <button
-            onClick={() => void submit()}
-            disabled={saving}
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-neutral-400 hover:text-neutral-100 hover:border-white/20 transition-colors">Cancel</button>
+          <button onClick={() => void submit()} disabled={saving}
             className="flex-1 py-2.5 rounded-xl bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 disabled:opacity-50 transition-colors"
           >
-            {saving ? 'Signing…' : 'Apply Signature'}
+            {saving ? 'Processing…' : 'Apply & Save New Version'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Password prompt modal ─────────────────────────────────────────────────────
+function PasswordModal({ doc, onClose, onUnlocked }: {
+  doc: DocumentItem
+  onClose: () => void
+  onUnlocked: (password: string) => void
+}) {
+  const [pw, setPw]     = useState('')
+  const [err, setErr]   = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function tryOpen() {
+    if (!pw) { setErr('Enter the document password'); return }
+    const token = localStorage.getItem('access')
+    if (!token) return
+    setBusy(true); setErr('')
+    try {
+      await fetchDocumentBlob(doc.id, token, pw)  // just to verify
+      onUnlocked(pw)
+    } catch (e) {
+      setErr(e instanceof Error && e.message === 'invalid_password' ? 'Incorrect password' : 'Access denied')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-primary-800 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="px-6 pt-6 pb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/12 text-amber-400">
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <div>
+              <p className="font-semibold text-neutral-100 text-sm">Password Protected</p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">Enter the document password to open</p>
+            </div>
+          </div>
+          <p className="text-[11px] text-neutral-600 truncate mb-4">{doc.filename}</p>
+          <input
+            type="password"
+            value={pw}
+            onChange={e => { setPw(e.target.value); setErr('') }}
+            onKeyDown={e => e.key === 'Enter' && void tryOpen()}
+            autoFocus
+            placeholder="Document password"
+            className="w-full rounded-xl bg-primary-900/50 border border-white/10 px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-amber-500/40"
+          />
+          {err && <p className="mt-2 text-xs text-red-400">{err}</p>}
+        </div>
+        <div className="flex gap-3 px-6 pb-6">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-neutral-400 hover:text-neutral-100 transition-colors">Cancel</button>
+          <button onClick={() => void tryOpen()} disabled={busy}
+            className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 disabled:opacity-50 transition-colors"
+          >
+            {busy ? 'Verifying…' : 'Open Document'}
           </button>
         </div>
       </div>
@@ -415,8 +501,9 @@ export default function LawyerDocumentsPage() {
   const [previewToken, setPreviewToken] = useState('')
 
   const [filter, setFilter]           = useState<DocFilter>('all')
-  const [signingDoc, setSigningDoc]   = useState<DocumentItem | null>(null)
+  const [signingDoc, setSigningDoc]   = useState<{ doc: DocumentItem; caseId: string } | null>(null)
   const [newVerDoc, setNewVerDoc]     = useState<{ doc: DocumentItem; caseId: string } | null>(null)
+  const [passwordDoc, setPasswordDoc] = useState<DocumentItem | null>(null)
 
   const filteredGroups = filter === 'all'
     ? groups
@@ -452,11 +539,11 @@ export default function LawyerDocumentsPage() {
     setPreviewUrl(null); setPreviewMime(''); setPreviewName(''); setPreviewDocId('')
   }, [previewUrl])
 
-  const handleOpen = useCallback(async (doc: DocumentItem) => {
+  const handleOpen = useCallback(async (doc: DocumentItem, password?: string) => {
     const token = localStorage.getItem('access')
     if (!token) return
     try {
-      const blob = await fetchDocumentBlob(doc.id, token)
+      const blob = await fetchDocumentBlob(doc.id, token, password)
       closePreview()
       const url = URL.createObjectURL(blob)
       setPreviewUrl(url)
@@ -464,8 +551,14 @@ export default function LawyerDocumentsPage() {
       setPreviewName(doc.filename)
       setPreviewDocId(doc.id)
       setPreviewToken(token)
+      setPasswordDoc(null)
     } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Unable to open document', 'Open failed')
+      const msg = err instanceof Error ? err.message : ''
+      if (msg === 'password_required') {
+        setPasswordDoc(doc)
+      } else {
+        toastError(msg || 'Unable to open document', 'Open failed')
+      }
     }
   }, [closePreview])
 
@@ -686,7 +779,7 @@ export default function LawyerDocumentsPage() {
                       Open
                     </button>
                     <button
-                      onClick={() => setSigningDoc(doc)}
+                      onClick={() => setSigningDoc({ doc, caseId: group.caseId })}
                       className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border border-purple-500/25 bg-purple-500/8 px-3 py-1.5 text-xs font-medium text-purple-400 hover:bg-purple-500/15 transition-colors"
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -733,7 +826,8 @@ export default function LawyerDocumentsPage() {
       {/* Signature modal */}
       {signingDoc && (
         <SignatureModal
-          doc={signingDoc}
+          doc={signingDoc.doc}
+          caseId={signingDoc.caseId}
           onClose={() => setSigningDoc(null)}
           onSigned={() => { setSigningDoc(null); reload() }}
         />
@@ -746,6 +840,15 @@ export default function LawyerDocumentsPage() {
           caseId={newVerDoc.caseId}
           onClose={() => setNewVerDoc(null)}
           onUploaded={() => { setNewVerDoc(null); reload() }}
+        />
+      )}
+
+      {/* Password modal */}
+      {passwordDoc && (
+        <PasswordModal
+          doc={passwordDoc}
+          onClose={() => setPasswordDoc(null)}
+          onUnlocked={pw => void handleOpen(passwordDoc, pw)}
         />
       )}
 

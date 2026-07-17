@@ -85,6 +85,7 @@ export default function MyOfficeDocumentsPage() {
   const [previewName, setPreviewName] = useState('')
   const [previewDocId, setPreviewDocId] = useState('')
   const [previewToken, setPreviewToken] = useState('')
+  const [passwordDoc, setPasswordDoc]   = useState<DocumentItem | null>(null)
 
   const totalDocs = groups.reduce((n, g) => n + g.items.length, 0)
 
@@ -93,11 +94,11 @@ export default function MyOfficeDocumentsPage() {
     setPreviewUrl(null); setPreviewMime(''); setPreviewName(''); setPreviewDocId('')
   }, [previewUrl])
 
-  const handleOpen = useCallback(async (doc: DocumentItem) => {
+  const handleOpen = useCallback(async (doc: DocumentItem, password?: string) => {
     const token = localStorage.getItem('access')
     if (!token) return
     try {
-      const blob = await fetchDocumentBlob(doc.id, token)
+      const blob = await fetchDocumentBlob(doc.id, token, password)
       closePreview()
       const url = URL.createObjectURL(blob)
       setPreviewUrl(url)
@@ -105,8 +106,14 @@ export default function MyOfficeDocumentsPage() {
       setPreviewName(doc.filename)
       setPreviewDocId(doc.id)
       setPreviewToken(token)
+      setPasswordDoc(null)
     } catch (err) {
-      toastError(err instanceof Error ? err.message : 'Unable to open document', 'Open failed')
+      const msg = err instanceof Error ? err.message : ''
+      if (msg === 'password_required') {
+        setPasswordDoc(doc)
+      } else {
+        toastError(msg || 'Unable to open document', 'Open failed')
+      }
     }
   }, [closePreview])
 
@@ -283,6 +290,53 @@ export default function MyOfficeDocumentsPage() {
                   </div>
                 </div>
               </object>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password modal */}
+      {passwordDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setPasswordDoc(null)}>
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-primary-800 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="px-6 pt-6 pb-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/12 text-amber-400">
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-neutral-100 text-sm">Password Protected</p>
+                  <p className="text-[11px] text-neutral-500 mt-0.5">Enter the document password to open</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-neutral-600 truncate mb-4">{passwordDoc.filename}</p>
+              <input
+                type="password"
+                id="doc-pw-office"
+                autoFocus
+                placeholder="Document password"
+                className="w-full rounded-xl bg-primary-900/50 border border-white/10 px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-amber-500/40"
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const val = (e.target as HTMLInputElement).value
+                    void handleOpen(passwordDoc, val)
+                  }
+                }}
+              />
+            </div>
+            <div className="flex gap-3 px-6 pb-6">
+              <button onClick={() => setPasswordDoc(null)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-neutral-400 hover:text-neutral-100 transition-colors">Cancel</button>
+              <button
+                onClick={() => {
+                  const inp = document.getElementById('doc-pw-office') as HTMLInputElement
+                  void handleOpen(passwordDoc, inp?.value ?? '')
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors"
+              >
+                Open Document
+              </button>
             </div>
           </div>
         </div>
