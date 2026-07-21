@@ -39,7 +39,8 @@ jobs:
         run: |
           for svc in auth-service client-service lawyer-service case-service \
                      document-service notification-service payment-service \
-                     calendar-service monitoring-service search-service; do
+                     calendar-service monitoring-service search-service \
+                     network-service; do
             aws ecr describe-repositories --repository-names "lawbridge/${svc}" \
               --region "$AWS_REGION" 2>/dev/null || \
             aws ecr create-repository --repository-name "lawbridge/${svc}" \
@@ -50,7 +51,8 @@ jobs:
         run: |
           for svc in auth-service client-service lawyer-service case-service \
                      document-service notification-service payment-service \
-                     calendar-service monitoring-service search-service; do
+                     calendar-service monitoring-service search-service \
+                     network-service; do
             DIR="services/$svc"
             if [ ! -f "$DIR/Dockerfile" ]; then
               echo "No Dockerfile for $svc — skipping"
@@ -94,7 +96,7 @@ jobs:
               "docker compose up -d",
               "echo Waiting for postgres...",
               "sleep 10",
-              "for svc in auth-service client-service lawyer-service case-service document-service notification-service payment-service calendar-service monitoring-service search-service ai-assistant-service; do docker compose exec -T $svc python manage.py migrate --noinput 2>&1 | tail -2 || true; done",
+              "for svc in auth-service client-service lawyer-service case-service document-service notification-service payment-service calendar-service monitoring-service search-service ai-assistant-service network-service; do docker compose exec -T $svc python manage.py migrate --noinput 2>&1 | tail -2 || true; done",
               "echo REDEPLOY COMPLETE",
               "docker compose ps"
             ]' \
