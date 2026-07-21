@@ -44,6 +44,9 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
 
     CREATE DATABASE outreach_db;
     GRANT ALL PRIVILEGES ON DATABASE outreach_db TO $POSTGRES_USER;
+
+    CREATE DATABASE network_db;
+    GRANT ALL PRIVILEGES ON DATABASE network_db TO $POSTGRES_USER;
 EOSQL
 
 echo "All LawBridge databases created."

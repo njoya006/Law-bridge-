@@ -9,6 +9,8 @@ import {
   BookOpenIcon, SparklesIcon, UsersIcon, BuildingIcon, CompassIcon,
   ClipboardIcon, BookmarkIcon, BadgeCheckIcon, SlidersIcon, PencilIcon,
   BarChart2Icon, TeamIcon, ChatIcon, BellIcon,
+  NetworkIcon, ActivityIcon, HandshakeIcon, ReferralIcon, TrophyIcon,
+  GavelIcon, TrendingUpIcon, UserPlusIcon, BriefcaseStarIcon,
 } from '../icons/Icons'
 import { getFirmMembers, getMyFirmMemberships, type FirmMembership } from '../../lib/firmsApi'
 import { getReportRequests } from '../../lib/monitoringApi'
@@ -23,7 +25,7 @@ type NavSection = { heading?: string; items: NavItem[] }
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    heading: 'Workspace',
+    heading: 'Home',
     items: [
       { label: 'My Office',     href: '/lawyer/office/me', icon: BuildingIcon },
       { label: 'Dashboard',     href: '/lawyer/dashboard', icon: DashboardIcon },
@@ -36,20 +38,39 @@ const NAV_SECTIONS: NavSection[] = [
   {
     heading: 'Practice',
     items: [
-      { label: 'Matters',       href: '/lawyer/matters',   icon: ClipboardIcon },
-      { label: 'Clients',       href: '/lawyer/clients',   icon: UsersIcon },
-      { label: 'Documents',     href: '/lawyer/documents', icon: DocumentIcon },
-      { label: 'AI Assistant',  href: '/lawyer/ai',        icon: SparklesIcon },
-      { label: 'Case Triage',   href: '/lawyer/triage',    icon: SlidersIcon },
+      { label: 'Matters',      href: '/lawyer/matters',   icon: ClipboardIcon },
+      { label: 'Clients',      href: '/lawyer/clients',   icon: UsersIcon },
+      { label: 'Documents',    href: '/lawyer/documents', icon: DocumentIcon },
+      { label: 'AI Assistant', href: '/lawyer/ai',        icon: SparklesIcon },
+      { label: 'Case Triage',  href: '/lawyer/triage',    icon: SlidersIcon },
+    ],
+  },
+  {
+    heading: 'Network ★',
+    items: [
+      { label: 'Feed',          href: '/lawyer/network/feed',         icon: ActivityIcon },
+      { label: 'Partnerships',  href: '/lawyer/network/partnerships', icon: HandshakeIcon },
+      { label: 'Referrals',     href: '/lawyer/network/referrals',    icon: ReferralIcon },
+      { label: 'Following',     href: '/lawyer/network/following',    icon: UserPlusIcon },
+    ],
+  },
+  {
+    heading: 'Knowledge',
+    items: [
+      { label: 'Library',         href: '/library',                        icon: BookOpenIcon },
+      { label: 'My Publications', href: '/lawyer/library',                 icon: PencilIcon },
+      { label: 'Judgments',       href: '/lawyer/knowledge/judgments',     icon: GavelIcon },
+      { label: 'Bookmarks',       href: '/lawyer/knowledge/bookmarks',     icon: BookmarkIcon },
     ],
   },
   {
     heading: 'Growth',
     items: [
-      { label: 'Discover',        href: '/lawyer/discover',  icon: CompassIcon },
-      { label: 'Library',         href: '/library',          icon: BookOpenIcon },
-      { label: 'My Publications', href: '/lawyer/library',   icon: PencilIcon },
-      { label: 'Get Verified',    href: '/lawyer/verify',    icon: BadgeCheckIcon },
+      { label: 'Discover',      href: '/lawyer/discover',           icon: CompassIcon },
+      { label: 'Analytics',     href: '/lawyer/growth/analytics',   icon: TrendingUpIcon },
+      { label: 'Opportunities', href: '/lawyer/growth/opportunities', icon: BriefcaseStarIcon },
+      { label: 'Awards',        href: '/lawyer/growth/awards',      icon: TrophyIcon },
+      { label: 'Get Verified',  href: '/lawyer/verify',             icon: BadgeCheckIcon },
     ],
   },
   {

@@ -22,9 +22,11 @@ class LawyerProfileSerializer(serializers.ModelSerializer):
             'max_active_cases', 'practice_circuit', 'accepted_case_types',
             'accepts_urgent_cases', 'consultation_mode',
             'active_cases', 'total_cases',
-            'average_rating', 'rating_count', 'verified_at', 'availability_slots',
+            'average_rating', 'rating_count',
+            'reputation_score', 'open_to_partnerships', 'bar_admissions', 'international_experience',
+            'verified_at', 'availability_slots',
         )
-        read_only_fields = ('id', 'active_cases', 'total_cases', 'average_rating', 'rating_count', 'verified_at')
+        read_only_fields = ('id', 'active_cases', 'total_cases', 'average_rating', 'rating_count', 'reputation_score', 'verified_at')
 
 
 class LawyerProfileUpdateSerializer(serializers.ModelSerializer):

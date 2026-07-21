@@ -78,7 +78,11 @@ class LawyerProfile(models.Model):
     # Ratings
     average_rating = models.DecimalField(max_digits=3, decimal_places=2, default=0, help_text="0-5")
     rating_count = models.PositiveIntegerField(default=0)
-    
+    reputation_score = models.PositiveIntegerField(default=0, help_text='0-100 computed nightly')
+    open_to_partnerships = models.BooleanField(default=True)
+    bar_admissions = models.TextField(blank=True, help_text='Comma-separated list of bar admissions beyond home circuit')
+    international_experience = models.BooleanField(default=False)
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

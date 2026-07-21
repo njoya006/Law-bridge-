@@ -72,6 +72,7 @@ services:
       - lawyer-service
       - library-service
       - outreach-service
+      - network-service
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost/healthz"]
       interval: 30s
@@ -246,6 +247,26 @@ services:
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_NAME: outreach_db
+
+  network-service:
+    <<: *django-common
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/network-service:latest
+    expose: ["8015"]
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: network_db
+      REDIS_URL: redis://redis:6379/0
+
+  network-consumer:
+    <<: *django-common
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/network-service:latest
+    command: python manage.py consume_library_events
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: network_db
+      REDIS_URL: redis://redis:6379/0
 
 networks:
   lawbridge:

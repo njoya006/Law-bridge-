@@ -15,6 +15,7 @@ export const SERVICE_URLS = {
   ai:           fallback(process.env.NEXT_PUBLIC_AI_ASSISTANT_SERVICE_URL, '/api/v1'),
   messaging:    fallback(process.env.NEXT_PUBLIC_MESSAGING_SERVICE_URL,    '/api/v1'),
   library:      fallback(process.env.NEXT_PUBLIC_LIBRARY_SERVICE_URL,      '/api/v1/library'),
+  network:      fallback(process.env.NEXT_PUBLIC_NETWORK_SERVICE_URL,      '/api/v1/network'),
 } as const
 
 export type ServiceName = keyof typeof SERVICE_URLS
