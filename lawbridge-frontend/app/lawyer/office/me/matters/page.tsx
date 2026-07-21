@@ -24,8 +24,8 @@ function StatusBadge({ status, bookingStatus }: { status: string; bookingStatus?
     dismissed: 'text-neutral-400 bg-neutral-700/30 border-neutral-600/30',
     settled: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
     verdict: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-    filed: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
-    assigned: 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+    filed: 'text-primary-100 bg-primary-400/10 border-primary-400/30',
+    assigned: 'text-gold-300 bg-gold-500/10 border-gold-500/25',
   }
   const cls = map[status?.toLowerCase()] ?? 'text-gold-400 bg-gold-500/10 border-gold-500/30'
   return (

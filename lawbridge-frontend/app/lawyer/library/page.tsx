@@ -4,11 +4,161 @@ import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { listMyBooks, listMyArticles, listReviewQueue, publishBook, rejectBook, type BookItem, type BookStatus, type ArticleItem } from '../../../lib/libraryApi'
 
+// ── Reading progress ──────────────────────────────────────────────────────────
+
+const READING_KEY = 'lawbridge_reading_progress'
+
+function getReadingProgress(id: string): number {
+  try { return JSON.parse(localStorage.getItem(READING_KEY) || '{}')[id] ?? 0 }
+  catch { return 0 }
+}
+
+// ── Bookmarks ─────────────────────────────────────────────────────────────────
+
+const BOOKMARKS_KEY = 'lawbridge_library_bookmarks'
+
+type BookmarkItem = { id: string; title: string; type: 'book' | 'article'; url: string; savedAt: string }
+
+function getBookmarks(): BookmarkItem[] {
+  try { return JSON.parse(localStorage.getItem(BOOKMARKS_KEY) || '[]') }
+  catch { return [] }
+}
+
+function isBookmarked(id: string): boolean {
+  return getBookmarks().some(b => b.id === id)
+}
+
+function toggleBookmark(item: BookmarkItem): boolean {
+  const bms = getBookmarks()
+  const exists = bms.findIndex(b => b.id === item.id)
+  let newBms: BookmarkItem[]
+  if (exists >= 0) { newBms = bms.filter(b => b.id !== item.id) }
+  else { newBms = [{ ...item, savedAt: new Date().toISOString() }, ...bms] }
+  localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(newBms))
+  return exists < 0
+}
+
+// ── Citation generator ────────────────────────────────────────────────────────
+
+function generateCitation(item: BookItem | ArticleItem, type: 'book' | 'article'): string {
+  const year = (item as BookItem).year || new Date(item.created_at || '').getFullYear() || new Date().getFullYear()
+  const author = (item as BookItem).author_name || 'Unknown Author'
+  if (type === 'book') {
+    return `${author} (${year}). ${item.title}. LawBridge Legal Library. Cameroon.`
+  }
+  return `${author} (${year}). "${item.title}." LawBridge Legal Articles. Retrieved from lawbridge.cm.`
+}
+
+function ReadingProgressBar({ bookId }: { bookId: string }) {
+  const [pct, setPct] = useState(0)
+  useEffect(() => { setPct(getReadingProgress(bookId)) }, [bookId])
+  if (pct === 0) return null
+  return (
+    <div className="flex items-center gap-2 mt-2">
+      <div className="flex-1 h-0.5 rounded-full bg-white/8 overflow-hidden">
+        <div className="h-full bg-gold-500/60 rounded-full" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-[9px] text-white/25 tabular-nums">{pct}%</span>
+    </div>
+  )
+}
+
+function BookmarkButton({ id, title, type, url }: { id: string; title: string; type: 'book' | 'article'; url: string }) {
+  const [bookmarked, setBookmarked] = useState(false)
+  useEffect(() => { setBookmarked(isBookmarked(id)) }, [id])
+  function toggle() {
+    const next = toggleBookmark({ id, title, type, url, savedAt: '' })
+    setBookmarked(next)
+  }
+  return (
+    <button
+      onClick={toggle}
+      title={bookmarked ? 'Remove bookmark' : 'Bookmark'}
+      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs transition-colors border ${
+        bookmarked
+          ? 'bg-gold-500/15 border-gold-500/30 text-gold-400'
+          : 'bg-white/4 border-white/8 text-white/30 hover:text-white/60 hover:bg-white/8'
+      }`}
+    >
+      <svg width="10" height="10" viewBox="0 0 24 24" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
+      </svg>
+      {bookmarked ? 'Saved' : 'Save'}
+    </button>
+  )
+}
+
+function CiteButton({ item, type }: { item: BookItem | ArticleItem; type: 'book' | 'article' }) {
+  const [copied, setCopied] = useState(false)
+  function copy() {
+    const citation = generateCitation(item, type)
+    navigator.clipboard.writeText(citation).catch(() => {})
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button
+      onClick={copy}
+      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs transition-colors border ${
+        copied ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/4 border-white/8 text-white/30 hover:text-white/60 hover:bg-white/8'
+      }`}
+    >
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+      {copied ? 'Copied!' : 'Cite'}
+    </button>
+  )
+}
+
+function BookmarksTab() {
+  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([])
+  useEffect(() => { setBookmarks(getBookmarks()) }, [])
+
+  function remove(id: string) {
+    const bms = getBookmarks().filter(b => b.id !== id)
+    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bms))
+    setBookmarks(bms)
+  }
+
+  if (bookmarks.length === 0) return (
+    <div className="rounded-xl border border-dashed border-white/8 p-12 text-center">
+      <p className="text-[13px] text-white/30">No bookmarks yet</p>
+      <p className="text-xs text-white/20 mt-1">Save books and articles to your reading list using the bookmark button.</p>
+    </div>
+  )
+
+  return (
+    <div className="space-y-2">
+      {bookmarks.map(b => (
+        <div key={b.id} className="flex items-center gap-3 rounded-xl bg-primary-900/60 border border-white/8 px-5 py-4 hover:border-white/12 transition-all group">
+          <svg className="flex-shrink-0 w-4 h-4 text-gold-400" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
+          </svg>
+          <div className="flex-1 min-w-0">
+            <Link href={b.url} className="text-[13px] font-medium text-white/70 hover:text-white transition-colors truncate block">{b.title}</Link>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] text-white/25 capitalize">{b.type}</span>
+              <span className="text-[10px] text-white/20">· Saved {new Date(b.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+            </div>
+          </div>
+          <button
+            onClick={() => remove(b.id)}
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-white/20 hover:text-crimson-400 p-1"
+          >
+            ✕
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 const STATUS_CONFIG: Record<BookStatus, { label: string; color: string; dot: string }> = {
   draft:        { label: 'Draft',        color: 'text-white/40 bg-white/5 border-white/8',    dot: 'bg-white/30' },
   under_review: { label: 'Under Review', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20', dot: 'bg-amber-400' },
   published:    { label: 'Published',    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20', dot: 'bg-emerald-400' },
-  rejected:     { label: 'Rejected',     color: 'text-red-400 bg-red-500/10 border-red-500/20', dot: 'bg-red-400' },
+  rejected:     { label: 'Rejected',     color: 'text-crimson-400 bg-crimson-500/10 border-crimson-500/20', dot: 'bg-crimson-400' },
   archived:     { label: 'Archived',     color: 'text-white/30 bg-white/3 border-white/6',    dot: 'bg-white/20' },
 }
 
@@ -48,12 +198,12 @@ function ReviewCard({ book, onApprove, onReject }: { book: BookItem; onApprove: 
             onChange={e => setRejectReason(e.target.value)}
             placeholder="Reason for rejection (visible to author)…"
             rows={2}
-            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-red-500/40 resize-none"
+            className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-white/25 focus:outline-none focus:border-crimson-500/40 resize-none"
           />
           <div className="flex gap-2">
             <button
               onClick={() => onReject(book.id)}
-              className="flex-1 rounded-lg bg-red-500/15 border border-red-500/25 text-xs font-medium text-red-400 py-2 hover:bg-red-500/25 transition-colors"
+              className="flex-1 rounded-lg bg-crimson-500/15 border border-crimson-500/25 text-xs font-medium text-crimson-400 py-2 hover:bg-crimson-500/25 transition-colors"
             >
               Confirm Rejection
             </button>
@@ -91,7 +241,7 @@ function ReviewCard({ book, onApprove, onReject }: { book: BookItem; onApprove: 
   )
 }
 
-type MainTab = 'publications' | 'articles' | 'review' | 'analytics'
+type MainTab = 'publications' | 'articles' | 'review' | 'analytics' | 'bookmarks'
 
 export default function LawyerLibraryPage() {
   const [myBooks, setMyBooks] = useState<BookItem[]>([])
@@ -192,7 +342,7 @@ export default function LawyerLibraryPage() {
                 </svg>
                 <span className="text-xs text-white/50">My Publications</span>
               </div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white">My Publications</h1>
+              <h1 className="font-display text-xl sm:text-2xl font-bold text-white">My Publications</h1>
               <p className="text-sm text-white/35 mt-1">Manage your legal articles and publications</p>
             </div>
             <div className="flex items-center gap-2">
@@ -224,6 +374,7 @@ export default function LawyerLibraryPage() {
               { id: 'articles',     label: 'Articles' },
               ...(isReviewer && reviewQueue.length > 0 ? [{ id: 'review', label: `Review (${reviewQueue.length})` }] : []),
               { id: 'analytics', label: 'Analytics' },
+              { id: 'bookmarks', label: 'Bookmarks' },
             ] as { id: MainTab; label: string }[]).map(t => (
               <button
                 key={t.id}
@@ -309,13 +460,14 @@ export default function LawyerLibraryPage() {
                           {book.views != null && book.views > 0 && (
                             <span className="text-white/25"> · {book.views.toLocaleString()} reads</span>
                           )}
-                          {book.rejection_reason && <span className="text-red-400/70"> · {book.rejection_reason.slice(0, 50)}</span>}
+                          {book.rejection_reason && <span className="text-crimson-400/70"> · {book.rejection_reason.slice(0, 50)}</span>}
                         </p>
                       </div>
                       <StatusBadge status={book.status} />
                     </div>
 
-                    <div className="flex items-center gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <ReadingProgressBar bookId={book.id} />
+                    <div className="flex items-center gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap">
                       {(book.status === 'draft' || book.status === 'rejected') && (
                         <Link
                           href={`/lawyer/library/${book.id}/edit`}
@@ -337,9 +489,11 @@ export default function LawyerLibraryPage() {
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                             <circle cx="12" cy="12" r="3"/>
                           </svg>
-                          View in Library
+                          View
                         </Link>
                       )}
+                      <BookmarkButton id={book.id} title={book.title} type="book" url={`/library/${book.id}`} />
+                      {book.status === 'published' && <CiteButton item={book} type="book" />}
                     </div>
                   </div>
                 ))}
@@ -400,7 +554,7 @@ export default function LawyerLibraryPage() {
                         )}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap">
                       <Link href={`/lawyer/library/articles/${article.id}/edit`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors">
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -418,6 +572,8 @@ export default function LawyerLibraryPage() {
                           Read
                         </Link>
                       )}
+                      <BookmarkButton id={article.id} title={article.title} type="article" url={`/library/articles/${article.id}`} />
+                      {article.status === 'published' && <CiteButton item={article as unknown as BookItem} type="article" />}
                     </div>
                   </div>
                 ))}
@@ -501,7 +657,7 @@ export default function LawyerLibraryPage() {
                             <span className={`text-[9px] rounded-full px-1.5 py-0.5 font-medium ${
                               item.type === 'book'
                                 ? 'bg-gold-500/10 text-gold-400/70'
-                                : 'bg-blue-500/10 text-blue-400/70'
+                                : 'bg-primary-400/10 text-primary-100/70'
                             }`}>
                               {item.type}
                             </span>
@@ -540,6 +696,14 @@ export default function LawyerLibraryPage() {
                 </div>
               </div>
             )}
+          </section>
+        )}
+
+        {/* ── Bookmarks tab ─────────────────────────────────────────────────── */}
+        {mainTab === 'bookmarks' && (
+          <section>
+            <h2 className="text-sm font-semibold text-white/70 mb-5">Saved for Later</h2>
+            <BookmarksTab />
           </section>
         )}
       </div>

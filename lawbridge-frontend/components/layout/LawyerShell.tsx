@@ -7,7 +7,11 @@ import SecretarySidebar from './SecretarySidebar'
 
 export default function LawyerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const [isSecretary, setIsSecretary] = useState(false)
+  // Read synchronously so the correct sidebar renders on first paint with no flash
+  const [isSecretary, setIsSecretary] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('userRole') === 'secretary'
+  })
 
   useEffect(() => {
     const role = localStorage.getItem('userRole')

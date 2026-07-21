@@ -22,11 +22,11 @@ type DocChain = { tip: DocumentItem; history: DocumentItem[] }
 type DocGroup = { caseId: string; title: string; chains: DocChain[] }
 
 const STAMP_OPTIONS = [
-  { key: 'reviewed', label: 'REVIEWED' },
-  { key: 'approved', label: 'APPROVED' },
-  { key: 'certified', label: 'CERTIFIED' },
-  { key: 'confidential', label: 'CONFIDENTIAL' },
-  { key: 'court_filed', label: 'COURT FILED' },
+  { key: 'reviewed',      label: 'REVIEWED' },
+  { key: 'approved',      label: 'APPROVED' },
+  { key: 'certified',     label: 'CERTIFIED' },
+  { key: 'confidential',  label: 'CONFIDENTIAL' },
+  { key: 'court_filed',   label: 'COURT FILED' },
   { key: 'original_copy', label: 'ORIGINAL COPY' },
 ]
 
@@ -36,37 +36,35 @@ const WORD_MIMES = new Set([
 ])
 
 function filterDoc(doc: DocumentItem, filter: DocFilter) {
-  if (filter === 'all') return true
+  if (filter === 'all')      return true
   if (filter === 'evidence') return doc.document_type === 'evidence'
-  if (filter === 'photo') return doc.mime_type?.startsWith('image/')
+  if (filter === 'photo')    return doc.mime_type?.startsWith('image/')
   if (filter === 'contract') return doc.document_type === 'contract'
-  if (filter === 'motion') return doc.document_type === 'motion'
+  if (filter === 'motion')   return doc.document_type === 'motion'
   if (filter === 'other')
     return !['evidence', 'contract', 'motion'].includes(doc.document_type) && !doc.mime_type?.startsWith('image/')
   return true
 }
 
-// Group a flat doc list into version chains — each chain has a "tip" (latest version)
-// and a history array (older versions, most-recent first).
+// Group flat doc list into version chains — tip is the latest (no child points to it)
 function buildVersionChains(docs: DocumentItem[]): DocChain[] {
   const parentIds = new Set(docs.filter(d => d.parent_document_id).map(d => d.parent_document_id!))
   const tips = docs.filter(d => !parentIds.has(d.id))
   const docMap = new Map(docs.map(d => [d.id, d]))
-
   return tips.map(tip => {
     const history: DocumentItem[] = []
-    let current: DocumentItem = tip
-    while (current.parent_document_id) {
-      const parent = docMap.get(current.parent_document_id)
+    let cur: DocumentItem = tip
+    while (cur.parent_document_id) {
+      const parent = docMap.get(cur.parent_document_id)
       if (!parent) break
       history.push(parent)
-      current = parent
+      cur = parent
     }
     return { tip, history }
   })
 }
 
-// ── Signature auth session cache (5 minutes) ──────────────────────────────────
+// ── Auth cache for signing (5 min) ────────────────────────────────────────────
 const SIG_AUTH_KEY = 'lawbridge_sig_auth'
 function sigAuthRecent(): boolean {
   try {
@@ -85,7 +83,15 @@ function decodeJwtField(token: string, field: string): string {
   } catch { return '' }
 }
 
-// ── Canvas drawing hook ───────────────────────────────────────────────────────
+// Generates a cryptographically random 10-char password (no ambiguous chars)
+function generateDocPassword(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$'
+  const bytes = new Uint8Array(10)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes).map(b => chars[b % chars.length]).join('')
+}
+
+// ── Canvas hook ───────────────────────────────────────────────────────────────
 function useCanvas() {
   const ref  = useRef<HTMLCanvasElement>(null)
   const down = useRef(false)
@@ -118,7 +124,89 @@ function useCanvas() {
   return { ref, onDown, onMove, onUp, clear, getData, isEmpty }
 }
 
-// ── Identity confirmation before signing ─────────────────────────────────────
+// ── Password reveal after signing ─────────────────────────────────────────────
+function PasswordRevealModal({ filename, password, onClose }: {
+  filename: string
+  password: string
+  onClose: () => void
+}) {
+  const [copied, setCopied] = useState(false)
+
+  function copy() {
+    void navigator.clipboard.writeText(password)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-emerald-500/20 bg-primary-800 shadow-2xl">
+        <div className="px-6 pt-6 pb-4">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/12 text-emerald-400">
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <polyline points="9 12 11 14 15 10"/>
+              </svg>
+            </div>
+            <div>
+              <p className="font-semibold text-neutral-100 text-sm">Signed Version Created</p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">A password was set on the new version</p>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-neutral-600 truncate mb-4">{filename}</p>
+
+          <div className="rounded-xl bg-primary-900/60 border border-white/10 p-4">
+            <p className="text-[10px] uppercase tracking-widest text-neutral-600 mb-2">Document Password</p>
+            <div className="flex items-center gap-3">
+              <p className="flex-1 font-mono text-xl font-bold tracking-widest text-emerald-400">{password}</p>
+              <button
+                onClick={copy}
+                className={`flex-shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                  copied ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 border border-white/10 text-neutral-400 hover:text-neutral-100'
+                }`}
+              >
+                {copied ? (
+                  <>
+                    <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Copy
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-start gap-2 rounded-xl bg-amber-500/8 border border-amber-500/20 px-3 py-2.5">
+            <svg className="flex-shrink-0 mt-0.5 text-amber-400" width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m10.29 3.86-8.69 15A1 1 0 0 0 2.47 20h19.06a1 1 0 0 0 .87-1.5l-8.69-15a1 1 0 0 0-1.72 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <p className="text-[11px] text-amber-300 leading-relaxed">
+              Save this password — it is shown only once. Anyone opening the signed document will need it.
+            </p>
+          </div>
+        </div>
+        <div className="px-6 pb-6">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 rounded-xl bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 transition-colors"
+          >
+            I&apos;ve Saved the Password
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Identity confirmation before signing ──────────────────────────────────────
 function LawyerAuthModal({ onConfirmed, onClose }: {
   onConfirmed: () => void
   onClose: () => void
@@ -132,7 +220,8 @@ function LawyerAuthModal({ onConfirmed, onClose }: {
     setBusy(true); setErr('')
     try {
       const access = localStorage.getItem('access') ?? ''
-      const email  = decodeJwtField(access, 'email')
+      // Try multiple common JWT email fields
+      const email = decodeJwtField(access, 'email') || decodeJwtField(access, 'username') || decodeJwtField(access, 'sub')
       if (!email) { setErr('Unable to identify your account. Please sign out and sign back in.'); return }
       const resp = await fetch(`${SERVICE_URLS.auth.replace(/\/$/, '')}/auth/token/`, {
         method: 'POST',
@@ -154,7 +243,7 @@ function LawyerAuthModal({ onConfirmed, onClose }: {
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-primary-800 shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="px-6 pt-6 pb-4">
           <div className="flex items-center gap-3 mb-4">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/12 text-purple-400">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500/12 text-gold-400">
               <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
               </svg>
@@ -171,14 +260,14 @@ function LawyerAuthModal({ onConfirmed, onClose }: {
             onKeyDown={e => e.key === 'Enter' && void verify()}
             autoFocus
             placeholder="Your account password"
-            className="w-full rounded-xl bg-primary-900/50 border border-white/10 px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-purple-500/40"
+            className="w-full rounded-xl bg-primary-900/50 border border-white/10 px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-gold-500/40"
           />
-          {err && <p className="mt-2 text-xs text-red-400">{err}</p>}
+          {err && <p className="mt-2 text-xs text-crimson-400">{err}</p>}
         </div>
         <div className="flex gap-3 px-6 pb-6">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-neutral-400 hover:text-neutral-100 transition-colors">Cancel</button>
           <button onClick={() => void verify()} disabled={busy}
-            className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-sm font-semibold hover:bg-purple-400 disabled:opacity-50 transition-colors">
+            className="flex-1 py-2.5 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-black text-sm font-semibold hover:from-gold-300 hover:to-gold-500 shadow-[0_2px_12px_rgba(212,168,67,0.3)] disabled:opacity-50 transition-all">
             {busy ? 'Verifying…' : 'Confirm & Continue'}
           </button>
         </div>
@@ -187,7 +276,7 @@ function LawyerAuthModal({ onConfirmed, onClose }: {
   )
 }
 
-// ── Signature management (edit / revert) for signed docs ─────────────────────
+// ── Signature management (for already-signed docs) ────────────────────────────
 function SignatureManageModal({ chain, caseId, onClose, onReload, onAddSignature }: {
   chain: DocChain
   caseId: string
@@ -206,8 +295,7 @@ function SignatureManageModal({ chain, caseId, onClose, onReload, onAddSignature
     try {
       await deleteDocument(tip.id, token)
       toastSuccess(`Signed version removed. Reverted to v${tip.version - 1}.`)
-      onReload()
-      onClose()
+      onReload(); onClose()
     } catch (e) {
       toastError(e instanceof Error ? e.message : 'Revert failed', 'Revert failed')
       setReverting(false)
@@ -233,7 +321,6 @@ function SignatureManageModal({ chain, caseId, onClose, onReload, onAddSignature
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Current signatures */}
           <div>
             <p className="text-[10px] uppercase tracking-widest text-neutral-600 mb-2">
               Signatures on Current Version (v{tip.version})
@@ -252,8 +339,7 @@ function SignatureManageModal({ chain, caseId, onClose, onReload, onAddSignature
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-medium text-neutral-200">{sig.signer_name || 'Unknown'}</p>
                       <p className="text-[11px] text-neutral-500">
-                        {sigTypeLabel(sig.signature_type)}
-                        {sig.stamp_type ? ` · ${sig.stamp_type.replace(/_/g, ' ').toUpperCase()}` : ''}
+                        {sigTypeLabel(sig.signature_type)}{sig.stamp_type ? ` · ${sig.stamp_type.replace(/_/g, ' ').toUpperCase()}` : ''}
                       </p>
                     </div>
                     <p className="text-[10px] text-neutral-600 flex-shrink-0">
@@ -265,7 +351,15 @@ function SignatureManageModal({ chain, caseId, onClose, onReload, onAddSignature
             )}
           </div>
 
-          {/* Version chain breadcrumb */}
+          {tip.is_password_protected && (
+            <div className="flex items-center gap-2 rounded-xl bg-amber-500/8 border border-amber-500/20 px-3 py-2.5">
+              <svg className="flex-shrink-0 text-amber-400" width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <p className="text-[11px] text-amber-300">This version is password-protected.</p>
+            </div>
+          )}
+
           {chain.history.length > 0 && (
             <div>
               <p className="text-[10px] uppercase tracking-widest text-neutral-600 mb-2">Version Chain</p>
@@ -294,14 +388,15 @@ function SignatureManageModal({ chain, caseId, onClose, onReload, onAddSignature
             <button
               onClick={() => void revert()}
               disabled={reverting}
-              className="flex-1 py-2.5 rounded-xl border border-red-500/25 bg-red-500/8 text-sm font-semibold text-red-400 hover:bg-red-500/15 disabled:opacity-50 transition-colors"
+              className="flex-1 py-2.5 rounded-xl border border-crimson-500/25 bg-crimson-500/8 text-sm font-semibold text-crimson-400 hover:bg-crimson-500/15 disabled:opacity-50 transition-colors"
             >
               {reverting ? 'Reverting…' : `Revert to v${tip.version - 1}`}
             </button>
           )}
+          {/* Gold CTA to match primary action style */}
           <button
             onClick={() => { onClose(); onAddSignature(tip, caseId) }}
-            className="flex-1 py-2.5 rounded-xl bg-purple-500 text-white text-sm font-semibold hover:bg-purple-400 transition-colors"
+            className="flex-1 py-2.5 rounded-xl bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 transition-colors"
           >
             Add New Signature
           </button>
@@ -312,15 +407,17 @@ function SignatureManageModal({ chain, caseId, onClose, onReload, onAddSignature
 }
 
 // ── Signature modal ───────────────────────────────────────────────────────────
+// onSigned receives the auto-generated password when a PDF/image was uploaded;
+// undefined when the backend handled it (Word docs).
 function SignatureModal({ doc, caseId, onClose, onSigned }: {
   doc: DocumentItem
   caseId: string
   onClose: () => void
-  onSigned: () => void
+  onSigned: (generatedPassword?: string) => void
 }) {
-  const [tab, setTab]       = useState<SigTab>('draw')
+  const [tab, setTab]        = useState<SigTab>('draw')
   const [typedSig, setTyped] = useState('')
-  const [stamp, setStamp]   = useState(STAMP_OPTIONS[0].key)
+  const [stamp, setStamp]    = useState(STAMP_OPTIONS[0].key)
   const [saving, setSaving]  = useState(false)
   const [step, setStep]      = useState<'choose' | 'baking'>('choose')
 
@@ -359,16 +456,22 @@ function SignatureModal({ doc, caseId, onClose, onSigned }: {
       const originalBlob = await fetchDocumentBlob(doc.id, token)
       const bakedBlob    = await bakeSignatureIntoDocument(originalBlob, signerName, tab, sig_data, stamp, drawOnStamp)
 
+      let docPassword: string | undefined
+
       if (bakedBlob) {
+        // Generate a secure password for the signed version
+        docPassword = generateDocPassword()
+
         const ext     = doc.filename.split('.').pop() ?? 'pdf'
         const base    = doc.filename.replace(/\.[^.]+$/, '')
         const newName = `${base}_signed_v${doc.version + 1}.${ext}`
         const newFile = new File([bakedBlob], newName, { type: bakedBlob.type })
-        await uploadDocument(caseId, newFile, doc.document_type, token, undefined, doc.id)
+
+        // Upload with the generated password
+        await uploadDocument(caseId, newFile, doc.document_type, token, docPassword, doc.id)
       }
 
-      toastSuccess('Signature applied — new version created')
-      onSigned()
+      onSigned(docPassword)
       onClose()
     } catch (err) {
       setStep('choose')
@@ -460,7 +563,7 @@ function SignatureModal({ doc, caseId, onClose, onSigned }: {
           {step === 'baking' && (
             <div className="flex items-center gap-2 rounded-xl bg-gold-500/8 border border-gold-500/20 px-4 py-3 text-xs text-gold-400">
               <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-              Baking signature into document and uploading new version…
+              Baking signature, setting document password and uploading new version…
             </div>
           )}
         </div>
@@ -477,7 +580,7 @@ function SignatureModal({ doc, caseId, onClose, onSigned }: {
   )
 }
 
-// ── Password prompt ───────────────────────────────────────────────────────────
+// ── Document password prompt ───────────────────────────────────────────────────
 function PasswordModal({ doc, onClose, onUnlocked }: {
   doc: DocumentItem
   onClose: () => void
@@ -527,7 +630,7 @@ function PasswordModal({ doc, onClose, onUnlocked }: {
             placeholder="Document password"
             className="w-full rounded-xl bg-primary-900/50 border border-white/10 px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-amber-500/40"
           />
-          {err && <p className="mt-2 text-xs text-red-400">{err}</p>}
+          {err && <p className="mt-2 text-xs text-crimson-400">{err}</p>}
         </div>
         <div className="flex gap-3 px-6 pb-6">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-neutral-400 hover:text-neutral-100 transition-colors">Cancel</button>
@@ -543,12 +646,9 @@ function PasswordModal({ doc, onClose, onUnlocked }: {
 
 // ── New version upload ────────────────────────────────────────────────────────
 function NewVersionModal({ doc, caseId, onClose, onUploaded }: {
-  doc: DocumentItem
-  caseId: string
-  onClose: () => void
-  onUploaded: () => void
+  doc: DocumentItem; caseId: string; onClose: () => void; onUploaded: () => void
 }) {
-  const [file, setFile]   = useState<File | null>(null)
+  const [file, setFile]     = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -560,8 +660,7 @@ function NewVersionModal({ doc, caseId, onClose, onUploaded }: {
     try {
       await uploadDocument(caseId, file, doc.document_type, token, undefined, doc.id)
       toastSuccess('New version uploaded')
-      onUploaded()
-      onClose()
+      onUploaded(); onClose()
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Upload failed', 'Upload failed')
     } finally {
@@ -595,7 +694,7 @@ function NewVersionModal({ doc, caseId, onClose, onUploaded }: {
   )
 }
 
-// ── Small helpers ─────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function formatBytes(bytes: number): string {
   if (!bytes) return ''
   if (bytes < 1024) return `${bytes} B`
@@ -609,7 +708,7 @@ function formatDate(iso: string): string {
 
 function FileIcon({ mime }: { mime: string }) {
   if (mime?.includes('pdf')) return (
-    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-red-500/12 text-red-400">
+    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-crimson-500/12 text-crimson-400">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
         <line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="11" y2="11"/>
@@ -617,7 +716,7 @@ function FileIcon({ mime }: { mime: string }) {
     </div>
   )
   if (mime?.includes('word') || mime?.includes('document')) return (
-    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-500/12 text-blue-400">
+    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-primary-400/12 text-primary-100">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
       </svg>
@@ -659,7 +758,7 @@ function StatusBadge({ status }: { status: string }) {
 
 function NoDocumentsYet() {
   return (
-    <div className="flex items-center gap-3 px-5 py-5 text-sm">
+    <div className="flex items-center gap-3 px-5 py-5">
       <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/4 text-neutral-600">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
           <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/>
@@ -711,26 +810,27 @@ function EmptyVault() {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function LawyerDocumentsPage() {
-  const [groups, setGroups]         = useState<DocGroup[]>([])
-  const [cases, setCases]           = useState<CaseItem[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState('')
-  const [previewUrl, setPreviewUrl]   = useState<string | null>(null)
-  const [previewMime, setPreviewMime] = useState('')
-  const [previewName, setPreviewName] = useState('')
+  const [groups, setGroups]       = useState<DocGroup[]>([])
+  const [cases, setCases]         = useState<CaseItem[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState('')
+  const [previewUrl, setPreviewUrl]     = useState<string | null>(null)
+  const [previewMime, setPreviewMime]   = useState('')
+  const [previewName, setPreviewName]   = useState('')
   const [previewDocId, setPreviewDocId] = useState('')
   const [previewToken, setPreviewToken] = useState('')
   const [previewHtml, setPreviewHtml]   = useState<string | null>(null)
-  const [filter, setFilter]         = useState<DocFilter>('all')
+  const [filter, setFilter]       = useState<DocFilter>('all')
 
-  // Sign flow state
-  const [pendingSign, setPendingSign] = useState<{ doc: DocumentItem; caseId: string } | null>(null)
-  const [authOpen, setAuthOpen]       = useState(false)
-  const [signingDoc, setSigningDoc]   = useState<{ doc: DocumentItem; caseId: string } | null>(null)
-  const [manageDoc, setManageDoc]     = useState<{ chain: DocChain; caseId: string } | null>(null)
+  // Sign flow
+  const [pendingSign, setPendingSign]   = useState<{ doc: DocumentItem; caseId: string } | null>(null)
+  const [authOpen, setAuthOpen]         = useState(false)
+  const [signingDoc, setSigningDoc]     = useState<{ doc: DocumentItem; caseId: string } | null>(null)
+  const [manageDoc, setManageDoc]       = useState<{ chain: DocChain; caseId: string } | null>(null)
+  const [revealPassword, setRevealPassword] = useState<{ filename: string; password: string } | null>(null)
 
-  const [newVerDoc, setNewVerDoc]     = useState<{ doc: DocumentItem; caseId: string } | null>(null)
-  const [passwordDoc, setPasswordDoc] = useState<DocumentItem | null>(null)
+  const [newVerDoc, setNewVerDoc]       = useState<{ doc: DocumentItem; caseId: string } | null>(null)
+  const [passwordDoc, setPasswordDoc]   = useState<DocumentItem | null>(null)
   const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set())
 
   const filteredGroups = filter === 'all'
@@ -764,8 +864,7 @@ export default function LawyerDocumentsPage() {
 
   const closePreview = useCallback(() => {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
-    setPreviewUrl(null); setPreviewMime(''); setPreviewName(''); setPreviewDocId('')
-    setPreviewHtml(null)
+    setPreviewUrl(null); setPreviewMime(''); setPreviewName(''); setPreviewDocId(''); setPreviewHtml(null)
   }, [previewUrl])
 
   const handleOpen = useCallback(async (doc: DocumentItem, password?: string) => {
@@ -829,17 +928,13 @@ export default function LawyerDocumentsPage() {
 
   function onAuthConfirmed() {
     setAuthOpen(false)
-    if (pendingSign) {
-      setSigningDoc(pendingSign)
-      setPendingSign(null)
-    }
+    if (pendingSign) { setSigningDoc(pendingSign); setPendingSign(null) }
   }
 
   function toggleHistory(docId: string) {
     setExpandedHistory(prev => {
       const next = new Set(prev)
-      if (next.has(docId)) next.delete(docId)
-      else next.add(docId)
+      if (next.has(docId)) next.delete(docId); else next.add(docId)
       return next
     })
   }
@@ -852,7 +947,6 @@ export default function LawyerDocumentsPage() {
         const result   = await getMyCases(access)
         const allCases = result.results ?? []
         setCases(allCases)
-
         const nextGroups = await Promise.all(
           allCases.map(async (c): Promise<DocGroup> => {
             try {
@@ -898,7 +992,6 @@ export default function LawyerDocumentsPage() {
         </Link>
       </div>
 
-      {/* Filter tabs */}
       <div className="flex items-center gap-1 flex-wrap">
         {(['all','evidence','photo','contract','motion','other'] as DocFilter[]).map(f => (
           <button key={f} onClick={() => setFilter(f)}
@@ -989,12 +1082,11 @@ export default function LawyerDocumentsPage() {
               ? <NoDocumentsYet />
               : group.chains.map(chain => {
                   const { tip, history } = chain
-                  const isSigned     = (tip.signatures?.length ?? 0) > 0
-                  const isExpanded   = expandedHistory.has(tip.id)
+                  const isSigned   = (tip.signatures?.length ?? 0) > 0
+                  const isExpanded = expandedHistory.has(tip.id)
 
                   return (
                     <div key={tip.id}>
-                      {/* Tip row */}
                       <div className="flex items-center gap-3 px-5 py-4 hover:bg-primary-700/20 transition-colors">
                         <FileIcon mime={tip.mime_type} />
                         <div className="min-w-0 flex-1">
@@ -1044,7 +1136,7 @@ export default function LawyerDocumentsPage() {
                             className={`min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                               isSigned
                                 ? 'border-emerald-500/25 bg-emerald-500/8 text-emerald-400 hover:bg-emerald-500/15'
-                                : 'border-purple-500/25 bg-purple-500/8 text-purple-400 hover:bg-purple-500/15'
+                                : 'border-gold-500/25 bg-gold-500/8 text-gold-400 hover:bg-gold-500/15'
                             }`}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                               <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
@@ -1071,7 +1163,7 @@ export default function LawyerDocumentsPage() {
                         </div>
                       </div>
 
-                      {/* Older versions (collapsible) */}
+                      {/* Older versions */}
                       {isExpanded && history.length > 0 && (
                         <div className="border-t border-white/4 bg-primary-900/20">
                           {history.map((h, idx) => (
@@ -1082,17 +1174,22 @@ export default function LawyerDocumentsPage() {
                                 <div className="flex items-center gap-2">
                                   <p className="text-xs text-neutral-500 truncate">{h.filename}</p>
                                   <span className="flex-shrink-0 rounded-full bg-white/5 border border-white/8 px-1.5 py-0.5 text-[9px] text-neutral-600">v{h.version}</span>
-                                  {(h.signatures?.length ?? 0) > 0 && <span className="text-[9px] text-emerald-600">✓ Signed</span>}
+                                  {(h.signatures?.length ?? 0) > 0 && <span className="text-[9px] text-emerald-600">✓</span>}
+                                  {h.is_password_protected && (
+                                    <svg className="text-amber-600" width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                      <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                  )}
                                 </div>
                                 {h.created_at && <p className="text-[10px] text-neutral-700">{formatDate(h.created_at)}</p>}
                               </div>
                               <div className="flex items-center gap-1.5 flex-shrink-0">
                                 <button onClick={() => void handleOpen(h)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors">
+                                  className="inline-flex items-center rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors">
                                   Open
                                 </button>
                                 <button onClick={() => void handleDownload(h)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors">
+                                  className="inline-flex items-center rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors">
                                   Download
                                 </button>
                               </div>
@@ -1128,7 +1225,22 @@ export default function LawyerDocumentsPage() {
           doc={signingDoc.doc}
           caseId={signingDoc.caseId}
           onClose={() => setSigningDoc(null)}
-          onSigned={() => { setSigningDoc(null); reload() }}
+          onSigned={pw => {
+            const filename = signingDoc.doc.filename
+            setSigningDoc(null)
+            reload()
+            if (pw) setRevealPassword({ filename, password: pw })
+            else toastSuccess('Signature applied — new version created')
+          }}
+        />
+      )}
+
+      {/* Password reveal — shown immediately after signing when a password was set */}
+      {revealPassword && (
+        <PasswordRevealModal
+          filename={revealPassword.filename}
+          password={revealPassword.password}
+          onClose={() => setRevealPassword(null)}
         />
       )}
 

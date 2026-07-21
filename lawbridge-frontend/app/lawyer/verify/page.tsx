@@ -48,14 +48,14 @@ function StatusBanner({ request, isVerified }: { request: VerificationRequest | 
 
   if (request.status === 'rejected') {
     return (
-      <div className="rounded-2xl bg-red-500/8 border border-red-500/20 p-5 flex items-start gap-4">
-        <div className="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center flex-shrink-0">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-red-400">
+      <div className="rounded-2xl bg-crimson-500/8 border border-crimson-500/20 p-5 flex items-start gap-4">
+        <div className="w-10 h-10 rounded-full bg-crimson-500/15 border border-crimson-500/30 flex items-center justify-center flex-shrink-0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-crimson-400">
             <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
         </div>
         <div>
-          <p className="font-semibold text-red-400">Request Rejected</p>
+          <p className="font-semibold text-crimson-400">Request Rejected</p>
           {request.rejection_reason && (
             <p className="text-sm text-white/50 mt-0.5">Reason: {request.rejection_reason}</p>
           )}
@@ -156,7 +156,7 @@ export default function VerifyPage() {
             </svg>
             <span className="text-xs text-white/50">Verification</span>
           </div>
-          <h1 className="text-xl font-bold text-white">Get Verified</h1>
+          <h1 className="font-display text-xl font-bold text-white">Get Verified</h1>
           <p className="text-sm text-white/40 mt-1">
             Verified lawyers get a badge on their profile, appear higher in search, and build client trust faster.
           </p>
@@ -227,7 +227,7 @@ export default function VerifyPage() {
         </div>
 
         {error && (
-          <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">{error}</div>
+          <div className="rounded-xl bg-crimson-500/10 border border-crimson-500/20 px-4 py-3 text-sm text-crimson-400">{error}</div>
         )}
         {success && (
           <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-400">{success}</div>
@@ -241,7 +241,7 @@ export default function VerifyPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs text-white/40 mb-1.5 block">Bar Number <span className="text-red-400">*</span></label>
+                <label className="text-xs text-white/40 mb-1.5 block">Bar Number <span className="text-crimson-400">*</span></label>
                 <input
                   type="text"
                   value={barNumber}
@@ -263,7 +263,7 @@ export default function VerifyPage() {
               </div>
 
               <div>
-                <label className="text-xs text-white/40 mb-1.5 block">Year Called to Bar <span className="text-red-400">*</span></label>
+                <label className="text-xs text-white/40 mb-1.5 block">Year Called to Bar <span className="text-crimson-400">*</span></label>
                 <input
                   type="number"
                   value={yearCalled}

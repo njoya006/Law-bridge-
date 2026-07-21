@@ -165,7 +165,7 @@ export default function NewBookPage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         {error && (
-          <div className="mb-6 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
+          <div className="mb-6 rounded-xl bg-crimson-500/10 border border-crimson-500/20 px-4 py-3 text-sm text-crimson-400">
             {error}
           </div>
         )}

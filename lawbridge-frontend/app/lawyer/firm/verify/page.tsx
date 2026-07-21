@@ -277,7 +277,7 @@ export default function FirmVerifyPage() {
               <polyline points="9 22 9 12 15 12 15 22" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-white mb-2">Not Part of a Firm</h1>
+          <h1 className="font-display text-xl font-bold text-white mb-2">Not Part of a Firm</h1>
           <p className="text-sm text-white/40 mb-6">
             You need to belong to a law firm before you can request firm verification.
             Ask your firm owner to send you an invitation, or create a new firm first.
@@ -305,7 +305,7 @@ export default function FirmVerifyPage() {
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-white mb-2">Access Restricted</h1>
+          <h1 className="font-display text-xl font-bold text-white mb-2">Access Restricted</h1>
           <p className="text-sm text-white/40 mb-2">
             Only the firm owner or administrator can request firm verification.
           </p>
@@ -336,7 +336,7 @@ export default function FirmVerifyPage() {
             </svg>
             <span className="text-xs text-white/50">Firm Verification</span>
           </div>
-          <h1 className="text-xl font-bold text-white">Verify Your Firm</h1>
+          <h1 className="font-display text-xl font-bold text-white">Verify Your Firm</h1>
           <p className="text-sm text-white/40 mt-1">
             A verified firm badge builds client trust, boosts visibility, and unlocks premium features across LawBridge.
           </p>

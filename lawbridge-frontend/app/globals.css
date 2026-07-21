@@ -200,12 +200,24 @@ body {
 
 /* Dark Mode Body Background */
 body {
-  background: linear-gradient(135deg, var(--bg-base) 0%, #0f1a2e 100%);
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, #162544 0%, #060D1C 55%);
 }
 
 html.light-mode body {
-  background: linear-gradient(135deg, var(--bg-base) 0%, #F9FAFB 100%);
+  background: linear-gradient(160deg, #FFFFFF 0%, #F8FAFC 100%);
 }
+
+/* Text selection */
+::selection {
+  background: rgba(212, 168, 67, 0.25);
+  color: #E4C078;
+}
+
+/* Custom thin scrollbar for dark mode */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(212,168,67,0.25); }
 
 @media (max-width: 1023px) {
   body[data-sidebar-mode='mobile-collapsed'],
@@ -416,32 +428,7 @@ html.light-mode a {
   @apply text-gold-700 hover:text-gold-500;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--bg-base);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-primary-700);
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary-600);
-}
-
-html.light-mode ::-webkit-scrollbar-thumb {
-  background: var(--color-neutral-300);
-}
-
-html.light-mode ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-neutral-400);
-}
+/* Scrollbar — defined above near body styles */
 
 /* ================================================================
    PER-PORTAL COLOR IDENTITY SYSTEM
@@ -466,11 +453,11 @@ html.light-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 [data-portal="lawyer"] {
-  --portal-accent:      #0D9488;
-  --portal-accent-dim:  #0F766E;
-  --portal-accent-text: #5EEAD4;
-  --portal-accent-glow: rgba(13, 148, 136, 0.2);
-  --portal-accent-soft: rgba(13, 148, 136, 0.08);
+  --portal-accent:      #D4A843;
+  --portal-accent-dim:  #C9923A;
+  --portal-accent-text: #E4C078;
+  --portal-accent-glow: rgba(212, 168, 67, 0.22);
+  --portal-accent-soft: rgba(212, 168, 67, 0.09);
 }
 
 [data-portal="admin"] {
@@ -530,6 +517,63 @@ html.light-mode ::-webkit-scrollbar-thumb:hover {
 @keyframes skeleton-shimmer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* ================================================================
+   MOTION & POLISH UTILITIES
+   ================================================================ */
+
+/* Stagger: apply class + style={{ '--i': n }} on each grid child */
+.stagger-child {
+  animation: fadeUp 0.4s ease-out both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* Page entrance for layout content wrappers */
+.page-enter {
+  animation: fadeIn 0.35s ease-out;
+}
+
+/* Stat number — Cormorant Garamond for premium display */
+.stat-num {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+/* Gradient border — apply to a wrapping div with border-radius */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(212, 175, 55, 0.45) 0%,
+    rgba(212, 175, 55, 0.07) 50%,
+    rgba(212, 175, 55, 0.28) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Shimmer on primary gold buttons */
+@keyframes shimmerGold {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+.btn-shimmer:hover {
+  background: linear-gradient(90deg, #b8960c, #d4af37, #f0cc4a, #d4af37, #b8960c) !important;
+  background-size: 200% auto !important;
+  animation: shimmerGold 1.8s linear infinite;
 }
 
 /* ================================================================

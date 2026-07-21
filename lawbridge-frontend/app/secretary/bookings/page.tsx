@@ -132,7 +132,7 @@ export default function SecretaryBookingsPage() {
             const meta = booking.booking_metadata ?? {}
             const fee = meta.booking_fee ? parseFloat(meta.booking_fee) : null
             return (
-              <Link key={booking.id} href={`/bookings/${booking.id}`}>
+              <Link key={booking.id} href={`/secretary/bookings/${booking.id}`}>
                 <div className={`rounded-xl border p-5 space-y-3 hover:border-gold-400/30 transition-colors cursor-pointer ${
                   booking.booking_status === 'pending'
                     ? 'border-amber-500/20 bg-amber-500/5'

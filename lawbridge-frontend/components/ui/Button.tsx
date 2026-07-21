@@ -14,7 +14,7 @@ const buttonVariants = cva(
                   hover:from-primary-500 hover:to-primary-600 
                   focus-visible:ring-gold-500 focus-visible:ring-offset-primary-900
                   shadow-lg hover:shadow-xl active:shadow-md`,
-        gold: `bg-gradient-to-br from-gold-400 to-gold-500 text-primary-900 font-semibold
+        gold: `bg-gradient-to-br from-gold-400 to-gold-500 text-primary-900 font-semibold btn-shimmer
                hover:from-gold-300 hover:to-gold-400
                focus-visible:ring-gold-300 focus-visible:ring-offset-primary-900
                shadow-lg hover:shadow-gold active:shadow-md`,

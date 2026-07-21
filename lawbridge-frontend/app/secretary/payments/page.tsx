@@ -246,7 +246,7 @@ export default function SecretaryPaymentsPage() {
                           </button>
                         </>
                       )}
-                      <Link href={`/bookings/${row.id}`} className="text-xs text-gold-400 hover:text-gold-300 font-medium">View →</Link>
+                      <Link href={`/secretary/bookings/${row.id}`} className="text-xs text-gold-400 hover:text-gold-300 font-medium">View →</Link>
                     </div>
                   </td>
                 </tr>

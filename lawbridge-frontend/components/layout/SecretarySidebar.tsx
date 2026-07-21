@@ -174,14 +174,14 @@ export default function SecretarySidebar() {
                   <Icon width={18} height={18} />
                 </span>
                 {badge > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center shadow-lg">
+                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-crimson-500 text-white text-[9px] font-bold flex items-center justify-center shadow-lg">
                     {badge > 9 ? '9+' : badge}
                   </span>
                 )}
               </span>
               {!collapsed && <span className="relative z-10 font-medium">{item.label}</span>}
               {!collapsed && badge > 0 && (
-                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-crimson-500 px-1 text-[10px] font-bold text-white">
                   {badge > 9 ? '9+' : badge}
                 </span>
               )}

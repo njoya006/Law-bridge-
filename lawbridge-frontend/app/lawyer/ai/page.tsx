@@ -26,7 +26,7 @@ import {
   type ResearchResult,
 } from '../../../lib/aiApi'
 
-type Tab = 'chat' | 'drafts' | 'analysis' | 'contract' | 'research'
+type Tab = 'chat' | 'drafts' | 'analysis' | 'contract' | 'research' | 'clauses'
 
 function SparkIcon() {
   return (
@@ -99,9 +99,9 @@ function CaseAnalysisCard({ data }: { data: CaseAnalysisData }) {
   const summary   = typeof data.summary === 'string' ? data.summary : ''
 
   const scoreColor = score === null ? 'text-neutral-400'
-    : score >= 70 ? 'text-emerald-400' : score >= 40 ? 'text-amber-400' : 'text-red-400'
+    : score >= 70 ? 'text-emerald-400' : score >= 40 ? 'text-amber-400' : 'text-crimson-400'
   const scoreFill  = score === null ? 'bg-neutral-600'
-    : score >= 70 ? 'bg-emerald-500' : score >= 40 ? 'bg-amber-500' : 'bg-red-500'
+    : score >= 70 ? 'bg-emerald-500' : score >= 40 ? 'bg-amber-500' : 'bg-crimson-500'
 
   return (
     <div className="space-y-4">
@@ -128,8 +128,8 @@ function CaseAnalysisCard({ data }: { data: CaseAnalysisData }) {
           <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Risk Flags</p>
           <div className="flex flex-wrap gap-1.5">
             {riskFlags.map((flag, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-red-500/10 border border-red-500/20 px-2.5 py-1 text-xs text-red-300">
-                <span className="h-1.5 w-1.5 rounded-full bg-red-400 flex-shrink-0" />
+              <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-crimson-500/10 border border-crimson-500/20 px-2.5 py-1 text-xs text-crimson-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-crimson-400 flex-shrink-0" />
                 {flag}
               </span>
             ))}
@@ -1397,24 +1397,40 @@ function AnalysisPanel({ token }: { token: string }) {
   )
 }
 
+// ── Recent Analyses store ─────────────────────────────────────────────────────
+
+const RECENT_ANALYSES_KEY = 'lawbridge_recent_analyses'
+
+type RecentAnalysis = { id: string; fileName: string; date: string; score: number; level: string; summary: string; clauseCount: number }
+
+function getRecentAnalyses(): RecentAnalysis[] {
+  try { return JSON.parse(localStorage.getItem(RECENT_ANALYSES_KEY) || '[]') }
+  catch { return [] }
+}
+
+function persistRecentAnalysis(a: RecentAnalysis) {
+  const list = [a, ...getRecentAnalyses().filter(x => x.id !== a.id)].slice(0, 10)
+  localStorage.setItem(RECENT_ANALYSES_KEY, JSON.stringify(list))
+}
+
 // ── Contract Review Panel ─────────────────────────────────────────────────────
 
 const RISK_COLORS: Record<string, string> = {
   low: 'border-emerald-500/40 bg-emerald-900/10',
   medium: 'border-gold-500/40 bg-gold-900/10',
-  high: 'border-orange-500/40 bg-orange-900/10',
-  critical: 'border-red-500/40 bg-red-900/10',
+  high: 'border-amber-500/40 bg-amber-700/10',
+  critical: 'border-crimson-500/40 bg-crimson-700/10',
 }
 
 const RISK_BADGE: Record<string, string> = {
   low: 'bg-emerald-500/15 text-emerald-400',
   medium: 'bg-gold-500/15 text-gold-400',
-  high: 'bg-orange-500/15 text-orange-400',
-  critical: 'bg-red-500/15 text-red-400',
+  high: 'bg-amber-500/15 text-amber-400',
+  critical: 'bg-crimson-500/15 text-crimson-400',
 }
 
 const RISK_SCORE_COLOR = (score: number) =>
-  score >= 75 ? '#ef4444' : score >= 45 ? '#f59e0b' : '#10b981'
+  score >= 75 ? '#EF4444' : score >= 45 ? '#F59E0B' : '#10B981'
 
 function RiskScoreRing({ score }: { score: number }) {
   const color = RISK_SCORE_COLOR(score)
@@ -1471,7 +1487,10 @@ function ContractReviewPanel({ token }: { token: string }) {
   const [analyzing, setAnalyzing] = useState(false)
   const [result, setResult] = useState<ContractReviewResult | null>(null)
   const [error, setError] = useState('')
+  const [recentAnalyses, setRecentAnalyses] = useState<RecentAnalysis[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => { setRecentAnalyses(getRecentAnalyses()) }, [])
 
   async function runAnalysis() {
     if (!file) { setError('Please upload a contract file.'); return }
@@ -1481,6 +1500,17 @@ function ContractReviewPanel({ token }: { token: string }) {
     try {
       const data = await analyzeContract(file, token)
       setResult(data)
+      const rec: RecentAnalysis = {
+        id: Date.now().toString(),
+        fileName: file.name,
+        date: new Date().toISOString(),
+        score: data.overall_risk_score,
+        level: data.risk_level,
+        summary: data.summary.slice(0, 140),
+        clauseCount: data.clauses.length,
+      }
+      persistRecentAnalysis(rec)
+      setRecentAnalyses(getRecentAnalyses())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Analysis failed')
     }
@@ -1569,6 +1599,31 @@ function ContractReviewPanel({ token }: { token: string }) {
           ) : 'Analyze Contract'}
         </button>
       </div>
+
+      {/* Recent Analyses */}
+      {recentAnalyses.length > 0 && !result && !analyzing && (
+        <div className="rounded-xl border border-neutral-700/40 bg-primary-800/20 p-4 space-y-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Recent Analyses</p>
+          <div className="space-y-2">
+            {recentAnalyses.slice(0, 5).map(r => (
+              <div key={r.id} className="flex items-center gap-3 rounded-lg border border-neutral-700/30 bg-primary-900/30 px-3 py-2.5">
+                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${
+                  r.level === 'critical' ? 'border-crimson-500/40 text-crimson-400 bg-crimson-900/20'
+                  : r.level === 'high' ? 'border-amber-500/40 text-amber-400 bg-amber-900/20'
+                  : r.level === 'medium' ? 'border-gold-500/40 text-gold-400 bg-gold-900/20'
+                  : 'border-emerald-500/40 text-emerald-400 bg-emerald-900/20'
+                }`}>
+                  {r.score}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-neutral-200 truncate">{r.fileName}</p>
+                  <p className="text-[10px] text-neutral-500">{r.clauseCount} clauses · {new Date(r.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {result && (
         <div className="space-y-4">
@@ -1678,7 +1733,7 @@ function ResearchPanel({ token }: { token: string }) {
   const confidenceStyle: Record<string, string> = {
     high: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     medium: 'text-gold-400 bg-gold-500/10 border-gold-500/20',
-    low: 'text-red-400 bg-red-500/10 border-red-500/20',
+    low: 'text-crimson-400 bg-crimson-500/10 border-crimson-500/20',
   }
 
   return (
@@ -1802,6 +1857,199 @@ function ResearchPanel({ token }: { token: string }) {
   )
 }
 
+// ── Clause Library ────────────────────────────────────────────────────────────
+
+const CLAUSE_LIB_KEY = 'lawbridge_clause_library'
+const CLAUSE_CATEGORIES = ['General', 'Indemnity', 'Liability', 'Payment', 'Termination', 'Confidentiality', 'Governing Law', 'Dispute Resolution', 'Force Majeure', 'IP', 'Other']
+
+type SavedClause = { id: string; title: string; content: string; category: string; savedAt: string }
+
+function getClauseLibrary(): SavedClause[] {
+  try { return JSON.parse(localStorage.getItem(CLAUSE_LIB_KEY) || '[]') }
+  catch { return [] }
+}
+
+function persistClause(c: SavedClause) {
+  const lib = [c, ...getClauseLibrary().filter(x => x.id !== c.id)]
+  localStorage.setItem(CLAUSE_LIB_KEY, JSON.stringify(lib))
+}
+
+function deleteClauseById(id: string) {
+  localStorage.setItem(CLAUSE_LIB_KEY, JSON.stringify(getClauseLibrary().filter(x => x.id !== id)))
+}
+
+function ClauseLibraryPanel() {
+  const [clauses, setClauses] = useState<SavedClause[]>([])
+  const [search, setSearch] = useState('')
+  const [catFilter, setCatFilter] = useState('')
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ title: '', content: '', category: 'General' })
+  const [copied, setCopied] = useState<string | null>(null)
+
+  useEffect(() => { setClauses(getClauseLibrary()) }, [])
+
+  function addClause() {
+    if (!form.title.trim() || !form.content.trim()) return
+    const c: SavedClause = {
+      id: Date.now().toString(),
+      title: form.title.trim(),
+      content: form.content.trim(),
+      category: form.category,
+      savedAt: new Date().toISOString(),
+    }
+    persistClause(c)
+    setClauses(getClauseLibrary())
+    setForm({ title: '', content: '', category: 'General' })
+    setShowAdd(false)
+  }
+
+  function remove(id: string) {
+    deleteClauseById(id)
+    setClauses(getClauseLibrary())
+  }
+
+  function copy(content: string, id: string) {
+    navigator.clipboard.writeText(content).catch(() => {})
+    setCopied(id)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  const usedCats = [...new Set(clauses.map(c => c.category))]
+  const filtered = clauses.filter(c => {
+    const q = search.toLowerCase()
+    return (!q || c.title.toLowerCase().includes(q) || c.content.toLowerCase().includes(q))
+      && (!catFilter || c.category === catFilter)
+  })
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+        <div className="flex-1">
+          <h3 className="font-heading text-body-lg text-neutral-50">Clause Library</h3>
+          <p className="text-neutral-500 text-sm mt-0.5">Save and reuse contract clauses across matters.</p>
+        </div>
+        <button
+          onClick={() => setShowAdd(o => !o)}
+          className="flex-shrink-0 px-4 py-2 rounded-lg bg-gold-500/15 border border-gold-500/30 text-gold-400 text-sm font-medium hover:bg-gold-500/25 transition-colors flex items-center gap-1.5"
+        >
+          <svg width={12} height={12} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg>
+          Add Clause
+        </button>
+      </div>
+
+      {showAdd && (
+        <div className="rounded-xl border border-gold-500/20 bg-primary-800/40 p-5 space-y-3">
+          <h4 className="text-sm font-medium text-neutral-200">New Clause</h4>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <input
+              value={form.title}
+              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Clause title (e.g. Force Majeure)"
+              className="rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50"
+            />
+            <select
+              value={form.category}
+              onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+              className="rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 focus:outline-none focus:border-gold-500/50"
+            >
+              {CLAUSE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <textarea
+            value={form.content}
+            onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
+            placeholder="Paste the clause text here…"
+            rows={5}
+            className="w-full rounded-lg bg-primary-900/50 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50 resize-none"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={addClause}
+              disabled={!form.title.trim() || !form.content.trim()}
+              className="px-4 py-2 rounded-lg bg-gold-500 text-black text-sm font-semibold hover:bg-gold-400 disabled:opacity-50 transition-colors"
+            >
+              Save Clause
+            </button>
+            <button onClick={() => setShowAdd(false)} className="px-3 py-2 rounded-lg border border-neutral-700/40 text-neutral-400 text-sm hover:text-neutral-200 transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {clauses.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search clauses…"
+            className="flex-1 min-w-[180px] rounded-lg bg-primary-800/40 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-50 placeholder:text-neutral-500 focus:outline-none focus:border-gold-500/50"
+          />
+          {usedCats.length > 1 && (
+            <select
+              value={catFilter}
+              onChange={e => setCatFilter(e.target.value)}
+              className="rounded-lg bg-primary-800/40 border border-neutral-700/40 px-3 py-2 text-sm text-neutral-400 focus:outline-none focus:border-gold-500/50"
+            >
+              <option value="">All categories</option>
+              {usedCats.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+        </div>
+      )}
+
+      {filtered.length > 0 ? (
+        <div className="space-y-3">
+          {filtered.map(c => (
+            <div key={c.id} className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium text-sm text-neutral-100">{c.title}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-primary-700/50 border border-white/8 text-[10px] text-neutral-400">{c.category}</span>
+                  </div>
+                  <p className="text-[10px] text-neutral-600 mt-0.5">{new Date(c.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                </div>
+                <div className="flex gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={() => copy(c.content, c.id)}
+                    className={`px-2.5 py-1 rounded-lg border text-xs transition-colors ${
+                      copied === c.id ? 'border-emerald-500/30 text-emerald-400' : 'border-neutral-700/40 text-neutral-400 hover:text-gold-400 hover:border-gold-500/30'
+                    }`}
+                  >
+                    {copied === c.id ? '✓ Copied' : 'Copy'}
+                  </button>
+                  <button
+                    onClick={() => remove(c.id)}
+                    className="px-2 py-1 rounded-lg border border-neutral-700/40 text-neutral-600 text-xs hover:text-crimson-400 hover:border-crimson-500/30 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <pre className="text-xs text-neutral-400 leading-relaxed line-clamp-3 font-mono bg-primary-900/40 rounded-lg px-3 py-2 whitespace-pre-wrap break-words">{c.content}</pre>
+            </div>
+          ))}
+        </div>
+      ) : clauses.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-neutral-700/30 p-10 text-center">
+          <div className="text-4xl mb-3">📋</div>
+          <p className="font-medium text-neutral-300 mb-1">No saved clauses yet</p>
+          <p className="text-neutral-500 text-sm">Save contract clauses from your drafts or add them manually to reuse across matters.</p>
+          <button
+            onClick={() => setShowAdd(true)}
+            className="mt-4 px-4 py-2 rounded-lg bg-gold-500/15 border border-gold-500/30 text-gold-400 text-sm hover:bg-gold-500/25 transition-colors"
+          >
+            Add your first clause
+          </button>
+        </div>
+      ) : (
+        <p className="text-neutral-500 text-sm text-center py-6">No clauses match your search.</p>
+      )}
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function LawyerAIPage() {
@@ -1824,6 +2072,11 @@ export default function LawyerAIPage() {
     { key: 'research', label: 'Legal Research',     short: 'Research', icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+    )},
+    { key: 'clauses', label: 'Clause Library', short: 'Clauses', icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414A1 1 0 0120 8.414V17a2 2 0 01-2 2H8M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
       </svg>
     )},
   ]
@@ -1880,6 +2133,7 @@ export default function LawyerAIPage() {
           {tab === 'analysis' && <AnalysisPanel token={token} />}
           {tab === 'contract' && <ContractReviewPanel token={token} />}
           {tab === 'research' && <ResearchPanel token={token} />}
+          {tab === 'clauses'  && <ClauseLibraryPanel />}
         </>
       )}
     </div>

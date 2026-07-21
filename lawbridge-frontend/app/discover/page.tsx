@@ -6,6 +6,8 @@ import { browseLawyers, browseFirms, type LawyerDiscovery, type LawyerBrowseFilt
 import { getMyFirmMemberships, type FirmDiscovery } from '../../lib/firmsApi'
 import { search } from '../../lib/searchApi'
 import { getOpenCases, applyForCase, type CaseItem } from '../../lib/casesApi'
+import { SkeletonCard } from '../../components/ui/Skeleton'
+import { EmptyState } from '../../components/ui/EmptyState'
 
 function isStaffPortal(): boolean {
   try {
@@ -316,6 +318,17 @@ function OpenCaseCard({ caseItem, token }: { caseItem: CaseItem; token: string }
   )
 }
 
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <button
+      onClick={onRemove}
+      className="inline-flex items-center gap-1.5 rounded-full border border-gold-500/20 bg-gold-500/8 px-3 py-1 text-[11px] font-medium text-gold-400 hover:border-gold-500/40 hover:bg-gold-500/15 transition-colors"
+    >
+      {label} <span className="text-gold-400/50 text-sm leading-none">×</span>
+    </button>
+  )
+}
+
 const CIRCUITS = ['Adamawa', 'Centre', 'East', 'Far North', 'Littoral', 'North', 'Northwest', 'South', 'Southwest', 'West']
 
 export default function DiscoverPage() {
@@ -416,6 +429,15 @@ export default function DiscoverPage() {
   }
 
   useEffect(() => { void load('') }, [])
+
+  const activeFilterCount = [
+    filters.availability,
+    filters.practice_circuit,
+    filters.bijural,
+    filters.mode,
+    filters.urgent,
+    filters.verified_only,
+  ].filter(Boolean).length
 
   const tabs = isStaff
     ? [
@@ -546,8 +568,55 @@ export default function DiscoverPage() {
         </div>
       )}
 
+      {/* Active filter chips */}
+      {activeTab === 'lawyers' && activeFilterCount > 0 && (
+        <div className="flex flex-wrap gap-2 items-center">
+          {filters.availability && <FilterChip label={filters.availability === 'available' ? 'Available Now' : 'Busy'} onRemove={() => updateFilter('availability', '')} />}
+          {filters.practice_circuit && <FilterChip label={filters.practice_circuit} onRemove={() => updateFilter('practice_circuit', '')} />}
+          {filters.bijural && <FilterChip label={filters.bijural === 'both' ? 'Bijural' : filters.bijural === 'common_law' ? 'Common Law' : 'Civil Law'} onRemove={() => updateFilter('bijural', '')} />}
+          {filters.mode && <FilterChip label={filters.mode === 'virtual' ? 'Virtual Only' : filters.mode === 'in_person' ? 'In-Person Only' : 'Both Modes'} onRemove={() => updateFilter('mode', '')} />}
+          {filters.urgent && <FilterChip label="Urgent cases" onRemove={() => updateFilter('urgent', undefined)} />}
+          {filters.verified_only && <FilterChip label="Verified only" onRemove={() => updateFilter('verified_only', undefined)} />}
+          <button onClick={() => { setFilters({ sort: 'rating' }); void load(query.trim(), { sort: 'rating' }) }} className="text-[11px] text-neutral-500 hover:text-neutral-300 transition-colors underline ml-1">
+            Clear all
+          </button>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-xl border border-crimson-500/30 bg-crimson-900/10 p-4 text-crimson-300 text-sm">{error}</div>
+      )}
+
+      {/* Featured Spotlight */}
+      {!loading && lawyers.length > 0 && activeTab === 'lawyers' && (
+        <div className="gradient-border rounded-2xl overflow-hidden">
+          <div className="relative bg-gradient-to-r from-primary-800 via-primary-800/90 to-primary-900/60 px-6 py-5 flex items-center gap-5">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(212,175,55,0.12),transparent_60%)] pointer-events-none" />
+            <div className="relative z-10 h-14 w-14 rounded-full overflow-hidden border-2 border-gold-500/40 shadow-lg shadow-gold-500/20 flex-shrink-0">
+              {lawyers[0].avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={lawyers[0].avatar_url} alt={lawyers[0].name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-gold-500/40 to-primary-600/50 flex items-center justify-center">
+                  <span className="font-display text-xl font-bold text-gold-300">
+                    {(lawyers[0].name || '?')[0]}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="relative z-10 flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gold-400/70 mb-0.5">Featured This Week</p>
+              <p className="font-display text-lg font-semibold text-neutral-50 truncate">{lawyers[0].name}</p>
+              <p className="text-xs text-neutral-400 truncate">{lawyers[0].specialization || 'Legal Professional'}</p>
+            </div>
+            <Link
+              href={isStaff ? `/lawyer/discover/lawyer/${lawyers[0].id}` : `/discover/lawyer/${lawyers[0].id}`}
+              className="relative z-10 flex-shrink-0 rounded-xl border border-gold-500/30 bg-gold-500/10 px-4 py-2 text-xs font-semibold text-gold-400 hover:bg-gold-500/20 transition-colors"
+            >
+              View Profile →
+            </Link>
+          </div>
+        </div>
       )}
 
       {/* Tabs */}
@@ -572,17 +641,21 @@ export default function DiscoverPage() {
         <section className="space-y-4">
           {loading ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {[1,2,3].map(i => (
-                <div key={i} className="h-52 rounded-xl skeleton" />
-              ))}
+              {[1,2,3,4,5,6].map(i => <SkeletonCard key={i} />)}
             </div>
           ) : lawyers.length === 0 ? (
-            <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-8 text-center text-neutral-400">
-              No lawyers found. Try a different search term.
-            </div>
+            <EmptyState
+              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>}
+              title="No lawyers found"
+              body="Try adjusting your filters or search term."
+            />
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {lawyers.map(lawyer => <LawyerCard key={lawyer.id} lawyer={lawyer} isStaff={isStaff} />)}
+              {lawyers.map((lawyer, i) => (
+                <div key={lawyer.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                  <LawyerCard lawyer={lawyer} isStaff={isStaff} />
+                </div>
+              ))}
             </div>
           )}
         </section>
@@ -608,17 +681,21 @@ export default function DiscoverPage() {
           </div>
           {loading ? (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {[1,2].map(i => (
-                <div key={i} className="h-40 rounded-xl skeleton" />
-              ))}
+              {[1,2,3,4].map(i => <SkeletonCard key={i} />)}
             </div>
           ) : firms.length === 0 ? (
-            <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-8 text-center text-neutral-400">
-              No firms found.
-            </div>
+            <EmptyState
+              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>}
+              title="No firms found"
+              body="Try different search terms."
+            />
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {firms.map(firm => <FirmCard key={firm.id} firm={firm} isStaff={isStaff} isOwnFirm={ownFirmIds.has(String(firm.id))} />)}
+              {firms.map((firm, i) => (
+                <div key={firm.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                  <FirmCard firm={firm} isStaff={isStaff} isOwnFirm={ownFirmIds.has(String(firm.id))} />
+                </div>
+              ))}
             </div>
           )}
         </section>

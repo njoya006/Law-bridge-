@@ -20,18 +20,18 @@ function formatRelative(iso: string) {
 }
 
 function statusColor(status: string) {
-  if (['in_progress', 'hearing_scheduled'].includes(status)) return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+  if (['in_progress', 'hearing_scheduled'].includes(status)) return 'bg-primary-400/20 text-primary-100 border-primary-400/30'
   if (['awaiting_court_date', 'hearing_adjourned'].includes(status)) return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
   if (['closed', 'dismissed', 'archived'].includes(status)) return 'bg-neutral-700/40 text-neutral-400 border-neutral-600/30'
   if (['verdict', 'settled'].includes(status)) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-  return 'bg-gold-500/20 text-gold-300 border-gold-500/30'
+  return 'bg-gold-500/15 text-gold-300 border-gold-500/25'
 }
 
 function reportStatusCls(status: string) {
   switch (status) {
     case 'pending': return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-    case 'acknowledged': return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-    case 'generated': return 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+    case 'acknowledged': return 'bg-primary-400/20 text-primary-100 border-primary-400/30'
+    case 'generated': return 'bg-gold-500/20 text-gold-300 border-gold-500/30'
     case 'delivered': return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
     default: return 'bg-neutral-700/30 text-neutral-400 border-neutral-600/30'
   }
@@ -235,7 +235,7 @@ export default function MyOfficePage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: 'Open Matters', value: openCases.length, sub: `${cases.length} total`, accent: 'text-gold-400' },
-              { label: 'Active Clients', value: new Set(openCases.map(c => c.client_id)).size, sub: 'unique clients', accent: 'text-blue-400' },
+              { label: 'Active Clients', value: new Set(openCases.map(c => c.client_id)).size, sub: 'unique clients', accent: 'text-primary-400' },
               { label: 'Upcoming Events', value: events.length, sub: `${todayEvents.length} today`, accent: todayEvents.length > 0 ? 'text-amber-400' : 'text-neutral-400' },
               { label: 'Closed (Total)', value: lawyerStats?.closed_cases_count ?? cases.filter(c => ['closed', 'settled', 'verdict'].includes(c.status)).length, sub: lawyerStats ? `avg ${Math.round(lawyerStats.avg_resolution_days)}d resolution` : 'completed', accent: 'text-emerald-400' },
             ].map(({ label, value, sub, accent }) => (
@@ -385,8 +385,8 @@ export default function MyOfficePage() {
                 {[
                   { label: 'Active Cases',     value: lawyerStats.active_cases,           accent: 'text-gold-400',    bar: Math.min(100, (lawyerStats.active_cases / 20) * 100) },
                   { label: 'Closed (Lifetime)',value: lawyerStats.closed_cases_count,      accent: 'text-emerald-400', bar: Math.min(100, (lawyerStats.closed_cases_count / (lawyerStats.closed_cases_count + lawyerStats.active_cases || 1)) * 100) },
-                  { label: 'Avg Resolution',   value: `${Math.round(lawyerStats.avg_resolution_days)}d`, accent: 'text-blue-400', bar: Math.min(100, Math.max(10, 100 - (lawyerStats.avg_resolution_days / 90) * 100)) },
-                  { label: 'This Month',       value: lawyerStats.cases_this_month,       accent: 'text-purple-400',  bar: Math.min(100, (lawyerStats.cases_this_month / 10) * 100) },
+                  { label: 'Avg Resolution',   value: `${Math.round(lawyerStats.avg_resolution_days)}d`, accent: 'text-primary-400', bar: Math.min(100, Math.max(10, 100 - (lawyerStats.avg_resolution_days / 90) * 100)) },
+                  { label: 'This Month',       value: lawyerStats.cases_this_month,       accent: 'text-gold-300',    bar: Math.min(100, (lawyerStats.cases_this_month / 10) * 100) },
                 ].map(({ label, value, accent, bar }) => (
                   <div key={label} className="bg-primary-900/40 border border-neutral-700/30 rounded-xl p-4">
                     <p className={`text-2xl font-bold tabular-nums ${accent}`}>{value}</p>

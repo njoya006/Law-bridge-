@@ -19,7 +19,7 @@ const STATUS_LABELS: Record<string, string> = {
 function statusBadgeCls(s: string) {
   if (s === 'closed' || s === 'dismissed' || s === 'archived') return 'border-neutral-600 text-neutral-400 bg-neutral-800/50'
   if (s === 'settled' || s === 'verdict') return 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
-  if (s === 'filed' || s === 'assigned') return 'border-blue-500/30 text-blue-400 bg-blue-500/10'
+  if (s === 'filed' || s === 'assigned') return 'border-primary-400/30 text-primary-100 bg-primary-400/10'
   return 'border-gold-500/30 text-gold-400 bg-gold-500/10'
 }
 
@@ -373,9 +373,180 @@ function MobileCards({ pendingMatters, bookingMatters, legalMatters }: {
   )
 }
 
+// ── Kanban View ───────────────────────────────────────────────────────────────
+
+const KANBAN_COLS = [
+  { key: 'assigned',            label: 'Assigned',        color: 'border-gold-400/30 bg-gold-500/5',       badge: 'bg-gold-500/20 text-gold-300',    dot: 'bg-gold-400' },
+  { key: 'in_progress',         label: 'In Progress',     color: 'border-primary-400/30 bg-primary-500/5', badge: 'bg-primary-400/20 text-primary-100', dot: 'bg-primary-400' },
+  { key: 'evidence_collection', label: 'Evidence',        color: 'border-amber-400/30 bg-amber-500/5',     badge: 'bg-amber-500/20 text-amber-300',  dot: 'bg-amber-400' },
+  { key: 'hearing_scheduled',   label: 'Hearing Set',     color: 'border-primary-400/30 bg-primary-500/5', badge: 'bg-primary-400/20 text-primary-100', dot: 'bg-primary-400' },
+  { key: 'awaiting_court_date', label: 'Awaiting Court',  color: 'border-amber-400/30 bg-amber-500/5',     badge: 'bg-amber-500/20 text-amber-300',  dot: 'bg-amber-400' },
+  { key: 'verdict',             label: 'Verdict / Closed', color: 'border-emerald-400/30 bg-emerald-500/5', badge: 'bg-emerald-500/20 text-emerald-300', dot: 'bg-emerald-400' },
+]
+
+function KanbanView({ items, search }: { items: CaseItem[]; search: string }) {
+  const q = search.toLowerCase()
+  const filtered = q ? items.filter(i => i.title.toLowerCase().includes(q) || i.case_type.toLowerCase().includes(q)) : items
+
+  const grouped: Record<string, CaseItem[]> = {}
+  const other: CaseItem[] = []
+  filtered.forEach(item => {
+    const col = KANBAN_COLS.find(c => c.key === item.status)
+    if (col) { grouped[col.key] = [...(grouped[col.key] ?? []), item] }
+    else other.push(item)
+  })
+
+  return (
+    <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '400px' }}>
+      {KANBAN_COLS.map(col => {
+        const colItems = grouped[col.key] ?? []
+        return (
+          <div key={col.key} className={`flex-shrink-0 w-56 rounded-2xl border ${col.color} flex flex-col`}>
+            <div className="px-3 py-2.5 border-b border-white/5 flex items-center justify-between">
+              <span className="text-xs font-semibold text-neutral-300">{col.label}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${col.badge}`}>{colItems.length}</span>
+            </div>
+            <div className="p-2 space-y-2 flex-1 overflow-y-auto">
+              {colItems.length === 0 ? (
+                <div className="text-center py-8 text-neutral-700 text-xs">No cases here</div>
+              ) : colItems.map((item, idx) => (
+                <Link key={item.id} href={`/cases/${item.id}`} className="block stagger-child" style={{ '--i': idx } as React.CSSProperties}>
+                  <div className="rounded-xl bg-primary-900/60 border border-white/6 p-3 hover:border-white/15 hover:bg-primary-800/60 transition-all flex items-start gap-2">
+                    <span className={`w-1 mt-1 self-stretch rounded-full flex-shrink-0 opacity-60 ${col.dot}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-neutral-100 leading-snug line-clamp-2">{item.title}</p>
+                      <p className="text-[10px] text-neutral-500 mt-1 capitalize">{item.case_type.replace(/_/g, ' ')}</p>
+                      <p className="text-[9px] text-neutral-700 mt-0.5 tabular-nums">#{item.id.slice(0, 8)}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+      {other.length > 0 && (
+        <div className="flex-shrink-0 w-56 rounded-2xl border border-neutral-700/30 bg-neutral-800/20 flex flex-col">
+          <div className="px-3 py-2.5 border-b border-white/5 flex items-center justify-between">
+            <span className="text-xs font-semibold text-neutral-400">Other</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-neutral-700/40 text-neutral-400">{other.length}</span>
+          </div>
+          <div className="p-2 space-y-2">
+            {other.map(item => (
+              <Link key={item.id} href={`/cases/${item.id}`} className="block">
+                <div className="rounded-xl bg-primary-900/60 border border-white/6 p-3 hover:border-white/12 transition-all">
+                  <p className="text-xs font-medium text-neutral-200 leading-snug line-clamp-2">{item.title}</p>
+                  <span className={`inline-flex mt-1 text-[10px] px-1.5 py-0.5 rounded-full border ${statusBadgeCls(item.status)}`}>{STATUS_LABELS[item.status] ?? item.status}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Statute of Limitations Calculator ────────────────────────────────────────
+
+const SOL_RULES: { caseType: string; years: number; label: string; note?: string }[] = [
+  { caseType: 'Civil / Contract', years: 5, label: '5 years', note: 'Civil Code Art. 2224' },
+  { caseType: 'Criminal (Felony)', years: 10, label: '10 years', note: 'Code of Criminal Procedure' },
+  { caseType: 'Criminal (Misdemeanor)', years: 3, label: '3 years', note: 'Code of Criminal Procedure' },
+  { caseType: 'Labour / Employment', years: 5, label: '5 years', note: 'Labour Code' },
+  { caseType: 'Property / Land', years: 30, label: '30 years', note: 'Long-form prescription' },
+  { caseType: 'Commercial (OHADA)', years: 5, label: '5 years', note: 'OHADA Uniform Act' },
+  { caseType: 'Family / Divorce', years: 2, label: '2 years', note: 'From date of separation' },
+  { caseType: 'Administrative', years: 2, label: '2 years', note: 'Administrative Procedure Code' },
+  { caseType: 'Medical Malpractice', years: 3, label: '3 years', note: 'From date of discovery' },
+  { caseType: 'Personal Injury', years: 3, label: '3 years', note: 'Civil Code' },
+]
+
+function SoLCalculator() {
+  const [caseType, setCaseType] = useState(SOL_RULES[0].caseType)
+  const [incidentDate, setIncidentDate] = useState('')
+
+  const rule = SOL_RULES.find(r => r.caseType === caseType) ?? SOL_RULES[0]
+
+  const deadline = incidentDate ? (() => {
+    const d = new Date(incidentDate)
+    d.setFullYear(d.getFullYear() + rule.years)
+    return d
+  })() : null
+
+  const daysLeft = deadline ? Math.round((deadline.getTime() - Date.now()) / 86400000) : null
+  const isPast = daysLeft !== null && daysLeft < 0
+  const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 90
+
+  return (
+    <div className="rounded-2xl border border-primary-400/20 bg-primary-500/5 p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="w-6 h-6 rounded-lg bg-primary-400/15 flex items-center justify-center">
+          <svg className="w-3.5 h-3.5 text-primary-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-sm font-semibold text-neutral-200">Statute of Limitations Calculator</h3>
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary-400/15 text-primary-300 border border-primary-400/20">Cameroon Law</span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label className="text-xs text-neutral-500 block mb-1">Case Type</label>
+          <select
+            value={caseType}
+            onChange={e => setCaseType(e.target.value)}
+            className="w-full rounded-xl bg-primary-900/60 border border-white/10 px-3 py-2 text-xs text-neutral-200 focus:outline-none focus:border-primary-400/40"
+          >
+            {SOL_RULES.map(r => <option key={r.caseType} value={r.caseType}>{r.caseType}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-neutral-500 block mb-1">Incident / Act Date</label>
+          <input
+            type="date"
+            value={incidentDate}
+            onChange={e => setIncidentDate(e.target.value)}
+            className="w-full rounded-xl bg-primary-900/60 border border-white/10 px-3 py-2 text-xs text-neutral-200 focus:outline-none focus:border-primary-400/40"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-neutral-500 block mb-1">Limitation Period</label>
+          <div className="rounded-xl bg-primary-900/40 border border-white/8 px-3 py-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-primary-300">{rule.label}</span>
+            {rule.note && <span className="text-[10px] text-neutral-600">{rule.note}</span>}
+          </div>
+        </div>
+      </div>
+
+      {deadline && (
+        <div className={`rounded-xl px-4 py-3 border flex items-center gap-3 ${
+          isPast   ? 'bg-crimson-700/10 border-crimson-500/30' :
+          isUrgent ? 'bg-amber-500/10 border-amber-500/30' :
+                     'bg-emerald-500/8 border-emerald-500/20'
+        }`}>
+          <div>
+            <p className={`text-sm font-bold ${isPast ? 'text-crimson-400' : isUrgent ? 'text-amber-400' : 'text-emerald-400'}`}>
+              {isPast ? 'Limitation period has EXPIRED' : `Deadline: ${deadline.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`}
+            </p>
+            {!isPast && daysLeft !== null && (
+              <p className={`text-xs mt-0.5 ${isUrgent ? 'text-amber-300' : 'text-neutral-400'}`}>
+                {daysLeft === 0 ? 'Expires today' : `${daysLeft.toLocaleString()} days remaining`}
+                {isUrgent && ' — file urgently'}
+              </p>
+            )}
+            {isPast && <p className="text-xs text-crimson-300 mt-0.5">This matter may no longer be actionable. Consult applicable exceptions.</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────────
 
 type ActiveTab = 'pending' | 'active' | 'legal'
+type ViewMode = 'list' | 'kanban'
 
 export default function LawyerMattersPage() {
   const [items, setItems] = useState<CaseItem[]>([])
@@ -383,6 +554,8 @@ export default function LawyerMattersPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<ActiveTab>('pending')
   const [search, setSearch] = useState('')
+  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [showSoL, setShowSoL] = useState(false)
 
   useEffect(() => {
     const run = async () => {
@@ -419,7 +592,22 @@ export default function LawyerMattersPage() {
           <h2 className="font-display text-display-md">Matters</h2>
           <p className="mt-1 text-sm text-primary-300">Cases and consultations assigned to you.</p>
         </div>
+        <button
+          onClick={() => setShowSoL(v => !v)}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+            showSoL
+              ? 'bg-primary-400/20 border-primary-400/40 text-primary-300'
+              : 'border-white/10 bg-white/[0.03] text-neutral-400 hover:border-white/15 hover:text-neutral-200'
+          }`}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          SoL Calculator
+        </button>
       </div>
+
+      {showSoL && <div className="mt-4"><SoLCalculator /></div>}
 
       {error && <Card className="mt-4 border border-crimson-500/30 text-crimson-200">{error}</Card>}
 
@@ -490,24 +678,45 @@ export default function LawyerMattersPage() {
                 ))}
               </div>
 
-              <div className="relative w-64">
-                <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-500">
-                  <SearchIcon width={14} height={14} />
-                </span>
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search matters…"
-                  className="w-full rounded-xl border border-white/10 bg-primary-900/60 py-2 pl-9 pr-3 text-sm text-neutral-200 placeholder-neutral-500 outline-none focus:border-gold-500/40 focus:ring-1 focus:ring-gold-500/20 transition-all"
-                />
+              <div className="flex items-center gap-2">
+                {/* View toggle — only meaningful on Legal Matters */}
+                {tab === 'legal' && (
+                  <div className="flex rounded-xl border border-white/8 bg-primary-900/40 p-1">
+                    {([['list', 'M4 6h16M4 10h16M4 14h16M4 18h16'], ['kanban', 'M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2']] as [ViewMode, string][]).map(([mode, d]) => (
+                      <button
+                        key={mode}
+                        onClick={() => setViewMode(mode)}
+                        title={mode === 'list' ? 'List view' : 'Board view'}
+                        className={`p-1.5 rounded-lg transition-colors ${viewMode === mode ? 'bg-gold-500/15 text-gold-400' : 'text-neutral-500 hover:text-neutral-300'}`}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="relative w-56">
+                  <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-500">
+                    <SearchIcon width={14} height={14} />
+                  </span>
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search matters…"
+                    className="w-full rounded-xl border border-white/10 bg-primary-900/60 py-2 pl-9 pr-3 text-sm text-neutral-200 placeholder-neutral-500 outline-none focus:border-gold-500/40 focus:ring-1 focus:ring-gold-500/20 transition-all"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Table */}
+            {/* Table / Kanban */}
             {tab === 'pending' && <PendingTable items={pendingMatters} search={search} />}
             {tab === 'active'  && <ActiveTable  items={bookingMatters} search={search} />}
-            {tab === 'legal'   && <LegalTable   items={legalMatters}   search={search} />}
+            {tab === 'legal' && viewMode === 'list'   && <LegalTable   items={legalMatters} search={search} />}
+            {tab === 'legal' && viewMode === 'kanban' && <KanbanView   items={legalMatters} search={search} />}
           </div>
 
           {/* ── Mobile cards ──────────────────────────────────────────────────── */}

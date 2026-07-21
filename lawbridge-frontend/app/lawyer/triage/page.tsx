@@ -40,7 +40,7 @@ function LawyerMatchCard({ item, rank }: { item: TriagedLawyer; rank: number }) 
           <div className="flex items-center gap-2 mb-1">
             <p className="font-semibold text-neutral-100 text-sm">{item.name}</p>
             {item.urgency_flag && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 font-semibold">Urgent</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-crimson-500/20 text-crimson-400 border border-crimson-500/30 font-semibold">Urgent</span>
             )}
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ml-auto ${avail === 'available' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' : 'bg-neutral-700/30 text-neutral-500 border-neutral-600/30'}`}>
               {avail === 'available' ? 'Available' : avail || 'Unknown'}
@@ -150,7 +150,7 @@ export default function CaseTriagePage() {
                 />
               </div>
 
-              {error && <p className="text-xs text-red-400">{error}</p>}
+              {error && <p className="text-xs text-crimson-400">{error}</p>}
 
               <button
                 onClick={handleTriage}

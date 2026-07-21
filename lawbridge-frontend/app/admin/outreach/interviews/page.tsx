@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { getInterviews, getFirms, saveInterview, generateId, syncInterviewsFromApi, syncFirmsFromApi, Interview, OutreachFirm } from '../../../../lib/outreachStore'
 
 function fmtDate(iso?: string) {
@@ -124,9 +124,10 @@ function AddInterviewModal({ firms, prefirmId, onClose, onSave }: {
   )
 }
 
-export default function InterviewsPage() {
+function InterviewsContent() {
   const sp = useSearchParams()
   const prefirmId = sp?.get('firmId') ?? undefined
+  const router = useRouter()
   const [interviews, setInterviews] = useState<Interview[]>([])
   const [firms, setFirms] = useState<OutreachFirm[]>([])
   const [search, setSearch] = useState('')
@@ -212,9 +213,13 @@ export default function InterviewsPage() {
             {filtered.length === 0 ? (
               <tr><td colSpan={6} className="px-4 py-16 text-center text-neutral-500 text-sm">No interviews found</td></tr>
             ) : filtered.map(iv => (
-              <tr key={iv.id} className="hover:bg-white/3 transition-colors">
+              <tr
+                key={iv.id}
+                className="hover:bg-white/3 transition-colors cursor-pointer"
+                onClick={() => router.push(`/admin/outreach/interviews/${iv.id}`)}
+              >
                 <td className="px-4 py-3">
-                  <Link href={`/admin/outreach/interviews/${iv.id}`} className="text-sm font-semibold text-neutral-100 hover:text-gold-400 transition-colors">{iv.firmName}</Link>
+                  <span className="text-sm font-semibold text-neutral-100 group-hover:text-gold-400">{iv.firmName}</span>
                 </td>
                 <td className="px-4 py-3 text-sm text-neutral-400">{iv.contactName ?? '—'}</td>
                 <td className="px-4 py-3 text-sm text-neutral-400">{fmtDate(iv.date)}</td>
@@ -245,5 +250,13 @@ export default function InterviewsPage() {
         />
       )}
     </div>
+  )
+}
+
+export default function InterviewsPage() {
+  return (
+    <Suspense fallback={null}>
+      <InterviewsContent />
+    </Suspense>
   )
 }

@@ -20,10 +20,10 @@ function formatDate(iso: string) {
 
 function FileIcon({ mime }: { mime: string }) {
   const base = 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg'
-  if (mime?.includes('pdf')) return <div className={`${base} bg-red-500/12 text-red-400`}>📄</div>
+  if (mime?.includes('pdf')) return <div className={`${base} bg-crimson-500/12 text-crimson-400`}>📄</div>
   if (mime?.includes('image')) return <div className={`${base} bg-emerald-500/12 text-emerald-400`}>🖼️</div>
-  if (mime?.includes('word') || mime?.includes('document')) return <div className={`${base} bg-blue-500/12 text-blue-400`}>📝</div>
-  if (mime?.includes('sheet') || mime?.includes('excel')) return <div className={`${base} bg-green-500/12 text-green-400`}>📊</div>
+  if (mime?.includes('word') || mime?.includes('document')) return <div className={`${base} bg-primary-400/12 text-primary-100`}>📝</div>
+  if (mime?.includes('sheet') || mime?.includes('excel')) return <div className={`${base} bg-emerald-600/12 text-emerald-400`}>📊</div>
   return <div className={`${base} bg-gold-500/12 text-gold-400`}>📎</div>
 }
 
@@ -86,6 +86,9 @@ export default function MyOfficeDocumentsPage() {
   const [previewDocId, setPreviewDocId] = useState('')
   const [previewToken, setPreviewToken] = useState('')
   const [passwordDoc, setPasswordDoc]   = useState<DocumentItem | null>(null)
+  const [docPw, setDocPw]               = useState('')
+  const [docPwErr, setDocPwErr]         = useState('')
+  const [docPwBusy, setDocPwBusy]       = useState(false)
 
   const totalDocs = groups.reduce((n, g) => n + g.items.length, 0)
 
@@ -97,6 +100,7 @@ export default function MyOfficeDocumentsPage() {
   const handleOpen = useCallback(async (doc: DocumentItem, password?: string) => {
     const token = localStorage.getItem('access')
     if (!token) return
+    setDocPwBusy(true)
     try {
       const blob = await fetchDocumentBlob(doc.id, token, password)
       closePreview()
@@ -107,13 +111,19 @@ export default function MyOfficeDocumentsPage() {
       setPreviewDocId(doc.id)
       setPreviewToken(token)
       setPasswordDoc(null)
+      setDocPw('')
+      setDocPwErr('')
     } catch (err) {
       const msg = err instanceof Error ? err.message : ''
       if (msg === 'password_required') {
         setPasswordDoc(doc)
+      } else if (msg === 'invalid_password') {
+        setDocPwErr('Incorrect password — please try again.')
       } else {
         toastError(msg || 'Unable to open document', 'Open failed')
       }
+    } finally {
+      setDocPwBusy(false)
     }
   }, [closePreview])
 
@@ -295,9 +305,10 @@ export default function MyOfficeDocumentsPage() {
         </div>
       )}
 
-      {/* Password modal */}
+      {/* Password modal — fully controlled state */}
       {passwordDoc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setPasswordDoc(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+          onClick={() => { setPasswordDoc(null); setDocPw(''); setDocPwErr('') }}>
           <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-primary-800 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="px-6 pt-6 pb-4">
               <div className="flex items-center gap-3 mb-3">
@@ -314,28 +325,30 @@ export default function MyOfficeDocumentsPage() {
               <p className="text-[11px] text-neutral-600 truncate mb-4">{passwordDoc.filename}</p>
               <input
                 type="password"
-                id="doc-pw-office"
+                value={docPw}
+                onChange={e => { setDocPw(e.target.value); setDocPwErr('') }}
+                onKeyDown={e => { if (e.key === 'Enter' && !docPwBusy) void handleOpen(passwordDoc, docPw) }}
                 autoFocus
                 placeholder="Document password"
-                className="w-full rounded-xl bg-primary-900/50 border border-white/10 px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-amber-500/40"
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    const val = (e.target as HTMLInputElement).value
-                    void handleOpen(passwordDoc, val)
-                  }
-                }}
+                className={`w-full rounded-xl bg-primary-900/50 border px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none transition-colors ${
+                  docPwErr ? 'border-red-500/40 focus:border-red-500/60' : 'border-white/10 focus:border-amber-500/40'
+                }`}
               />
+              {docPwErr && <p className="mt-2 text-xs text-red-400">{docPwErr}</p>}
             </div>
             <div className="flex gap-3 px-6 pb-6">
-              <button onClick={() => setPasswordDoc(null)} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-neutral-400 hover:text-neutral-100 transition-colors">Cancel</button>
               <button
-                onClick={() => {
-                  const inp = document.getElementById('doc-pw-office') as HTMLInputElement
-                  void handleOpen(passwordDoc, inp?.value ?? '')
-                }}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 transition-colors"
+                onClick={() => { setPasswordDoc(null); setDocPw(''); setDocPwErr('') }}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-neutral-400 hover:text-neutral-100 transition-colors"
               >
-                Open Document
+                Cancel
+              </button>
+              <button
+                onClick={() => void handleOpen(passwordDoc, docPw)}
+                disabled={docPwBusy || !docPw}
+                className="flex-1 py-2.5 rounded-xl bg-amber-500 text-black text-sm font-semibold hover:bg-amber-400 disabled:opacity-50 transition-colors"
+              >
+                {docPwBusy ? 'Verifying…' : 'Open Document'}
               </button>
             </div>
           </div>

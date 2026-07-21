@@ -34,7 +34,7 @@ const BIJURAL_LABELS: Record<string, string> = {
 }
 
 function caseStatusCls(status: string) {
-  if (['in_progress', 'hearing_scheduled'].includes(status)) return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+  if (['in_progress', 'hearing_scheduled'].includes(status)) return 'bg-primary-400/20 text-primary-100 border-primary-400/30'
   if (['awaiting_court_date', 'hearing_adjourned'].includes(status)) return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
   if (['closed', 'dismissed', 'archived'].includes(status)) return 'bg-neutral-700/40 text-neutral-400 border-neutral-600/30'
   if (['verdict', 'settled'].includes(status)) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
@@ -56,6 +56,71 @@ function StarRating({ rating }: { rating: string | number }) {
 }
 
 type Tab = 'overview' | 'bio' | 'activity'
+
+// ── Profile completeness ───────────────────────────────────────────────────────
+
+function computeCompleteness(me: AuthMe, profile: LawyerProfile | null, avatar: string | null) {
+  const checks = [
+    { label: 'Full name',          done: Boolean(me.full_name?.trim()),               pts: 10, prompt: 'Add your full name in settings', link: '/lawyer/office/me/settings' },
+    { label: 'Profile photo',       done: Boolean(avatar),                             pts: 10, prompt: 'Upload a profile photo',        link: '' },
+    { label: 'Bio',                 done: Boolean(profile?.bio?.trim()),               pts: 20, prompt: 'Add a bio — increases bookings by 40%', link: '/lawyer/office/me/settings' },
+    { label: 'Specialization',      done: Boolean(profile?.specialization?.trim()),    pts: 15, prompt: 'Add your practice area',        link: '/lawyer/office/me/settings' },
+    { label: 'Qualifications',      done: Boolean(profile?.qualifications?.trim()),    pts: 10, prompt: 'List your qualifications',       link: '/lawyer/office/me/settings' },
+    { label: 'Bar number',          done: Boolean(profile?.bar_number?.trim()),        pts: 15, prompt: 'Add your bar registration number', link: '/lawyer/office/me/settings' },
+    { label: 'Consultation fee',    done: Boolean(profile?.consultation_fee && Number(profile.consultation_fee) > 0), pts: 10, prompt: 'Set your consultation fee', link: '/lawyer/office/me/settings' },
+    { label: 'Verified',            done: Boolean(profile?.verified_at),              pts: 10, prompt: 'Get verified to unlock client trust', link: '/lawyer/verify' },
+  ]
+  const score = checks.reduce((s, c) => s + (c.done ? c.pts : 0), 0)
+  return { score, checks }
+}
+
+function ProfileCompletenessBadge({ me, profile, avatar }: { me: AuthMe; profile: LawyerProfile | null; avatar: string | null }) {
+  const { score, checks } = computeCompleteness(me, profile, avatar)
+  const color = score >= 80 ? 'text-emerald-400 stroke-emerald-400' : score >= 50 ? 'text-gold-400 stroke-gold-400' : 'text-amber-400 stroke-amber-400'
+  const bgColor = score >= 80 ? 'bg-emerald-500/10 border-emerald-500/20' : score >= 50 ? 'bg-gold-500/10 border-gold-500/20' : 'bg-amber-500/10 border-amber-500/20'
+  const label = score >= 80 ? 'Great' : score >= 50 ? 'Good' : 'Incomplete'
+  const circum = 2 * Math.PI * 30
+  const offset = circum * (1 - score / 100)
+  const missing = checks.filter(c => !c.done)
+
+  return (
+    <div className={`rounded-xl border p-4 space-y-3 ${bgColor}`}>
+      <div className="flex items-center gap-3">
+        <svg width="56" height="56" viewBox="0 0 64 64" className="flex-shrink-0">
+          <circle cx="32" cy="32" r="30" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/6" />
+          <circle
+            cx="32" cy="32" r="30" fill="none" strokeWidth="4"
+            strokeDasharray={`${circum}`} strokeDashoffset={offset}
+            strokeLinecap="round" transform="rotate(-90 32 32)"
+            className={`${color.split(' ')[1]} transition-all duration-700`}
+          />
+          <text x="32" y="37" textAnchor="middle" fontSize="14" fontWeight="bold" className={color.split(' ')[0]} fill="currentColor">{score}</text>
+        </svg>
+        <div>
+          <p className="text-xs font-bold text-neutral-200">Profile Completeness</p>
+          <p className={`text-[11px] font-semibold mt-0.5 ${color.split(' ')[0]}`}>{label} · {score}/100</p>
+        </div>
+      </div>
+      {missing.length > 0 && (
+        <div className="space-y-1.5">
+          {missing.slice(0, 3).map(c => (
+            <div key={c.label} className="flex items-center gap-2">
+              <span className="w-1 h-1 rounded-full bg-neutral-600 flex-shrink-0" />
+              {c.link ? (
+                <Link href={c.link} className="text-[11px] text-neutral-400 hover:text-gold-400 transition-colors">{c.prompt}</Link>
+              ) : (
+                <span className="text-[11px] text-neutral-500">{c.prompt}</span>
+              )}
+            </div>
+          ))}
+          {missing.length > 3 && (
+            <p className="text-[10px] text-neutral-600">+{missing.length - 3} more improvements</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function LawyerProfilePage() {
   const [me, setMe] = useState<AuthMe | null>(null)
@@ -171,13 +236,26 @@ export default function LawyerProfilePage() {
           <p className="text-neutral-400">Sign in as a lawyer to view your profile.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr_260px] items-start gap-5">
+        <>
+          {/* Hero cover strip */}
+          <div className="rounded-2xl overflow-hidden mb-5 h-24 relative bg-gradient-to-br from-primary-700/80 via-primary-800 to-primary-900">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(212,175,55,0.18),transparent_55%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(59,130,246,0.06),transparent_60%)]" />
+            <div className="absolute bottom-3 right-4 text-[10px] font-bold uppercase tracking-[0.2em] text-gold-400/25">LawBridge</div>
+            <div className="absolute top-4 left-5 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-gold-400/40" />
+              <div className="w-1.5 h-1.5 rounded-full bg-gold-400/25" />
+              <div className="w-1 h-1 rounded-full bg-gold-400/15" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr] xl:grid-cols-[260px_1fr_260px] items-start gap-5">
 
           {/* ═══ LEFT PANEL ═══ */}
           <aside className="lg:sticky lg:top-4 space-y-4">
             {/* Identity card */}
             <div className="rounded-2xl border border-white/8 bg-primary-800/40 p-5">
               <div className="flex flex-col items-center text-center gap-3">
+                <div className="rounded-full ring-2 ring-gold-500/30 ring-offset-2 ring-offset-primary-800/40 shadow-lg shadow-gold-500/10">
                 <AvatarUploader
                   currentUrl={avatarUrl}
                   initials={initials}
@@ -188,6 +266,7 @@ export default function LawyerProfilePage() {
                     localStorage.setItem('avatarUrl', url)
                   }}
                 />
+                </div>
                 <div>
                   <h2 className="font-display text-lg font-semibold text-neutral-50 leading-snug">{me.full_name || me.email}</h2>
                   {lawyerProfile?.specialization && (
@@ -223,7 +302,7 @@ export default function LawyerProfilePage() {
                           ? `${base} ${active ? 'border-emerald-500/60 bg-emerald-500/15 text-emerald-300' : 'border-neutral-700/40 text-neutral-600 hover:text-neutral-400'}`
                           : s === 'busy'
                           ? `${base} ${active ? 'border-gold-500/60 bg-gold-500/15 text-gold-300' : 'border-neutral-700/40 text-neutral-600 hover:text-neutral-400'}`
-                          : `${base} ${active ? 'border-blue-500/60 bg-blue-500/15 text-blue-300' : 'border-neutral-700/40 text-neutral-600 hover:text-neutral-400'}`
+                          : `${base} ${active ? 'border-primary-400/60 bg-primary-400/15 text-primary-100' : 'border-neutral-700/40 text-neutral-600 hover:text-neutral-400'}`
                         return (
                           <button key={s} onClick={() => changeAvailability(s)} disabled={availUpdating || active} className={cls}>
                             {s === 'on_leave' ? 'On Leave' : s === 'available' ? 'Available' : 'Busy'}
@@ -275,6 +354,9 @@ export default function LawyerProfilePage() {
                 )}
               </div>
             </div>
+
+            {/* Profile completeness */}
+            <ProfileCompletenessBadge me={me} profile={lawyerProfile} avatar={avatarUrl} />
 
             {/* Quick access */}
             <div className="rounded-2xl border border-white/8 bg-primary-800/40 p-4">
@@ -560,6 +642,7 @@ export default function LawyerProfilePage() {
             )}
           </aside>
         </div>
+        </>
       )}
     </div>
   )

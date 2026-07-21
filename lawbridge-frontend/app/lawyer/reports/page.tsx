@@ -27,6 +27,83 @@ const REPORT_TYPES: { id: ReportType; label: string; Icon: IconComp; desc: strin
   { id: 'full',      label: 'Full Firm Report',      Icon: BuildingIcon,  desc: 'Complete report combining all sections above' },
 ]
 
+function ChartThumbnail({ type, active }: { type: ReportType; active: boolean }) {
+  const stroke = active ? '#C9A84C' : '#404040'
+  const fill = active ? '#C9A84C22' : '#ffffff0a'
+  const w = 52, h = 30
+  const accent = active ? '#C9A84C' : '#555'
+
+  if (type === 'general') {
+    const bars = [18, 28, 22, 30, 12, 24]
+    return (
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" className="flex-shrink-0 opacity-80">
+        {bars.map((v, i) => (
+          <rect key={i} x={i * 8 + 2} y={h - v} width="6" height={v} rx="1" fill={i === 3 ? accent : fill} stroke={i === 3 ? accent : stroke} strokeWidth="0.5" />
+        ))}
+      </svg>
+    )
+  }
+  if (type === 'financial') {
+    const pts = '2,28 10,20 18,24 26,14 34,18 42,8 50,12'
+    return (
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" className="flex-shrink-0 opacity-80">
+        <polyline points={pts} stroke={accent} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+        <polygon points={`${pts} 50,30 2,30`} fill={fill} />
+      </svg>
+    )
+  }
+  if (type === 'clients') {
+    const cx = w / 2, cy = h / 2, r = 12
+    const segs = [0.45, 0.3, 0.25]
+    const colors = [accent, stroke, '#ffffff18']
+    let angle = -Math.PI / 2
+    return (
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" className="flex-shrink-0 opacity-80">
+        {segs.map((pct, i) => {
+          const start = angle
+          const end = angle + pct * 2 * Math.PI
+          const x1 = cx + r * Math.cos(start), y1 = cy + r * Math.sin(start)
+          const x2 = cx + r * Math.cos(end),   y2 = cy + r * Math.sin(end)
+          const lg = pct > 0.5 ? 1 : 0
+          const d = `M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${lg},1 ${x2},${y2} Z`
+          angle = end
+          return <path key={i} d={d} fill={colors[i]} stroke="none" />
+        })}
+        <circle cx={cx} cy={cy} r={6} fill="#0a0f1e" />
+      </svg>
+    )
+  }
+  if (type === 'lawyers') {
+    const bars = [40, 28, 22, 16, 10]
+    return (
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" className="flex-shrink-0 opacity-80">
+        {bars.map((bw, i) => (
+          <rect key={i} x={2} y={i * 5 + 2} width={bw} height="3.5" rx="1" fill={i === 0 ? accent : fill} stroke={i === 0 ? accent : stroke} strokeWidth="0.5" />
+        ))}
+      </svg>
+    )
+  }
+  if (type === 'activity') {
+    const dots = [[4,4],[12,4],[20,4],[28,4],[36,4],[44,4],[4,12],[12,12],[20,12],[28,12],[36,12],[4,20],[12,20],[20,20]]
+    return (
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" className="flex-shrink-0 opacity-80">
+        {dots.map(([cx, cy], i) => (
+          <rect key={i} x={cx - 2} y={cy - 2} width="4" height="4" rx="0.5" fill={i % 3 === 0 ? accent : fill} stroke={stroke} strokeWidth="0.5" />
+        ))}
+      </svg>
+    )
+  }
+  // full
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" className="flex-shrink-0 opacity-80">
+      <rect x={1} y={1} width={24} height={13} rx="1" fill={fill} stroke={stroke} strokeWidth="0.5" />
+      <rect x={27} y={1} width={24} height={13} rx="1" fill={fill} stroke={stroke} strokeWidth="0.5" />
+      <rect x={1} y={16} width={50} height={13} rx="1" fill={fill} stroke={accent} strokeWidth="0.5" />
+      {[5,9,13,17,21].map(x => <line key={x} x1={x} y1={19} x2={x} y2={27} stroke={accent} strokeWidth="0.8" />)}
+    </svg>
+  )
+}
+
 const PERIODS: { id: Period; label: string }[] = [
   { id: 'current_month', label: 'Current Month' },
   { id: 'last_month',    label: 'Last Month' },
@@ -440,13 +517,13 @@ export default function LawyerReportsPage() {
 
       {/* Secretary inbox */}
       {requests.length > 0 && (
-        <div className="no-print rounded-xl border border-blue-500/20 bg-blue-900/10 p-5 space-y-3">
+        <div className="no-print rounded-xl border border-primary-400/20 bg-primary-900/20 p-5 space-y-3">
           <h2 className="font-heading text-body-lg text-neutral-50 flex items-center gap-2">
-            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-5v5"/>
             </svg>
             From Secretary
-            <span className="rounded-full bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 ml-1">{requests.length} new</span>
+            <span className="rounded-full bg-crimson-500 text-white text-[10px] font-bold px-2 py-0.5 ml-1">{requests.length} new</span>
           </h2>
           <div className="space-y-2">
             {requests.map(req => {
@@ -460,10 +537,10 @@ export default function LawyerReportsPage() {
                 return `${Math.floor(h / 24)}d ago`
               })()
               return (
-                <div key={req.id} className="flex items-center gap-4 rounded-lg border border-blue-500/10 bg-blue-900/20 px-4 py-3">
+                <div key={req.id} className="flex items-center gap-4 rounded-lg border border-primary-400/10 bg-primary-900/30 px-4 py-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-neutral-100">
-                      {req.requester_name || 'Secretary'} shipped a <span className="text-blue-300">{typeLabel}</span>
+                      {req.requester_name || 'Secretary'} shipped a <span className="text-gold-300">{typeLabel}</span>
                     </p>
                     <p className="text-xs text-neutral-500 mt-0.5">{periodLabel} · {ago}</p>
                     {req.notes && <p className="text-xs text-neutral-400 mt-1 truncate">{req.notes}</p>}
@@ -502,12 +579,13 @@ export default function LawyerReportsPage() {
                     ? 'border-portal bg-portal-soft'
                     : 'border-neutral-700/40 hover:border-neutral-600/50 bg-primary-900/20'}`}>
                 <span className={`flex-shrink-0 ${reportType === rt.id ? 'text-portal-accent' : 'text-neutral-500'}`}>
-                  <rt.Icon width={20} height={20} />
+                  <rt.Icon width={18} height={18} />
                 </span>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-neutral-100">{rt.label}</p>
                   <p className="text-xs text-neutral-500">{rt.desc}</p>
                 </div>
+                <ChartThumbnail type={rt.id} active={reportType === rt.id} />
               </button>
             ))}
           </div>
@@ -577,7 +655,7 @@ export default function LawyerReportsPage() {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <p className="text-xs text-gold-400 uppercase tracking-widest font-semibold">Confidential — Internal Report</p>
-                <h1 className="text-2xl font-bold text-neutral-50 mt-1">{REPORT_TYPES.find(r => r.id === reportType)?.label}</h1>
+                <h1 className="font-display text-2xl font-bold text-neutral-50 mt-1">{REPORT_TYPES.find(r => r.id === reportType)?.label}</h1>
                 <p className="text-sm text-neutral-400 mt-0.5">{data.firmName} · {PERIODS.find(p => p.id === period)?.label}</p>
               </div>
               <div className="text-right text-xs text-neutral-500">

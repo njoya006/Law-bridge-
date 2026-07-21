@@ -66,7 +66,7 @@ function RoleChangeModal({
               className="w-full rounded-lg border border-neutral-700 bg-primary-800/50 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 resize-none focus:outline-none focus:border-gold-500/50"
             />
           </div>
-          {err && <p className="text-xs text-red-400">{err}</p>}
+          {err && <p className="text-xs text-crimson-400">{err}</p>}
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-neutral-700 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
             <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-gold-500 py-2 text-sm font-semibold text-black disabled:opacity-50">
@@ -122,14 +122,14 @@ function RemoveModal({
               rows={3}
               autoFocus
               placeholder="Explain why this member is being removed…"
-              className="w-full rounded-lg border border-neutral-700 bg-primary-800/50 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 resize-none focus:outline-none focus:border-red-500/50"
+              className="w-full rounded-lg border border-neutral-700 bg-primary-800/50 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 resize-none focus:outline-none focus:border-crimson-500/50"
             />
             <p className="text-xs text-neutral-500 mt-1">{reason.length}/10 minimum</p>
           </div>
-          {err && <p className="text-xs text-red-400">{err}</p>}
+          {err && <p className="text-xs text-crimson-400">{err}</p>}
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="flex-1 rounded-lg border border-neutral-700 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="submit" disabled={saving} className="flex-1 rounded-lg bg-crimson-500 hover:bg-crimson-600 py-2 text-sm font-semibold text-white disabled:opacity-50">
               {saving ? 'Removing…' : 'Remove'}
             </button>
           </div>
@@ -265,7 +265,7 @@ export default function ManageSeatsPage() {
   }
 
   if (loading) return <div className="p-6 text-neutral-400">Loading firm seats…</div>
-  if (error) return <div className="p-6 text-red-400">{error}</div>
+  if (error) return <div className="p-6 text-crimson-400">{error}</div>
   if (!firmId) return <div className="p-6 text-neutral-400">You are not assigned to a firm.</div>
 
   return (
@@ -323,7 +323,7 @@ export default function ManageSeatsPage() {
                     </button>
                     <button
                       onClick={() => handleRemove(member)}
-                      className="rounded bg-red-600 px-2 py-1 text-sm text-white hover:bg-red-700"
+                      className="rounded bg-crimson-500 px-2 py-1 text-sm text-white hover:bg-crimson-600"
                     >
                       Remove
                     </button>
@@ -365,7 +365,7 @@ export default function ManageSeatsPage() {
                 {inviteLoading ? 'Sending…' : 'Send Invite'}
               </button>
               {inviteMsg && (
-                <p className={`text-xs ${inviteMsg.includes('success') ? 'text-emerald-400' : 'text-red-400'}`}>{inviteMsg}</p>
+                <p className={`text-xs ${inviteMsg.includes('success') ? 'text-emerald-400' : 'text-crimson-400'}`}>{inviteMsg}</p>
               )}
             </div>
           </Card>

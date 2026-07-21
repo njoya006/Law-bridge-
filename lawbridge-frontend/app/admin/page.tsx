@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useCountUp } from '../../lib/useCountUp'
 import {
   getFirms, getTasks, getInterviews, syncFirmsFromApi, syncTasksFromApi,
   syncInterviewsFromApi, OutreachFirm, Task, Interview,
@@ -55,15 +56,17 @@ function greeting() {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
-function KpiCard({ label, value, color, href, sub }: { label: string; value: string | number; color: string; href?: string; sub?: string }) {
+function KpiCard({ label, value, color, href, sub, staggerIndex }: { label: string; value: string | number; color: string; href?: string; sub?: string; staggerIndex?: number }) {
+  const animated = useCountUp(typeof value === 'number' ? value : 0)
+  const display: string | number = typeof value === 'number' ? animated : value
   const inner = (
-    <div className={`rounded-2xl border ${color} bg-primary-800/30 p-4`}>
+    <div className={`rounded-2xl border ${color} bg-primary-800/30 p-4 stagger-child`} style={{ '--i': staggerIndex ?? 0 } as React.CSSProperties}>
       <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{label}</p>
-      <p className="mt-1.5 font-display font-bold text-2xl text-neutral-100">{value}</p>
+      <p className="mt-1.5 font-display font-bold text-2xl stat-num text-neutral-100">{display}</p>
       {sub && <p className="text-[11px] text-neutral-500 mt-0.5">{sub}</p>}
     </div>
   )
-  return href ? <Link href={href} className="block hover:opacity-80 transition-opacity">{inner}</Link> : inner
+  return href ? <Link href={href} className="block hover:opacity-90 transition-opacity">{inner}</Link> : inner
 }
 
 function AlertBadge({ count, level, label, href }: { count: number; level: 'critical' | 'warn' | 'info'; label: string; href: string }) {
@@ -241,10 +244,10 @@ export default function AdminDashboard() {
 
       {/* Platform KPIs */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <KpiCard label="Total Users" value={platformLoaded ? platform.userCount : '…'} color="border-blue-500/20" href="/admin/users" />
-        <KpiCard label="Active Cases" value={platformLoaded ? platform.activeCases : '…'} color="border-emerald-500/20" href="/admin/risks" />
-        <KpiCard label="Support Queue" value={platformLoaded ? platform.openTickets : '…'} sub="AI-handled" color="border-gold-500/20" href="/admin/support" />
-        <KpiCard label="Firms Reached" value={outreachLoaded ? totalFirmsReached : '…'} sub={`of ${firms.length} firms`} color="border-purple-500/20" href="/admin/outreach/firms" />
+        <KpiCard label="Total Users" value={platformLoaded ? platform.userCount : '…'} color="border-blue-500/20" href="/admin/users" staggerIndex={0} />
+        <KpiCard label="Active Cases" value={platformLoaded ? platform.activeCases : '…'} color="border-emerald-500/20" href="/admin/risks" staggerIndex={1} />
+        <KpiCard label="Support Queue" value={platformLoaded ? platform.openTickets : '…'} sub="AI-handled" color="border-gold-500/20" href="/admin/support" staggerIndex={2} />
+        <KpiCard label="Firms Reached" value={outreachLoaded ? totalFirmsReached : '…'} sub={`of ${firms.length} firms`} color="border-purple-500/20" href="/admin/outreach/firms" staggerIndex={3} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

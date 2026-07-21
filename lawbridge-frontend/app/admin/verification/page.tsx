@@ -325,7 +325,7 @@ export default function AdminVerificationPage() {
     <div className="min-h-screen bg-primary-950">
       <div className="border-b border-white/6">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-          <h1 className="text-xl font-bold text-white">Verification Queue</h1>
+          <h1 className="font-display text-xl font-bold text-white">Verification Queue</h1>
           <p className="text-sm text-white/40 mt-1">
             Review and action lawyer bar membership and firm registration requests.
           </p>

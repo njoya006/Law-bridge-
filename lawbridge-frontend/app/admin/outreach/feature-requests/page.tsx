@@ -111,7 +111,6 @@ export default function FeatureRequestsPage() {
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [showModal, setShowModal] = useState(false)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const [updatingStatus, setUpdatingStatus] = useState<FeatureRequest['status']>('under_review')
 
   useEffect(() => {
     setFrs(getFeatureRequests()); setFirms(getFirms())
@@ -228,7 +227,7 @@ export default function FeatureRequestsPage() {
                         {STATUS_PIPELINE.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
                       </select>
                     ) : (
-                      <button onClick={() => { setUpdatingId(fr.id); setUpdatingStatus(fr.status) }} title="Click to change status">
+                      <button onClick={() => setUpdatingId(fr.id)} title="Click to change status">
                         <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${STATUS_COLORS[fr.status]}`}>{STATUS_LABELS[fr.status]}</span>
                       </button>
                     )}

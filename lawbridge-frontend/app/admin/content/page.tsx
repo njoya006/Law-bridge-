@@ -90,7 +90,7 @@ export default function AdminContentPage() {
           </div>
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-white">Content Moderation</h1>
+              <h1 className="font-display text-xl sm:text-2xl font-bold text-white">Content Moderation</h1>
               <p className="text-sm text-white/35 mt-1">Review and approve legal publications before they go live</p>
             </div>
             <div className="flex items-center gap-3">

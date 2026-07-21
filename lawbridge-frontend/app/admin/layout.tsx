@@ -65,6 +65,7 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
   {
     section: 'OUTREACH & PARTNERSHIPS',
     items: [
+      { label: 'Overview',           href: '/admin/outreach',                  icon: () => <BarChart2Icon width={16} height={16} />, exact: true },
       { label: 'Firms',              href: '/admin/outreach/firms',            icon: BuildingIcon },
       { label: 'Interviews',         href: '/admin/outreach/interviews',        icon: CalendarCheckIcon },
       { label: 'Contacts',           href: '/admin/outreach/contacts',          icon: ContactIcon },
@@ -279,7 +280,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="font-display font-semibold text-sm text-neutral-50">Admin Console</span>
           </div>
         </div>
-        <div className="p-4 sm:p-6">
+        <div className="p-4 sm:p-6 page-enter">
           {children}
         </div>
       </main>

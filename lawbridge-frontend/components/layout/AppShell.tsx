@@ -8,7 +8,11 @@ import ToastContainer from '../ui/ToastContainer'
 
 function PortalShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const [portalRole, setPortalRole] = useState<string | null>(null)
+  // Read synchronously so the correct shell renders on first paint with no flash
+  const [portalRole, setPortalRole] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    try { return localStorage.getItem('portalRole') } catch { return 'client' }
+  })
 
   useEffect(() => {
     try {

@@ -28,7 +28,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 const ROLE_COLORS: Record<string, string> = {
   owner:      'bg-gold-500/15 text-gold-300 border-gold-400/20',
-  firm_admin: 'bg-blue-500/15 text-blue-300 border-blue-400/20',
+  firm_admin: 'bg-primary-400/15 text-primary-100 border-primary-400/20',
   partner:    'bg-emerald-500/15 text-emerald-300 border-emerald-400/20',
   associate:  'bg-neutral-500/15 text-neutral-300 border-neutral-400/20',
   guest:      'bg-neutral-700/30 text-neutral-400 border-neutral-600/20',
@@ -42,7 +42,7 @@ const ACTION_LABELS: Record<string, string> = {
 }
 
 const ACTION_COLORS: Record<string, string> = {
-  invite_sent:      'text-blue-300',
+  invite_sent:      'text-primary-100',
   invite_accepted:  'text-emerald-300',
   member_removed:   'text-crimson-300',
   role_changed:     'text-gold-300',

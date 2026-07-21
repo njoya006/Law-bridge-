@@ -188,7 +188,7 @@ function DesktopSidebar() {
               </span>
               {!collapsed && <span className="relative z-10 font-medium text-sm">{item.label}</span>}
               {!collapsed && item.label === 'Messages' && unreadCount > 0 && (
-                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-crimson-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.4)]">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               )}
@@ -230,7 +230,7 @@ function DesktopSidebar() {
           </Link>
           <button
             onClick={handleLogout}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/5 bg-primary-900/40 text-neutral-400 transition-all duration-200 hover:scale-105 hover:border-red-500/30 hover:text-red-400 active:scale-95"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/5 bg-primary-900/40 text-neutral-400 transition-all duration-200 hover:scale-105 hover:border-crimson-500/30 hover:text-crimson-400 active:scale-95"
             title="Sign out"
           >
             <LogoutIcon width={16} height={16} />
@@ -334,7 +334,7 @@ function MobileBottomNav() {
           {/* Logout row */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 text-neutral-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-150 active:scale-[0.98]"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 text-neutral-400 hover:bg-crimson-500/10 hover:text-crimson-400 transition-all duration-150 active:scale-[0.98]"
           >
             <LogoutIcon width={18} height={18} />
             <span className="text-sm font-medium">Sign out</span>
@@ -364,7 +364,7 @@ function MobileBottomNav() {
                 <span className={`relative flex items-center justify-center transition-transform duration-150 ${active ? 'scale-110' : ''}`}>
                   <Icon width={20} height={20} />
                   {item.label === 'Messages' && unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white">
+                    <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-crimson-500 px-0.5 text-[9px] font-bold text-white">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}

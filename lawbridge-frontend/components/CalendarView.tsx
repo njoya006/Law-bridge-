@@ -60,7 +60,7 @@ function daysBetween(a: string, b: string) {
 function eventTypeCls(type: string) {
   switch (type) {
     case 'hearing': return 'bg-gold-500/20 text-gold-300 border-gold-500/30'
-    case 'meeting': return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+    case 'meeting': return 'bg-primary-500/20 text-primary-300 border-primary-500/30'
     case 'verdict': return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
     default: return 'bg-neutral-700/30 text-neutral-300 border-neutral-600/30'
   }
@@ -71,7 +71,7 @@ function statusCls(status: string) {
     case 'confirmed': return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
     case 'pending': return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
     case 'cancelled':
-    case 'rejected': return 'bg-red-500/10 text-red-300 border-red-500/30'
+    case 'rejected': return 'bg-crimson-500/10 text-crimson-300 border-crimson-500/30'
     default: return 'bg-neutral-700/30 text-neutral-300 border-neutral-600/30'
   }
 }
@@ -79,7 +79,7 @@ function statusCls(status: string) {
 function caseStatusCls(status: string) {
   if (['closed', 'dismissed', 'archived'].includes(status)) return 'text-neutral-500'
   if (['hearing_scheduled', 'hearing_adjourned', 'awaiting_court_date'].includes(status)) return 'text-amber-400'
-  if (['in_progress', 'evidence_collection', 'mediation'].includes(status)) return 'text-blue-400'
+  if (['in_progress', 'evidence_collection', 'mediation'].includes(status)) return 'text-primary-400'
   if (['verdict', 'settled'].includes(status)) return 'text-emerald-400'
   return 'text-neutral-400'
 }
@@ -87,9 +87,9 @@ function caseStatusCls(status: string) {
 function dotColor(type: string) {
   switch (type) {
     case 'hearing': return 'bg-gold-400'
-    case 'meeting': return 'bg-blue-400'
+    case 'meeting': return 'bg-primary-400'
     case 'verdict': return 'bg-emerald-400'
-    case 'consultation': return 'bg-purple-400'
+    case 'consultation': return 'bg-amber-400'
     default: return 'bg-neutral-500'
   }
 }
@@ -382,9 +382,9 @@ function EventCard({
 
 function ConsultationCard({ item, caseData }: { item: ConsultationItem; caseData?: CaseItem }) {
   return (
-    <div className="border border-purple-500/30 rounded-lg p-3.5 bg-purple-500/5 hover:bg-purple-500/10 transition-colors">
+    <div className="border border-amber-500/30 rounded-lg p-3.5 bg-amber-500/5 hover:bg-amber-500/10 transition-colors">
       <div className="flex items-center gap-2">
-        <span className="text-xs px-2 py-0.5 rounded-full border bg-purple-500/20 text-purple-300 border-purple-500/30 font-medium">
+        <span className="text-xs px-2 py-0.5 rounded-full border bg-amber-500/20 text-amber-300 border-amber-500/30 font-medium">
           📅 Consultation
         </span>
         {item.urgency === 'urgent' && (
@@ -406,7 +406,7 @@ function ConsultationCard({ item, caseData }: { item: ConsultationItem; caseData
       )}
       {item.virtual_link && (
         <a href={item.virtual_link} target="_blank" rel="noopener noreferrer"
-          className="text-xs text-purple-300 hover:text-purple-200 mt-0.5 inline-block"
+          className="text-xs text-amber-300 hover:text-amber-200 mt-0.5 inline-block"
         >
           Join meeting →
         </a>
@@ -515,7 +515,7 @@ function WeekView({
                     ))}
                     {consults.map((c, i) => (
                       <div key={i} className="flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-purple-400" />
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 bg-amber-400" />
                         <span className="text-xs text-neutral-300 truncate">
                           {c.time?.slice(0, 5)} · Consultation
                           {casesMap.get(c.case_id) && ` · ${casesMap.get(c.case_id)!.title}`}
@@ -603,6 +603,131 @@ function DeadlineAlerts({
   )
 }
 
+// ── iCal export ──────────────────────────────────────────────────────────────
+
+function addOneHour(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+function exportIcal(events: CalendarEvent[], consultations: ConsultationItem[], casesMap: Map<string, CaseItem>) {
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0',
+    'PRODID:-//LawBridge//LawBridge Calendar//EN',
+    'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+  ]
+
+  for (const ev of events) {
+    if (ev.status === 'cancelled' || ev.status === 'rejected') continue
+    const c = casesMap.get(ev.case_id)
+    const t = (ev.time ?? '09:00').slice(0, 5)
+    const dt = ev.date.replace(/-/g, '') + 'T' + t.replace(':', '') + '00'
+    const dtEnd = ev.date.replace(/-/g, '') + 'T' + addOneHour(t).replace(':', '') + '00'
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:lb-ev-${ev.id}@lawbridge.cm`,
+      `DTSTART:${dt}`, `DTEND:${dtEnd}`,
+      `SUMMARY:${ev.event_type.toUpperCase()}${c ? ' – ' + c.title : ''}`,
+      `LOCATION:${ev.location ?? 'TBD'}`,
+      `STATUS:${ev.status === 'confirmed' ? 'CONFIRMED' : 'TENTATIVE'}`,
+      'END:VEVENT',
+    )
+  }
+
+  for (const c of consultations) {
+    const cas = casesMap.get(c.case_id)
+    const t = (c.time ?? '09:00').slice(0, 5)
+    const dt = c.date.replace(/-/g, '') + 'T' + t.replace(':', '') + '00'
+    const dtEnd = c.date.replace(/-/g, '') + 'T' + addOneHour(t).replace(':', '') + '00'
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:lb-consult-${c.case_id}-${c.date}@lawbridge.cm`,
+      `DTSTART:${dt}`, `DTEND:${dtEnd}`,
+      `SUMMARY:Consultation${cas ? ' – ' + cas.title : ''}`,
+      `LOCATION:${c.location ?? 'TBD'}`,
+      'STATUS:CONFIRMED',
+      'END:VEVENT',
+    )
+  }
+
+  lines.push('END:VCALENDAR')
+  const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = 'lawbridge-calendar.ics'; a.click()
+  URL.revokeObjectURL(url)
+}
+
+// ── Day View ──────────────────────────────────────────────────────────────────
+
+function DayView({
+  dateStr,
+  dayEvents,
+  dayConsults,
+  casesMap,
+  userId,
+  onLoad,
+}: {
+  dateStr: string
+  dayEvents: CalendarEvent[]
+  dayConsults: ConsultationItem[]
+  casesMap: Map<string, CaseItem>
+  userId: string
+  onLoad: () => void
+}) {
+  const HOURS = Array.from({ length: 13 }, (_, i) => i + 7) // 7am–7pm
+
+  function parseHour(time?: string) {
+    if (!time) return 9
+    return parseInt(time.split(':')[0], 10)
+  }
+
+  return (
+    <div className="space-y-0.5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500 mb-3">{formatDisplayDate(dateStr)}</p>
+      {HOURS.map(hour => {
+        const evts = dayEvents.filter(e => parseHour(e.time) === hour)
+        const consults = dayConsults.filter(c => parseHour(c.time) === hour)
+        const total = evts.length + consults.length
+        return (
+          <div key={hour} className="flex gap-3 min-h-[3rem]">
+            <div className="w-12 flex-shrink-0 pt-1">
+              <span className="text-[10px] text-neutral-600 tabular-nums">{String(hour).padStart(2, '0')}:00</span>
+            </div>
+            <div className={`flex-1 border-l-2 pl-3 pb-2 ${total > 0 ? 'border-gold-500/30' : 'border-white/5'}`}>
+              {total === 0 ? (
+                <span className="text-[10px] text-neutral-800">—</span>
+              ) : (
+                <div className="space-y-1.5">
+                  {evts.map(ev => {
+                    const cas = casesMap.get(ev.case_id)
+                    return (
+                      <div key={ev.id} className={`rounded-lg px-2.5 py-1.5 border text-xs ${eventTypeCls(ev.event_type)}`}>
+                        <span className="font-medium capitalize">{ev.event_type}</span>
+                        {cas && <span className="text-neutral-400 ml-1 truncate"> · {cas.title}</span>}
+                        {ev.location && ev.location !== 'TBD' && <span className="text-neutral-500 ml-1">@ {ev.location}</span>}
+                      </div>
+                    )
+                  })}
+                  {consults.map((c, i) => {
+                    const cas = casesMap.get(c.case_id)
+                    return (
+                      <div key={i} className="rounded-lg px-2.5 py-1.5 border text-xs bg-amber-500/15 text-amber-300 border-amber-500/25">
+                        <span className="font-medium">Consultation</span>
+                        {cas && <span className="text-neutral-400 ml-1 truncate"> · {cas.title}</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── CalendarView ──────────────────────────────────────────────────────────────
 
 export default function CalendarView() {
@@ -615,7 +740,7 @@ export default function CalendarView() {
   const today = new Date()
   const todayStr = ymd(today)
 
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month')
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [weekStart, setWeekStart] = useState(getWeekStart(todayStr))
@@ -753,16 +878,20 @@ export default function CalendarView() {
     if (viewMode === 'month') {
       if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
       else setViewMonth(m => m - 1)
-    } else {
+    } else if (viewMode === 'week') {
       setWeekStart(addDays(weekStart, -7))
+    } else {
+      pickDay(addDays(selectedDate, -1))
     }
   }
   function nextPeriod() {
     if (viewMode === 'month') {
       if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
       else setViewMonth(m => m + 1)
-    } else {
+    } else if (viewMode === 'week') {
       setWeekStart(addDays(weekStart, 7))
+    } else {
+      pickDay(addDays(selectedDate, 1))
     }
   }
 
@@ -780,6 +909,8 @@ export default function CalendarView() {
 
   const periodLabel = viewMode === 'month'
     ? `${MONTH_NAMES[viewMonth]} ${viewYear}`
+    : viewMode === 'day'
+    ? formatDisplayDate(selectedDate)
     : (() => {
         const ws = weekStart.split('-').map(Number)
         const we = addDays(weekStart, 6).split('-').map(Number)
@@ -794,12 +925,24 @@ export default function CalendarView() {
           <h2 className="font-display text-display-md text-neutral-50">Calendar</h2>
           <p className="mt-1 text-sm text-neutral-400">Events, hearings, and consultations for your matters</p>
         </div>
-        <button
-          onClick={() => openModal(selectedDate > todayStr ? selectedDate : undefined)}
-          className="px-4 py-2 rounded-lg bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors"
-        >
-          + New Event
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportIcal(events, consultations, casesMap)}
+            className="px-3 py-2 rounded-lg border border-neutral-700/40 text-neutral-400 text-xs hover:text-gold-400 hover:border-gold-500/30 transition-colors flex items-center gap-1.5"
+            title="Export as iCal (.ics)"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            iCal
+          </button>
+          <button
+            onClick={() => openModal(selectedDate > todayStr ? selectedDate : undefined)}
+            className="px-4 py-2 rounded-lg bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors"
+          >
+            + New Event
+          </button>
+        </div>
       </header>
 
       {loading && (
@@ -834,15 +977,15 @@ export default function CalendarView() {
               <Card className="p-4">
                 {/* View toggle + navigation */}
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex gap-1 p-0.5 bg-neutral-800/60 rounded-lg">
-                    {(['month', 'week'] as const).map(m => (
+                  <div className="flex gap-0.5 p-0.5 bg-neutral-800/60 rounded-lg">
+                    {(['month', 'week', 'day'] as const).map(m => (
                       <button
                         key={m}
                         onClick={() => {
                           setViewMode(m)
                           if (m === 'week') setWeekStart(getWeekStart(selectedDate))
                         }}
-                        className={`px-3 py-1 text-xs rounded-md transition-colors capitalize ${
+                        className={`px-2.5 py-1 text-xs rounded-md transition-colors capitalize ${
                           viewMode === m ? 'bg-gold-500/20 text-gold-300' : 'text-neutral-400 hover:text-neutral-200'
                         }`}
                       >
@@ -932,7 +1075,7 @@ export default function CalendarView() {
                       })}
                     </div>
                   </>
-                ) : (
+                ) : viewMode === 'week' ? (
                   <WeekView
                     weekStart={weekStart}
                     eventsByDate={eventsByDate}
@@ -941,6 +1084,15 @@ export default function CalendarView() {
                     userId={userId}
                     onLoad={load}
                     onPickDate={pickDay}
+                  />
+                ) : (
+                  <DayView
+                    dateStr={selectedDate}
+                    dayEvents={selectedEvents}
+                    dayConsults={selectedConsults}
+                    casesMap={casesMap}
+                    userId={userId}
+                    onLoad={load}
                   />
                 )}
               </Card>
@@ -951,7 +1103,7 @@ export default function CalendarView() {
                   ['hearing', 'bg-gold-400', 'Hearing'],
                   ['meeting', 'bg-blue-400', 'Meeting'],
                   ['verdict', 'bg-emerald-400', 'Verdict'],
-                  ['consultation', 'bg-purple-400', 'Consultation (booked)'],
+                  ['consultation', 'bg-amber-400', 'Consultation (booked)'],
                 ].map(([, color, label]) => (
                   <div key={label} className="flex items-center gap-1.5 text-xs text-neutral-400">
                     <span className={`w-2 h-2 rounded-full ${color}`} />
@@ -1020,7 +1172,7 @@ export default function CalendarView() {
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotColor(item.type)}`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[11px] px-1.5 py-0.5 rounded border capitalize ${item.type === 'consultation' ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' : eventTypeCls(item.type)}`}>
+                          <span className={`text-[11px] px-1.5 py-0.5 rounded border capitalize ${item.type === 'consultation' ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : eventTypeCls(item.type)}`}>
                             {item.label}
                           </span>
                           {item.status && (

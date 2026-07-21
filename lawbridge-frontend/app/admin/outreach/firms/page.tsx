@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   getFirms, saveFirm, deleteFirm, generateId, syncFirmsFromApi,
   OutreachFirm, RelationshipStatus, STATUS_LABELS, STATUS_COLORS,
@@ -193,6 +194,7 @@ function FirmModal({ onClose, onSave, initial }: ModalProps) {
 }
 
 export default function FirmsPage() {
+  const router = useRouter()
   const [firms, setFirms] = useState<OutreachFirm[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -312,11 +314,15 @@ export default function FirmsPage() {
               {filtered.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-16 text-center text-neutral-500 text-sm">No firms found</td></tr>
               ) : filtered.map(f => (
-                <tr key={f.id} className="hover:bg-white/3 transition-colors">
+                <tr
+                  key={f.id}
+                  className="hover:bg-white/3 transition-colors cursor-pointer"
+                  onClick={() => router.push(`/admin/outreach/firms/${f.id}`)}
+                >
                   <td className="px-4 py-3">
-                    <Link href={`/admin/outreach/firms/${f.id}`} className="text-sm font-semibold text-neutral-100 hover:text-gold-400 transition-colors">
+                    <span className="text-sm font-semibold text-neutral-100">
                       {f.firmName}
-                    </Link>
+                    </span>
                     {f.tags.length > 0 && (
                       <div className="flex gap-1 mt-0.5 flex-wrap">
                         {f.tags.slice(0, 2).map(t => (
@@ -337,11 +343,8 @@ export default function FirmsPage() {
                   <td className="px-4 py-3"><StatusBadge status={f.status} /></td>
                   <td className="px-4 py-3 text-sm text-neutral-500 hidden lg:table-cell">{f.assignedTo ?? '—'}</td>
                   <td className="px-4 py-3 text-sm text-neutral-500 hidden lg:table-cell">{fmtDate(f.lastContact)}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5 justify-end">
-                      <Link href={`/admin/outreach/firms/${f.id}`} className="rounded-lg p-1.5 text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors" title="View">
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                      </Link>
                       <button onClick={() => { setEditing(f); setShowModal(true) }} className="rounded-lg p-1.5 text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors" title="Edit">
                         <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
@@ -374,7 +377,7 @@ export default function FirmsPage() {
             <p className="text-sm text-neutral-400">This will permanently remove the firm and all associated data from your local records.</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setDeleteId(null)} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-              <button onClick={() => handleDelete(deleteId)} className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400">Delete</button>
+              <button onClick={() => handleDelete(deleteId)} className="rounded-xl bg-crimson-600 px-4 py-2 text-sm font-semibold text-white hover:bg-crimson-500">Delete</button>
             </div>
           </div>
         </div>
