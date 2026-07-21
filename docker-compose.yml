@@ -162,6 +162,7 @@ services:
       DB_PORT: "5432"
       DB_NAME: calendar_db
       REDIS_URL: redis://redis:6379/0
+      MONITORING_SERVICE_URL: http://monitoring-service:8009
 
   monitoring-service:
     <<: *django-common
@@ -174,6 +175,22 @@ services:
       REDIS_URL: redis://redis:6379/0
       LAWYER_SERVICE_URL: http://lawyer-service:8003
       AI_SERVICE_URL: http://ai-assistant-service:8011
+      AUTH_SERVICE_URL: http://auth-service:8001
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@lawbridge.cm}
+
+  monitoring-consumer:
+    <<: *django-common
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/monitoring-service:latest
+    command: python manage.py consume_case_events
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: monitoring_db
+      REDIS_URL: redis://redis:6379/0
+      AUTH_SERVICE_URL: http://auth-service:8001
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      SENDGRID_FROM_EMAIL: ${SENDGRID_FROM_EMAIL:-noreply@lawbridge.cm}
 
   search-service:
     <<: *django-common

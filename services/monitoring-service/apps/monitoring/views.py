@@ -1,16 +1,66 @@
 import jwt
+import uuid
 import urllib.request as _ureq
 import json as _json
+import logging
 from decouple import config
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from .models import CaseProgressSnapshot, LawyerStats, ReportRequest, Notification
 from .serializers import CaseProgressSnapshotSerializer, LawyerStatsSerializer, ReportRequestSerializer, NotificationSerializer
+
+logger = logging.getLogger(__name__)
+
+
+# ── Email helpers ─────────────────────────────────────────────────────────────
+
+def _get_user_email(user_id: str) -> str:
+    """Fetch user email from auth-service by UUID. Silent on failure."""
+    auth_url = config('AUTH_SERVICE_URL', default='http://auth-service:8001').rstrip('/')
+    try:
+        req = _ureq.Request(
+            f'{auth_url}/api/v1/auth/users/{user_id}/',
+            headers={'X-Internal-Key': config('INTERNAL_API_KEY', default='dev-internal-key')},
+        )
+        with _ureq.urlopen(req, timeout=3) as resp:
+            data = _json.loads(resp.read())
+            return data.get('email', '')
+    except Exception as exc:
+        logger.debug('Could not fetch email for user %s: %s', user_id, exc)
+        return ''
+
+
+def _send_notification_email(user_id: str, subject: str, body: str):
+    """Look up user email then send via SendGrid. No-op if API key not configured."""
+    api_key = config('SENDGRID_API_KEY', default='')
+    if not api_key:
+        return
+    email = _get_user_email(user_id)
+    if not email:
+        return
+    from_email = config('SENDGRID_FROM_EMAIL', default='noreply@lawbridge.cm')
+    try:
+        payload = _json.dumps({
+            'personalizations': [{'to': [{'email': email}]}],
+            'from': {'email': from_email, 'name': 'LawBridge'},
+            'subject': subject,
+            'content': [{'type': 'text/plain', 'value': body + '\n\n— The LawBridge Team\nhttps://law-bridge-two.vercel.app'}],
+        }).encode()
+        req = _ureq.Request(
+            'https://api.sendgrid.com/v3/mail/send',
+            data=payload,
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            method='POST',
+        )
+        with _ureq.urlopen(req, timeout=10) as resp:
+            logger.info('Email sent to %s (user %s): HTTP %s', email, user_id, resp.status)
+    except Exception as exc:
+        logger.error('Email send failed for user %s: %s', user_id, exc)
 
 
 def _get_firm_scope(auth_header):
@@ -173,6 +223,10 @@ class InternalCaseSyncView(APIView):
         if lawyer_id:
             from apps.monitoring.management.commands.consume_case_events import _refresh_lawyer_stats
             _refresh_lawyer_stats(lawyer_id)
+
+        # Create in-app notifications (mirrors the Redis consumer path)
+        from apps.monitoring.management.commands.consume_case_events import _create_case_notifications
+        _create_case_notifications(data, snapshot, created)
 
         return Response({'created': created, 'case_id': case_id})
 
@@ -412,6 +466,47 @@ class NotificationMarkReadView(APIView):
             return Response(NotificationSerializer(notif).data)
         except Notification.DoesNotExist:
             return Response({'detail': 'Not found.'}, status=404)
+
+
+class CreateInternalNotificationView(APIView):
+    """POST /notifications/internal/ — called by calendar-service, case-service, etc. to push notifications."""
+    permission_classes = []
+
+    def post(self, request):
+        key = request.headers.get('X-Internal-Key', '')
+        if key != config('INTERNAL_API_KEY', default='dev-internal-key'):
+            return Response({'error': 'Forbidden'}, status=403)
+
+        data = request.data
+        recipient_id_raw = data.get('recipient_id')
+        notification_type = data.get('notification_type')
+        title = data.get('title', '')
+        body = data.get('body', '')
+        case_id = data.get('case_id', '')
+        send_email = data.get('send_email', False)
+
+        if not recipient_id_raw or not notification_type:
+            return Response({'error': 'recipient_id and notification_type are required'}, status=400)
+
+        try:
+            recipient_uuid = uuid.UUID(str(recipient_id_raw))
+        except (ValueError, AttributeError):
+            return Response({'error': 'Invalid recipient_id UUID'}, status=400)
+
+        try:
+            notif = Notification.objects.create(
+                recipient_id=recipient_uuid,
+                notification_type=notification_type,
+                title=title,
+                body=body,
+                case_id=str(case_id) if case_id else '',
+            )
+            if send_email:
+                _send_notification_email(str(recipient_id_raw), title, body)
+            return Response({'id': str(notif.id), 'created': True}, status=201)
+        except Exception as exc:
+            logger.error('CreateInternalNotificationView error: %s', exc)
+            return Response({'error': str(exc)}, status=400)
 
 
 class AdminPlatformStatsView(APIView):

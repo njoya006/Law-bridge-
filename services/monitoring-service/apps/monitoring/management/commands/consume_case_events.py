@@ -1,5 +1,6 @@
 import json
 import logging
+import urllib.request as _ureq
 import redis
 from django.core.management.base import BaseCommand
 from django.conf import settings
@@ -7,8 +8,50 @@ from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from decouple import config
 
 logger = logging.getLogger(__name__)
+
+
+def _get_user_email(user_id: str) -> str:
+    auth_url = config('AUTH_SERVICE_URL', default='http://auth-service:8001').rstrip('/')
+    try:
+        req = _ureq.Request(
+            f'{auth_url}/api/v1/auth/users/{user_id}/',
+            headers={'X-Internal-Key': config('INTERNAL_API_KEY', default='dev-internal-key')},
+        )
+        with _ureq.urlopen(req, timeout=3) as resp:
+            data = json.loads(resp.read())
+            return data.get('email', '')
+    except Exception:
+        return ''
+
+
+def _send_notification_email(user_id: str, subject: str, body: str):
+    api_key = config('SENDGRID_API_KEY', default='')
+    if not api_key:
+        return
+    email = _get_user_email(user_id)
+    if not email:
+        return
+    from_email = config('SENDGRID_FROM_EMAIL', default='noreply@lawbridge.cm')
+    try:
+        payload = json.dumps({
+            'personalizations': [{'to': [{'email': email}]}],
+            'from': {'email': from_email, 'name': 'LawBridge'},
+            'subject': subject,
+            'content': [{'type': 'text/plain', 'value': body + '\n\n— The LawBridge Team\nhttps://law-bridge-two.vercel.app'}],
+        }).encode()
+        req = _ureq.Request(
+            'https://api.sendgrid.com/v3/mail/send',
+            data=payload,
+            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+            method='POST',
+        )
+        with _ureq.urlopen(req, timeout=10) as resp:
+            logger.info('Email sent to %s (user %s): HTTP %s', email, user_id, resp.status)
+    except Exception as exc:
+        logger.error('Email send failed for user %s: %s', user_id, exc)
 
 ACTIVE_STATUSES = {
     'draft', 'filed', 'assigned', 'under_review', 'evidence_collection',
@@ -158,6 +201,8 @@ def _create_case_notifications(data, snapshot, created):
 
         if notifs:
             Notification.objects.bulk_create(notifs, ignore_conflicts=True)
+            for n in notifs:
+                _send_notification_email(str(n.recipient_id), n.title, n.body)
 
     except Exception as exc:
         logger.warning('Failed to create case notifications: %s', exc)

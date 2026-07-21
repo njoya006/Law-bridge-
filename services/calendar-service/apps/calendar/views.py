@@ -86,7 +86,18 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
                 return Response({'error': 'Cannot book a firm you belong to'}, status=status.HTTP_400_BAD_REQUEST)
 
         event = serializer.save()
-        
+
+        # Notify the assigned lawyer about the new booking
+        if assigned_lawyer_id:
+            self._push_notification(
+                recipient_id=str(assigned_lawyer_id),
+                notification_type='booking_received',
+                title='New booking request',
+                body=f'You have a new booking request for case #{str(event.case_id)[:8]}. Please review and approve or reject.',
+                case_id=str(event.case_id) if event.case_id else '',
+                send_email=True,
+            )
+
         EventApproval.objects.create(event=event, approver_id=event.initiator_id, status='pending')
         
         event_datetime = timezone.make_aware(
@@ -106,6 +117,32 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
         return Response(CalendarEventSerializer(event).data, 
                        status=status.HTTP_201_CREATED)
     
+    def _push_notification(self, recipient_id, notification_type, title, body, case_id='', send_email=False):
+        """Fire-and-forget notification to monitoring-service internal endpoint."""
+        monitoring_url = config('MONITORING_SERVICE_URL', default='http://monitoring-service:8009').rstrip('/')
+        try:
+            payload = json.dumps({
+                'recipient_id': recipient_id,
+                'notification_type': notification_type,
+                'title': title,
+                'body': body,
+                'case_id': case_id,
+                'send_email': send_email,
+            }).encode()
+            req = Request(
+                f'{monitoring_url}/api/v1/monitoring/notifications/internal/',
+                data=payload,
+                headers={
+                    'Content-Type': 'application/json',
+                    'X-Internal-Key': config('INTERNAL_API_KEY', default='dev-internal-key'),
+                },
+                method='POST',
+            )
+            with urlopen(req, timeout=5):
+                pass
+        except Exception as exc:
+            logger.warning('Failed to push notification to monitoring-service: %s', exc)
+
     def _approver_uuid(self, request):
         payload = getattr(request, 'auth_payload', {})
         uid = payload.get('user_id') or payload.get('sub')
@@ -134,6 +171,16 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
             event.status = 'confirmed'
             event.save()
 
+        # Notify the client/initiator that the booking was confirmed
+        self._push_notification(
+            recipient_id=str(event.initiator_id),
+            notification_type='booking_received',
+            title='Booking confirmed',
+            body=f'Your booking request has been approved. The event is now confirmed.',
+            case_id=str(event.case_id) if event.case_id else '',
+            send_email=True,
+        )
+
         return Response(CalendarEventSerializer(event).data)
 
     @action(detail=True, methods=['patch'])
@@ -144,16 +191,26 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
         except (ValueError, AttributeError):
             return Response({'error': 'Invalid token'}, status=status.HTTP_401_UNAUTHORIZED)
         approver_id = approver_id  # keep variable name consistent below
-        
+
         try:
             approval = EventApproval.objects.get(event=event, approver_id=approver_id)
         except EventApproval.DoesNotExist:
-            return Response({'error': 'No approval to reject'}, 
+            return Response({'error': 'No approval to reject'},
                           status=status.HTTP_400_BAD_REQUEST)
-        
+
         approval.status = 'rejected'
         approval.save()
         event.status = 'rejected'
         event.save()
-        
+
+        # Notify the client/initiator that the booking was rejected
+        self._push_notification(
+            recipient_id=str(event.initiator_id),
+            notification_type='booking_received',
+            title='Booking not approved',
+            body=f'Your booking request was not approved at this time. You may submit a new request.',
+            case_id=str(event.case_id) if event.case_id else '',
+            send_email=True,
+        )
+
         return Response(CalendarEventSerializer(event).data)
