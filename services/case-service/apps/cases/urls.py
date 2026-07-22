@@ -8,6 +8,18 @@ from .views import (
     PaymentVerifyView,
     IntakeFormCreateView, IntakeFormPublicView, IntakeFormDetailView,
 )
+from .casefile_views import (
+    AdjournmentListView, AdjournmentDetailView,
+    CasePartyListView, CasePartyDetailView,
+    CaseDeadlineListView, CaseDeadlineDetailView,
+    DisbursementListView, DisbursementDetailView,
+    HearingOutcomeListView, HearingOutcomeDetailView,
+    DetentionRecordListView, DetentionRecordDetailView,
+    ConciliationListView, ConciliationDetailView,
+    ProcedureTemplateListView, ApplyProcedureTemplateView,
+    ProcedureStepListView, ProcedureStepDetailView,
+    ConflictCheckView, CourtInfoView,
+)
 
 urlpatterns = [
     path('', CaseListView.as_view(), name='case-list'),
@@ -29,4 +41,26 @@ urlpatterns = [
     path('intake/', IntakeFormCreateView.as_view(), name='intake-create'),
     path('intake/<uuid:token>/', IntakeFormPublicView.as_view(), name='intake-public'),
     path('intake/<uuid:token>/detail/', IntakeFormDetailView.as_view(), name='intake-detail'),
+
+    # ── Case File 2.0 ────────────────────────────────────────────────────────
+    path('procedure-templates/', ProcedureTemplateListView.as_view(), name='procedure-templates'),
+    path('conflict-check/', ConflictCheckView.as_view(), name='conflict-check'),
+    path('<uuid:case_id>/court/', CourtInfoView.as_view(), name='case-court-info'),
+    path('<uuid:case_id>/adjournments/', AdjournmentListView.as_view(), name='case-adjournments'),
+    path('<uuid:case_id>/adjournments/<uuid:item_id>/', AdjournmentDetailView.as_view(), name='case-adjournment-detail'),
+    path('<uuid:case_id>/parties/', CasePartyListView.as_view(), name='case-parties'),
+    path('<uuid:case_id>/parties/<uuid:item_id>/', CasePartyDetailView.as_view(), name='case-party-detail'),
+    path('<uuid:case_id>/deadlines/', CaseDeadlineListView.as_view(), name='case-deadlines'),
+    path('<uuid:case_id>/deadlines/<uuid:item_id>/', CaseDeadlineDetailView.as_view(), name='case-deadline-detail'),
+    path('<uuid:case_id>/disbursements/', DisbursementListView.as_view(), name='case-disbursements'),
+    path('<uuid:case_id>/disbursements/<uuid:item_id>/', DisbursementDetailView.as_view(), name='case-disbursement-detail'),
+    path('<uuid:case_id>/hearing-outcomes/', HearingOutcomeListView.as_view(), name='case-hearing-outcomes'),
+    path('<uuid:case_id>/hearing-outcomes/<uuid:item_id>/', HearingOutcomeDetailView.as_view(), name='case-hearing-outcome-detail'),
+    path('<uuid:case_id>/detention/', DetentionRecordListView.as_view(), name='case-detention'),
+    path('<uuid:case_id>/detention/<uuid:item_id>/', DetentionRecordDetailView.as_view(), name='case-detention-detail'),
+    path('<uuid:case_id>/conciliation/', ConciliationListView.as_view(), name='case-conciliation'),
+    path('<uuid:case_id>/conciliation/<uuid:item_id>/', ConciliationDetailView.as_view(), name='case-conciliation-detail'),
+    path('<uuid:case_id>/apply-procedure/', ApplyProcedureTemplateView.as_view(), name='case-apply-procedure'),
+    path('<uuid:case_id>/procedure-steps/', ProcedureStepListView.as_view(), name='case-procedure-steps'),
+    path('<uuid:case_id>/procedure-steps/<uuid:item_id>/', ProcedureStepDetailView.as_view(), name='case-procedure-step-detail'),
 ]

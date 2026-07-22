@@ -121,6 +121,19 @@ services:
       DB_NAME: case_db
       REDIS_URL: redis://redis:6379/0
       LAWYER_SERVICE_URL: http://lawyer-service:8003
+      MONITORING_SERVICE_URL: http://monitoring-service:8009
+
+  # Scans case deadlines & detention limits hourly, pushes alerts via monitoring-service
+  deadline-checker:
+    <<: *django-common
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/case-service:latest
+    command: python manage.py check_deadlines --loop
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: case_db
+      REDIS_URL: redis://redis:6379/0
+      MONITORING_SERVICE_URL: http://monitoring-service:8009
 
   document-service:
     <<: *django-common

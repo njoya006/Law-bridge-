@@ -18,6 +18,7 @@ import { ClientCard, LawyerCard } from '../../../components/IdentityCards'
 import { useCaseWebSocket } from '../../../lib/useCaseWebSocket'
 import { SERVICE_URLS } from '../../../lib/serviceUrls'
 import { getOrCreateCaseThread } from '../../../lib/messagesApi'
+import CaseFileWorkspace from '../../../components/casefile/CaseFileWorkspace'
 import { AlertTriangleIcon, CheckIcon, SparklesIcon, ChatIcon, ExpandIcon, ArrowRightIcon, CheckCircleIcon, BellIcon, ClipboardIcon, SendIcon } from '../../../components/icons/Icons'
 import { SkeletonCard } from '../../../components/ui/Skeleton'
 import { Badge } from '../../../components/ui/Badge'
@@ -2232,6 +2233,25 @@ export default function CaseDetailPage() {
             <span className="text-xs text-neutral-600">·</span>
             <span className="text-xs text-neutral-500">Filed {fmtDate(item.created_at)}</span>
           </div>
+          {/* Court identity & case-file rollups — the litigator's at-a-glance line */}
+          {isLawyer && (item.suit_number || item.court_name || (item.open_deadline_count ?? 0) > 0 || (item.adjournment_count ?? 0) > 0) && (
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {item.suit_number && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-primary-900/50 border border-white/8 px-2 py-1 text-[11px] font-mono text-neutral-300">
+                  {item.suit_number}
+                </span>
+              )}
+              {item.court_name && (
+                <span className="text-[11px] text-neutral-500">{item.court_name}</span>
+              )}
+              {(item.open_deadline_count ?? 0) > 0 && (
+                <Badge variant="warning" size="sm">{item.open_deadline_count} open deadline{item.open_deadline_count !== 1 ? 's' : ''}</Badge>
+              )}
+              {(item.adjournment_count ?? 0) > 0 && (
+                <Badge variant="neutral" size="sm">{item.adjournment_count} adjournment{item.adjournment_count !== 1 ? 's' : ''}</Badge>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
           {!isLawyer && (
@@ -2384,6 +2404,15 @@ export default function CaseDetailPage() {
 
       {/* AI Case Intelligence — lawyers only */}
       {isLawyer && <AICaseIntelligenceCard caseItem={item} />}
+
+      {/* Case File 2.0 — the working court file; lawyers/firm staff only */}
+      {isLawyer && (
+        <CaseFileWorkspace
+          caseId={item.id}
+          caseType={item.case_type}
+          token={typeof window !== 'undefined' ? (localStorage.getItem('access') ?? '') : ''}
+        />
+      )}
 
       {/* Case Documents — visible to both roles */}
       <CaseDocumentsSection caseId={item.id} isLawyer={isLawyer} />

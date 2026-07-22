@@ -32,6 +32,15 @@ class CaseSerializer(serializers.ModelSerializer):
             },
         }
 
+    adjournment_count = serializers.SerializerMethodField()
+    open_deadline_count = serializers.SerializerMethodField()
+
+    def get_adjournment_count(self, obj):
+        return obj.adjournments.count()
+
+    def get_open_deadline_count(self, obj):
+        return obj.deadlines.filter(status='pending').count()
+
     class Meta:
         model = Case
         fields = (
@@ -39,6 +48,9 @@ class CaseSerializer(serializers.ModelSerializer):
             'legal_tradition', 'circuit', 'language', 'status',
             'assigned_lawyer_id', 'timeline', 'notes',
             'booking_status', 'booking_metadata',
+            'court_level', 'court_name', 'court_location', 'chamber',
+            'judge_name', 'suit_number', 'parent_case', 'relation_type',
+            'adjournment_count', 'open_deadline_count',
             'created_at', 'updated_at', 'filed_at', 'closed_at',
             'workflow',
         )

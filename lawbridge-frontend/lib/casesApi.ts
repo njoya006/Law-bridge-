@@ -56,6 +56,17 @@ export type CaseItem = {
   timeline: Array<{ timestamp: string; status: string; notes: string; updated_by?: string | null }>
   notes?: Array<{ id: string; lawyer_id: string; content: string; is_private: boolean; created_at: string; updated_at: string }>
   workflow?: WorkflowData
+  // Case File 2.0 — court identity & rollup counts (present on detail responses)
+  court_level?: string
+  court_name?: string
+  court_location?: string
+  chamber?: string
+  judge_name?: string
+  suit_number?: string
+  parent_case?: string | null
+  relation_type?: string
+  adjournment_count?: number
+  open_deadline_count?: number
   created_at: string
   updated_at: string
 }
