@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
 import Card from '../../../components/ui/Card'
 import Button from '../../../components/ui/Button'
-import { CheckIcon, LawIcon } from '../../../components/icons/Icons'
+import { CheckIcon, LawIcon, XCircleIcon } from '../../../components/icons/Icons'
 import { acceptInvite } from '../../../lib/firmsApi'
 
 export default function AcceptInvitePage() {
@@ -88,7 +88,7 @@ export default function AcceptInvitePage() {
           <Card className="p-8 text-center space-y-4 border border-crimson-500/30">
             <div className="flex justify-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-crimson-500/10 border border-crimson-500/30">
-                <span className="text-crimson-400 text-2xl">✕</span>
+                <XCircleIcon className="h-7 w-7 text-crimson-400" />
               </div>
             </div>
             <div>

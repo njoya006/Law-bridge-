@@ -4,7 +4,8 @@ import React, { useEffect, useState, useRef } from 'react'
 import { getMyCases, getIncomingBookings, type CaseItem } from '../../../lib/casesApi'
 import { getMyFirmMemberships, getFirmMembers, getFirmLawyers, type FirmMembership, type FirmLawyer } from '../../../lib/firmsApi'
 import { getReportRequests, acknowledgeReportRequest, type ReportRequestItem } from '../../../lib/monitoringApi'
-import { ClipboardIcon, PaymentIcon, UserIcon, BalanceIcon, CalendarIcon, BuildingIcon, BarChart2Icon, PrinterIcon } from '../../../components/icons/Icons'
+import { ClipboardIcon, PaymentIcon, UserIcon, BalanceIcon, CalendarIcon, BuildingIcon, BarChart2Icon, PrinterIcon, InboxIcon } from '../../../components/icons/Icons'
+import { Badge } from '../../../components/ui/Badge'
 
 function fmtXAF(n: number) { return n > 0 ? `${n.toLocaleString()} XAF` : '0 XAF' }
 function fmtDate(iso: string) {
@@ -519,14 +520,12 @@ export default function LawyerReportsPage() {
       {requests.length > 0 && (
         <div className="no-print rounded-xl border border-primary-400/20 bg-primary-900/20 p-5 space-y-3">
           <h2 className="font-heading text-body-lg text-neutral-50 flex items-center gap-2">
-            <svg className="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0H4m8-5v5"/>
-            </svg>
+            <InboxIcon className="w-5 h-5 text-primary-400" />
             From Secretary
-            <span className="rounded-full bg-crimson-500 text-white text-[10px] font-bold px-2 py-0.5 ml-1">{requests.length} new</span>
+            <Badge variant="danger" className="ml-1">{requests.length} new</Badge>
           </h2>
           <div className="space-y-2">
-            {requests.map(req => {
+            {requests.map((req, ri) => {
               const typeLabel = REPORT_TYPES.find(r => r.id === (REPORT_TYPE_MAP[req.report_type] ?? req.report_type))?.label ?? req.report_type
               const periodLabel = PERIODS.find(p => p.id === req.period)?.label ?? req.period
               const ago = (() => {
@@ -537,7 +536,7 @@ export default function LawyerReportsPage() {
                 return `${Math.floor(h / 24)}d ago`
               })()
               return (
-                <div key={req.id} className="flex items-center gap-4 rounded-lg border border-primary-400/10 bg-primary-900/30 px-4 py-3">
+                <div key={req.id} className="flex items-center gap-4 rounded-lg border border-primary-400/10 bg-primary-900/30 px-4 py-3 stagger-child" style={{ '--i': Math.min(ri, 8) } as React.CSSProperties}>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-neutral-100">
                       {req.requester_name || 'Secretary'} shipped a <span className="text-gold-300">{typeLabel}</span>

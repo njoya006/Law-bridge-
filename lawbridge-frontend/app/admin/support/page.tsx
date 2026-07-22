@@ -2,6 +2,8 @@
 
 import React, { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { Badge } from '../../../components/ui/Badge'
+import { SparklesIcon, SendIcon } from '../../../components/icons/Icons'
 
 type Participant = { user_id: string; display_name: string; role: string }
 type LastMessage = { content: string; sender_name: string; created_at: string }
@@ -51,17 +53,18 @@ function ThreadList({ threads, activeId, onSelect }: {
         <p className="text-xs text-neutral-500 mt-0.5">{threads.length} thread{threads.length !== 1 ? 's' : ''}</p>
       </div>
       <div className="flex-1 overflow-y-auto divide-y divide-white/5">
-        {threads.map(t => {
+        {threads.map((t, i) => {
           const client = t.participants?.find(p => p.role === 'client')
           const active = t.id === activeId
           return (
             <button
               key={t.id}
               onClick={() => onSelect(t.id)}
-              className={`w-full text-left px-4 py-3 transition-all hover:bg-white/4 ${active ? 'bg-gold-500/8 border-l-2 border-gold-400' : 'border-l-2 border-transparent'}`}
+              className={`w-full text-left px-4 py-3 transition-all hover:bg-white/4 stagger-child ${active ? 'bg-portal-soft border-l-2 border-portal-solid' : 'border-l-2 border-transparent'}`}
+              style={{ '--i': Math.min(i, 8) } as React.CSSProperties}
             >
               <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300 text-xs font-bold">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-portal-soft text-portal text-xs font-bold">
                   {(client?.display_name?.[0] ?? '?').toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -71,9 +74,9 @@ function ThreadList({ threads, activeId, onSelect }: {
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     {t.escalated_to_human ? (
-                      <span className="rounded-full bg-amber-500/15 border border-amber-500/25 px-1.5 py-px text-[9px] font-bold text-amber-400 uppercase">Human</span>
+                      <Badge variant="warning">Human</Badge>
                     ) : (
-                      <span className="rounded-full bg-blue-500/15 border border-blue-500/25 px-1.5 py-px text-[9px] font-bold text-blue-400 uppercase">AI</span>
+                      <Badge variant="info">AI</Badge>
                     )}
                     {t.last_message && (
                       <p className="text-xs text-neutral-500 truncate">{t.last_message.content}</p>
@@ -322,19 +325,23 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
             <div key={i} className={`flex gap-2 ${isAdmin && !isAI ? 'justify-end' : 'justify-start'}`}>
               {!isAdmin && (
                 <div className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold mt-0.5 ${
-                  isAI ? 'bg-gradient-to-br from-gold-500/20 to-gold-600/20 text-gold-300' : 'bg-primary-700 text-neutral-300'
+                  isAI ? 'bg-portal-soft text-portal' : 'bg-primary-700 text-neutral-300'
                 }`}>
                   {isAI ? 'AI' : m.sender_name?.[0]?.toUpperCase() ?? '?'}
                 </div>
               )}
               <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
                 isAdmin && !isAI
-                  ? 'bg-gold-500/15 text-neutral-100 rounded-tr-sm'
+                  ? 'bg-portal-soft text-neutral-100 rounded-tr-sm'
                   : isAI
                   ? 'bg-blue-500/10 border border-blue-500/15 text-neutral-200 rounded-tl-sm'
                   : 'bg-primary-800/60 border border-white/8 text-neutral-200 rounded-tl-sm'
               }`}>
-                {!isAdmin && <p className="text-[10px] font-semibold text-neutral-500 mb-0.5">{isAI ? '🤖 LawBridge AI' : m.sender_name}</p>}
+                {!isAdmin && (
+                  <p className="flex items-center gap-1 text-[10px] font-semibold text-neutral-500 mb-0.5">
+                    {isAI ? <><SparklesIcon width={10} height={10} /> LawBridge AI</> : m.sender_name}
+                  </p>
+                )}
                 <p className="whitespace-pre-wrap">{m.content}</p>
                 <p className="text-[9px] text-neutral-600 mt-1 text-right">{formatTime(m.created_at)}</p>
               </div>
@@ -346,7 +353,7 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
 
       {/* Input */}
       <div className="border-t border-white/8 p-4 flex-shrink-0">
-        {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+        {error && <p className="text-xs text-crimson-400 mb-2">{error}</p>}
         <div className="flex gap-2 items-end rounded-2xl border border-white/10 bg-primary-900/60 p-2 focus-within:border-gold-500/30 transition-all">
           <textarea
             rows={1}
@@ -360,27 +367,22 @@ function MessageView({ threadId, token }: { threadId: number; token: string }) {
             onClick={() => void handleAiDraft()}
             disabled={aiDrafting || messages.length === 0}
             title="AI Draft Reply"
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-700/60 text-neutral-400 transition-all hover:bg-gold-500/10 hover:text-gold-300 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-700/60 text-neutral-400 transition-all hover:bg-portal-soft hover:text-portal disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
           >
             {aiDrafting ? (
               <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path d="M1 4v6h6M23 20v-6h-6M3.5 15a9 9 0 1 0 .5-4" />
               </svg>
             ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
-                <path d="M19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75L19 14z" />
-              </svg>
+              <SparklesIcon width={16} height={16} />
             )}
           </button>
           <button
             onClick={() => void send()}
             disabled={!input.trim() || sending}
-            className="flex h-8 w-8 items-center justify-center rounded-xl bg-gold-500/20 text-gold-300 transition-all hover:bg-gold-500/30 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+            className="flex h-8 w-8 items-center justify-center rounded-xl bg-portal-soft text-portal transition-all hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
+            <SendIcon width={16} height={16} />
           </button>
         </div>
         <p className="text-[10px] text-neutral-600 mt-1.5 text-center">Your reply will appear as LawBridge Support in the client&apos;s messages.</p>
@@ -440,7 +442,7 @@ function SupportPageContent() {
   if (loading) {
     return (
       <div className="flex h-[70vh] items-center justify-center">
-        <div className="h-8 w-8 rounded-full border-2 border-gold-400/30 border-t-gold-400 animate-spin" />
+        <div className="h-8 w-8 rounded-full border-2 border-white/10 animate-spin" style={{ borderTopColor: 'var(--portal-accent)' }} />
       </div>
     )
   }
@@ -468,7 +470,7 @@ function SupportPageContent() {
 
 export default function AdminSupportPage() {
   return (
-    <Suspense fallback={<div className="flex h-[70vh] items-center justify-center"><div className="h-8 w-8 rounded-full border-2 border-gold-400/30 border-t-gold-400 animate-spin" /></div>}>
+    <Suspense fallback={<div className="flex h-[70vh] items-center justify-center"><div className="h-8 w-8 rounded-full border-2 border-white/10 animate-spin" style={{ borderTopColor: 'var(--portal-accent)' }} /></div>}>
       <SupportPageContent />
     </Suspense>
   )

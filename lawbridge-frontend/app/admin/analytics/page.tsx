@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
+import { Badge } from '../../../components/ui/Badge'
 
 type UserRecord = { id: string; role: string; created_at?: string; date_joined?: string }
 type PlatformStats = {
@@ -75,8 +76,8 @@ function DistributionTable({
 function KpiRow({ items }: { items: { label: string; value: string | number; color: string }[] }) {
   return (
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-      {items.map(({ label, value, color }) => (
-        <div key={label} className={`rounded-2xl border ${color} bg-primary-800/40 p-4`}>
+      {items.map(({ label, value, color }, i) => (
+        <div key={label} className={`rounded-2xl border ${color} bg-primary-800/40 p-4 stagger-child`} style={{ '--i': i } as React.CSSProperties}>
           <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{label}</p>
           <p className="mt-2 text-2xl font-display font-bold text-neutral-100">{value}</p>
         </div>
@@ -171,7 +172,7 @@ export default function AnalyticsPage() {
             onClick={() => setTab(t.id)}
             className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px ${
               tab === t.id
-                ? 'border-gold-400 text-gold-300'
+                ? 'border-portal-solid text-portal'
                 : 'border-transparent text-neutral-400 hover:text-neutral-300'
             }`}
           >
@@ -302,12 +303,8 @@ export default function AnalyticsPage() {
                             <td className="px-4 py-2.5 text-right text-sm text-neutral-400">{l.avg_resolution_days.toFixed(0)}d</td>
                             <td className="px-4 py-2.5">
                               <div className="flex gap-1.5 justify-end">
-                                {isTop && (
-                                  <span className="rounded-full bg-gold-500/15 border border-gold-500/25 px-1.5 py-px text-[9px] font-bold text-gold-400">TOP</span>
-                                )}
-                                {isOverloaded && (
-                                  <span className="rounded-full bg-amber-500/15 border border-amber-500/25 px-1.5 py-px text-[9px] font-bold text-amber-400">OVERLOADED</span>
-                                )}
+                                {isTop && <Badge variant="gold">Top</Badge>}
+                                {isOverloaded && <Badge variant="warning">Overloaded</Badge>}
                               </div>
                             </td>
                           </tr>

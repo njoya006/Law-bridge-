@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getBook, updateBook, submitBook, listCategories, type BookItem, type BookTier, type BookCategory } from '../../../../../lib/libraryApi'
+import { CheckIcon } from '../../../../../components/icons/Icons'
 
 // ── File import helpers ────────────────────────────────────────────────────────
 
@@ -282,9 +283,7 @@ export default function EditBookPage() {
               </div>
               {importSuccess && (
                 <div className="mt-3 pt-3 border-t border-white/6 flex items-start gap-2">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="text-emerald-400 flex-shrink-0 mt-0.5">
-                    <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  <CheckIcon width={13} height={13} className="text-emerald-400 flex-shrink-0 mt-0.5" />
                   <p className="text-[11px] text-emerald-400/80 leading-relaxed">{importSuccess}</p>
                 </div>
               )}

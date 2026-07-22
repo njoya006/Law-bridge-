@@ -86,8 +86,8 @@ export default function FoundingCouncilPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {members.map(({ firm, contact, interviews, completedInterviews, avgInterest }) => (
-            <Link key={firm.id} href={`/admin/outreach/firms/${firm.id}`} className="block rounded-2xl border border-white/8 bg-primary-800/30 p-5 hover:border-gold-500/20 hover:bg-primary-800/50 transition-all group">
+          {members.map(({ firm, contact, interviews, completedInterviews, avgInterest }, i) => (
+            <Link key={firm.id} href={`/admin/outreach/firms/${firm.id}`} className="block rounded-2xl border border-white/8 bg-primary-800/30 p-5 hover:border-gold-500/20 hover:bg-primary-800/50 transition-all group stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               {/* Header */}
               <div className="flex items-start gap-3 mb-4">
                 <InitialsAvatar name={firm.firmName} size="md" />

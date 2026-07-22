@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '../../lib/api'
 import { createCalendarEvent } from '../../lib/calendarApi'
 import { toastSuccess, toastError } from '../../lib/toast'
+import { CheckIcon, CollapseIcon, ExpandIcon } from '../../components/icons/Icons'
 
 type Step = 1 | 2 | 3 | 4
 
@@ -32,7 +33,7 @@ function StepIndicator({ current, steps }: { current: Step; steps: string[] }) {
           <React.Fragment key={s}>
             <div className="flex flex-col items-center">
               <div className={`h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all ${done ? 'bg-gold-500 border-gold-500 text-black' : active ? 'border-gold-400 text-gold-400 bg-gold-500/10' : 'border-neutral-600 text-neutral-500'}`}>
-                {done ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg> : s}
+                {done ? <CheckIcon width={16} height={16} className="w-4 h-4" /> : s}
               </div>
               <span className={`text-xs mt-1 font-medium hidden sm:block whitespace-nowrap ${active ? 'text-gold-400' : done ? 'text-neutral-400' : 'text-neutral-600'}`}>{label}</span>
             </div>
@@ -296,7 +297,7 @@ export default function BookPage() {
                   ['Date & Time', `${preferredDate} at ${preferredTime}`],
                   ['Consultation', consultationType.replace('_', ' ')],
                   ...(location ? [['Location', location]] : []),
-                  ...(urgency === 'urgent' ? [['Priority', '⚡ Urgent']] : []),
+                  ...(urgency === 'urgent' ? [['Priority', 'Urgent']] : []),
                 ] as [string, string][]
               ).map(([k, v]) => (
                 <div key={k} className="flex justify-between">
@@ -334,9 +335,10 @@ export default function BookPage() {
               <div>
                 <label className="text-xs uppercase tracking-wide text-neutral-400 font-semibold block mb-2">Payment Method *</label>
                 <div className="space-y-2">
-                  {PAYMENT_METHODS.map(pm => (
+                  {PAYMENT_METHODS.map((pm, i) => (
                     <button key={pm.value} type="button" onClick={() => setPaymentMethod(pm.value)}
-                      className={`w-full flex items-center justify-between p-3 rounded-lg border text-sm ${paymentMethod === pm.value ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-neutral-700/40 text-neutral-400 hover:border-neutral-500'}`}>
+                      className={`stagger-child w-full flex items-center justify-between p-3 rounded-lg border text-sm ${paymentMethod === pm.value ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-neutral-700/40 text-neutral-400 hover:border-neutral-500'}`}
+                      style={{ '--i': i } as React.CSSProperties}>
                       <span className="font-medium">{pm.label}</span>
                       <span className="text-xs opacity-70">{pm.detail}</span>
                     </button>
@@ -384,7 +386,7 @@ export default function BookPage() {
       {step === 4 && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-900/10 p-8 text-center space-y-5">
           <div className="h-16 w-16 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto">
-            <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
+            <CheckIcon width={32} height={32} className="w-8 h-8 text-emerald-400" />
           </div>
           <div>
             <h2 className="font-display text-display-xs text-neutral-50 mb-2">Booking Request Submitted</h2>
@@ -398,7 +400,7 @@ export default function BookPage() {
           <div className="text-left space-y-2">
             <p className="text-neutral-400 text-xs font-semibold uppercase tracking-wide">What happens next</p>
             {[`${targetName} reviews and responds within 48 hours.`, 'You get an email + in-app notification on acceptance or decline.', hasFee ? 'If declined: booking fee refunded in 3–5 business days.' : 'If accepted: the lawyer will contact you to discuss fees and confirm details.'].map((t, i) => (
-              <div key={i} className="flex gap-3 text-sm">
+              <div key={i} className="stagger-child flex gap-3 text-sm" style={{ '--i': i } as React.CSSProperties}>
                 <span className="h-5 w-5 rounded-full bg-gold-500/20 text-gold-400 text-xs flex items-center justify-center flex-shrink-0 font-bold">{i + 1}</span>
                 <span className="text-neutral-400">{t}</span>
               </div>
@@ -415,13 +417,13 @@ export default function BookPage() {
         <div className="flex items-center justify-between">
           {step > 1 ? (
             <button onClick={() => setStep(prev => (prev - 1) as Step)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-neutral-600/40 text-neutral-400 text-sm hover:border-neutral-500 hover:text-neutral-200 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg> Back
+              <CollapseIcon width={16} height={16} className="w-4 h-4" /> Back
             </button>
           ) : (
             <button onClick={() => router.back()} className="px-4 py-2.5 rounded-lg border border-neutral-600/40 text-neutral-400 text-sm hover:border-neutral-500 hover:text-neutral-200 transition-colors">Cancel</button>
           )}
           <button onClick={next} disabled={submitting} className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-gold-500 hover:bg-gold-400 text-black font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            {submitting ? <><span className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full" /> Submitting…</> : step === 3 ? 'Submit Booking Request' : <>Next <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg></>}
+            {submitting ? <><span className="animate-spin h-4 w-4 border-2 border-black border-t-transparent rounded-full" /> Submitting…</> : step === 3 ? 'Submit Booking Request' : <>Next <ExpandIcon width={16} height={16} className="w-4 h-4" /></>}
           </button>
         </div>
       )}

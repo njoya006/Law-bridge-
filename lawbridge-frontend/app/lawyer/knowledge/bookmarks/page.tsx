@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { EmptyState } from '../../../../components/ui/EmptyState'
+import { BookmarkIcon } from '../../../../components/icons/Icons'
 
 const BOOKMARKS_KEY = 'lawbridge_article_bookmarks'
 
@@ -43,21 +45,18 @@ export default function BookmarksPage() {
       </header>
 
       {bookmarks.length === 0 && (
-        <div className="rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-700/40 text-3xl">🔖</div>
-          <h3 className="font-semibold text-neutral-200">No bookmarks yet</h3>
-          <p className="mt-1.5 text-sm text-neutral-500">Save articles from the library to access them quickly.</p>
-          <Link href="/library"
-            className="mt-5 inline-flex items-center gap-2 rounded-xl border border-gold-500/30 bg-gold-500/10 px-5 py-2.5 text-sm font-semibold text-gold-400 hover:bg-gold-500/20 transition-colors">
-            Browse Library →
-          </Link>
-        </div>
+        <EmptyState
+          icon={<BookmarkIcon width={24} height={24} />}
+          title="No bookmarks yet"
+          body="Save articles from the library to access them quickly."
+          action={{ label: 'Browse Library →', href: '/library' }}
+        />
       )}
 
       {bookmarks.length > 0 && (
         <div className="space-y-3">
-          {bookmarks.map(b => (
-            <div key={b.id} className="flex items-start gap-4 rounded-2xl border border-white/8 bg-primary-800/20 p-5 hover:border-white/12 transition-colors">
+          {bookmarks.map((b, i) => (
+            <div key={b.id} className="flex items-start gap-4 rounded-2xl border border-white/8 bg-primary-800/20 p-5 hover:border-white/12 transition-colors stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-neutral-100">{b.title}</p>
                 {b.author && <p className="text-xs text-neutral-500 mt-0.5">{b.author}</p>}

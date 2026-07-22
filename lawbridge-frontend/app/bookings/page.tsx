@@ -4,19 +4,23 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getMyCases, type CaseItem } from '../../lib/casesApi'
+import { Badge } from '../../components/ui/Badge'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { SkeletonCard } from '../../components/ui/Skeleton'
+import { CalendarIcon, ExpandIcon, AlertTriangleIcon } from '../../components/icons/Icons'
 
 function formatDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) }
   catch { return iso }
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  pending:  { label: 'Awaiting response', color: 'text-amber-400',  bg: 'bg-amber-500/10',  border: 'border-amber-500/30' },
-  accepted: { label: 'Accepted',          color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-  declined: { label: 'Declined',          color: 'text-crimson-400', bg: 'bg-crimson-500/10', border: 'border-crimson-500/30' },
+const STATUS_CONFIG: Record<string, { label: string; bg: string; border: string; variant: 'warning' | 'success' | 'danger' }> = {
+  pending:  { label: 'Awaiting response', bg: 'bg-amber-500/10',  border: 'border-amber-500/30', variant: 'warning' },
+  accepted: { label: 'Accepted',          bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', variant: 'success' },
+  declined: { label: 'Declined',          bg: 'bg-crimson-500/10', border: 'border-crimson-500/30', variant: 'danger' },
 }
 
-function BookingRow({ booking }: { booking: CaseItem }) {
+function BookingRow({ booking, i }: { booking: CaseItem; i: number }) {
   const meta = booking.booking_metadata ?? {}
   const status = booking.booking_status || 'pending'
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending
@@ -24,14 +28,15 @@ function BookingRow({ booking }: { booking: CaseItem }) {
 
   return (
     <Link href={`/bookings/${booking.id}`}
-      className={`block rounded-xl border ${cfg.border} ${cfg.bg} p-5 hover:brightness-110 transition-all`}>
+      className={`stagger-child block rounded-xl border ${cfg.border} ${cfg.bg} p-5 hover:brightness-110 transition-all`}
+      style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
       <div className="flex items-start gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1">
             <p className="font-heading text-body-sm text-neutral-100">{booking.title}</p>
-            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${cfg.bg} ${cfg.color} ${cfg.border}`}>{cfg.label}</span>
+            <Badge variant={cfg.variant}>{cfg.label}</Badge>
             {booking.booking_metadata?.urgency === 'urgent' && (
-              <span className="text-xs px-2 py-0.5 rounded-full border border-crimson-500/30 bg-crimson-500/10 text-crimson-300 font-medium">⚡ Urgent</span>
+              <Badge variant="danger"><AlertTriangleIcon width={12} height={12} />Urgent</Badge>
             )}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-neutral-500 mt-1">
@@ -42,9 +47,7 @@ function BookingRow({ booking }: { booking: CaseItem }) {
           </div>
           <p className="text-neutral-600 text-xs mt-1">Submitted {formatDate(booking.created_at)}</p>
         </div>
-        <svg className="w-4 h-4 text-neutral-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-        </svg>
+        <ExpandIcon width={16} height={16} className="w-4 h-4 text-neutral-600 flex-shrink-0 mt-1" />
       </div>
     </Link>
   )
@@ -130,22 +133,17 @@ export default function BookingsPage() {
 
       {loading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-24 rounded-xl skeleton" />)}
+          {[1, 2, 3].map(i => <SkeletonCard key={i} lines={2} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-10 text-center space-y-3">
-          <p className="text-neutral-400 text-sm">
-            {activeTab === 'all' ? "You haven't submitted any booking requests yet." : `No ${activeTab} bookings.`}
-          </p>
-          {activeTab === 'all' && (
-            <Link href="/discover" className="inline-block px-4 py-2 rounded-lg bg-gold-500 hover:bg-gold-400 text-black font-semibold text-sm transition-colors">
-              Find a Lawyer or Firm
-            </Link>
-          )}
-        </div>
+        <EmptyState
+          icon={<CalendarIcon width={24} height={24} />}
+          title={activeTab === 'all' ? "You haven't submitted any booking requests yet." : `No ${activeTab} bookings.`}
+          action={activeTab === 'all' ? { label: 'Find a Lawyer or Firm', href: '/discover' } : undefined}
+        />
       ) : (
         <div className="space-y-3">
-          {filtered.map(b => <BookingRow key={b.id} booking={b} />)}
+          {filtered.map((b, i) => <BookingRow key={b.id} booking={b} i={i} />)}
         </div>
       )}
     </div>

@@ -5,6 +5,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getMyCases, type CaseItem } from '../../lib/casesApi'
 import { getCaseProgress } from '../../lib/monitoringApi'
+import { EmptyState as SharedEmptyState } from '../../components/ui/EmptyState'
+import { SkeletonCard } from '../../components/ui/Skeleton'
+import { ClockIcon, ExpandIcon, LawIcon } from '../../components/icons/Icons'
 
 function BotIcon() {
   return (
@@ -32,7 +35,7 @@ const STATUS_CONFIG: Record<string, {
   in_review: { label: 'In Review', dot: 'bg-blue-400',    badge: 'bg-blue-500/10 border-blue-500/30 text-blue-300',       bar: 'bg-blue-400',    border: 'border-l-blue-400/60' },
   closed:    { label: 'Closed',    dot: 'bg-neutral-500', badge: 'bg-neutral-700/30 border-neutral-600/30 text-neutral-400', bar: 'bg-neutral-500', border: 'border-l-neutral-500/40' },
   resolved:  { label: 'Resolved',  dot: 'bg-emerald-400', badge: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300', bar: 'bg-emerald-400', border: 'border-l-emerald-400/60' },
-  declined:  { label: 'Declined',  dot: 'bg-red-400',     badge: 'bg-red-500/10 border-red-500/30 text-red-300',          bar: 'bg-red-400',     border: 'border-l-red-400/60' },
+  declined:  { label: 'Declined',  dot: 'bg-crimson-400', badge: 'bg-crimson-500/10 border-crimson-500/30 text-crimson-300', bar: 'bg-crimson-400', border: 'border-l-crimson-400/60' },
 }
 
 function statusCfg(s: string) {
@@ -161,9 +164,7 @@ function MatterCard({ item, monitoring, monitoringUpdatedAt }: {
             </div>
           ) : lastTimeline ? (
             <div className="flex items-center gap-2 rounded-xl bg-primary-900/40 border border-neutral-700/20 px-3 py-2.5">
-              <svg className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
+              <ClockIcon width={14} height={14} className="w-3.5 h-3.5 text-neutral-500 flex-shrink-0" />
               <p className="text-xs text-neutral-400 truncate flex-1">{lastTimeline.notes || lastTimeline.status}</p>
               <span className="text-[10px] text-neutral-500 flex-shrink-0">{timeAgo(lastTimeline.timestamp)}</span>
             </div>
@@ -182,37 +183,10 @@ function MatterCard({ item, monitoring, monitoringUpdatedAt }: {
           </Link>
           <span className="flex items-center gap-1 text-xs text-neutral-500 group-hover:text-gold-400 transition-colors">
             View
-            <svg className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-150" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/>
-            </svg>
+            <ExpandIcon width={14} height={14} className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-150" />
           </span>
         </div>
       </div>
-    </div>
-  )
-}
-
-// ── Empty state ───────────────────────────────────────────────────────────────
-
-function EmptyState() {
-  return (
-    <div className="col-span-full flex flex-col items-center justify-center py-20 text-center">
-      <div className="h-16 w-16 rounded-2xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center mb-4">
-        <svg className="w-8 h-8 text-gold-400/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 6l9-3 9 3M3 6v14l9 3 9-3V6M12 3v17"/>
-        </svg>
-      </div>
-      <h3 className="font-display text-display-xs text-neutral-300 mb-2">No matters yet</h3>
-      <p className="text-neutral-500 text-sm max-w-xs">When you open a case or book a consultation, your matters will appear here.</p>
-      <Link
-        href="/discover"
-        className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gold-500/10 border border-gold-500/30 text-gold-400 text-sm hover:bg-gold-500/20 transition-colors"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-        </svg>
-        Find a Lawyer
-      </Link>
     </div>
   )
 }
@@ -274,7 +248,7 @@ export default function CasesPage() {
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
         <div>
-          <p className="text-[10px] text-gold-400/70 uppercase tracking-[0.2em] font-semibold mb-0.5">Client Portal</p>
+          <p className="text-[10px] text-portal uppercase tracking-[0.2em] font-semibold mb-0.5">Client Portal</p>
           <h1 className="font-display text-display-md text-neutral-50">My Matters</h1>
           <p className="mt-1 text-sm text-neutral-400">Track your active legal proceedings and case history.</p>
         </div>
@@ -296,7 +270,7 @@ export default function CasesPage() {
 
       {/* Error / session banners */}
       {error && !sessionExpired && (
-        <div className="rounded-xl border border-red-500/30 bg-red-900/10 px-4 py-3 text-red-300 text-sm">{error}</div>
+        <div className="rounded-xl border border-crimson-500/30 bg-crimson-900/10 px-4 py-3 text-crimson-300 text-sm">{error}</div>
       )}
       {sessionExpired && (
         <div className="rounded-xl border border-gold-500/30 bg-gold-500/10 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -311,7 +285,7 @@ export default function CasesPage() {
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="rounded-2xl h-64 skeleton" />
+            <SkeletonCard key={i} lines={3} />
           ))}
         </div>
       )}
@@ -319,14 +293,24 @@ export default function CasesPage() {
       {/* Cards */}
       {!loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {items.length === 0 && !error && <EmptyState />}
-          {items.map(item => (
-            <MatterCard
-              key={item.id}
-              item={item}
-              monitoring={monitoringMap[item.id]}
-              monitoringUpdatedAt={monitoringUpdatedAt[item.id]}
-            />
+          {items.length === 0 && !error && (
+            <div className="col-span-full">
+              <SharedEmptyState
+                icon={<LawIcon width={24} height={24} />}
+                title="No matters yet"
+                body="When you open a case or book a consultation, your matters will appear here."
+                action={{ label: 'Find a Lawyer', href: '/discover' }}
+              />
+            </div>
+          )}
+          {items.map((item, i) => (
+            <div key={item.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+              <MatterCard
+                item={item}
+                monitoring={monitoringMap[item.id]}
+                monitoringUpdatedAt={monitoringUpdatedAt[item.id]}
+              />
+            </div>
           ))}
         </div>
       )}

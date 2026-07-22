@@ -2,17 +2,23 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { listNotifications, markNotificationRead, markAllNotificationsRead, type NotificationItem } from '../../lib/notificationsApi'
+import { SkeletonCard } from '../../components/ui/Skeleton'
+import { EmptyState } from '../../components/ui/EmptyState'
+import {
+  ClipboardIcon, BalanceIcon, PencilIcon, CheckCircleIcon, XCircleIcon,
+  CalendarIcon, CheckIcon, AlertTriangleIcon, StarIcon, BellIcon,
+} from '../../components/icons/Icons'
 
-const TYPE_ICONS: Record<string, string> = {
-  case_created: '📋',
-  case_assigned: '⚖️',
-  case_updated: '📝',
-  case_closed: '✅',
-  case_rejected: '❌',
-  booking_received: '📅',
-  verification_approved: '✓',
-  verification_rejected: '⚠️',
-  review_received: '⭐',
+const TYPE_ICONS: Record<string, React.ComponentType<{ width?: number; height?: number; className?: string }>> = {
+  case_created: ClipboardIcon,
+  case_assigned: BalanceIcon,
+  case_updated: PencilIcon,
+  case_closed: CheckCircleIcon,
+  case_rejected: XCircleIcon,
+  booking_received: CalendarIcon,
+  verification_approved: CheckIcon,
+  verification_rejected: AlertTriangleIcon,
+  review_received: StarIcon,
 }
 
 function timeAgo(iso: string) {
@@ -100,7 +106,7 @@ export default function NotificationsPage() {
         </div>
 
         {error && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="rounded-xl border border-crimson-500/30 bg-crimson-500/10 px-4 py-3 text-sm text-crimson-300">
             {error}
           </div>
         )}
@@ -108,36 +114,36 @@ export default function NotificationsPage() {
         {loading ? (
           <div className="space-y-3">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="rounded-xl border border-white/10 bg-white/5 p-4 animate-pulse space-y-2">
-                <div className="h-4 bg-white/10 rounded w-3/4" />
-                <div className="h-3 bg-white/5 rounded w-1/2" />
-              </div>
+              <SkeletonCard key={i} lines={1} />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="text-center py-20 text-neutral-500">
-            <p className="text-4xl mb-3">🔔</p>
-            <p className="font-semibold text-neutral-400">No notifications yet</p>
-            <p className="text-sm mt-1">Updates about your cases and bookings will appear here.</p>
-          </div>
+          <EmptyState
+            icon={<BellIcon width={24} height={24} />}
+            title="No notifications yet"
+            body="Updates about your cases and bookings will appear here."
+          />
         ) : (
           <div className="space-y-8">
             {Object.entries(grouped).map(([day, dayItems]) => (
               <div key={day}>
                 <p className="text-xs text-neutral-500 font-semibold uppercase tracking-widest mb-3">{day}</p>
                 <div className="space-y-2">
-                  {dayItems.map(n => (
+                  {dayItems.map((n, i) => {
+                    const TypeIcon = TYPE_ICONS[n.notification_type] ?? BellIcon
+                    return (
                     <button
                       key={n.id}
                       onClick={() => !n.is_read && handleMarkRead(n.id)}
-                      className={`w-full text-left rounded-xl border p-4 transition-all ${
+                      className={`stagger-child w-full text-left rounded-xl border p-4 transition-all ${
                         n.is_read
                           ? 'border-white/5 bg-white/3 opacity-60'
                           : 'border-white/10 bg-white/5 hover:border-gold-400/20 hover:bg-white/8'
                       }`}
+                      style={{ '--i': Math.min(i, 8) } as React.CSSProperties}
                     >
                       <div className="flex items-start gap-3">
-                        <span className="text-xl flex-shrink-0 mt-0.5">{TYPE_ICONS[n.notification_type] ?? '🔔'}</span>
+                        <span className="flex-shrink-0 mt-0.5 text-neutral-400"><TypeIcon width={20} height={20} /></span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-0.5">
                             <p className="text-sm font-semibold text-neutral-100 truncate">{n.title}</p>
@@ -148,7 +154,8 @@ export default function NotificationsPage() {
                         </div>
                       </div>
                     </button>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             ))}

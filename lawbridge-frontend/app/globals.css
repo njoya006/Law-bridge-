@@ -523,6 +523,18 @@ html.light-mode a {
    MOTION & POLISH UTILITIES
    ================================================================ */
 
+/* Defined explicitly (not left to Tailwind's config keyframes) so .stagger-child
+   and .page-enter below work regardless of whether any animate-fade-* utility
+   class happens to be used elsewhere in the app. */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 /* Stagger: apply class + style={{ '--i': n }} on each grid child */
 .stagger-child {
   animation: fadeUp 0.4s ease-out both;
@@ -532,6 +544,13 @@ html.light-mode a {
 /* Page entrance for layout content wrappers */
 .page-enter {
   animation: fadeIn 0.35s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-child, .page-enter, .card-lift, .skeleton::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* Stat number — Cormorant Garamond for premium display */

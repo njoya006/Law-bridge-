@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { getInterviewById, saveInterview, syncInterviewsFromApi, Interview, NextStep, generateId } from '../../../../../lib/outreachStore'
+import { Badge } from '../../../../../components/ui/Badge'
+import { PencilIcon, CheckIcon } from '../../../../../components/icons/Icons'
 
 function fmtDate(iso?: string) {
   if (!iso) return '—'
@@ -132,11 +134,7 @@ export default function InterviewDetailPage() {
             </div>
           )}
           <div>
-            <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium capitalize ${
-              iv.status === 'completed' ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400' :
-              iv.status === 'scheduled' ? 'border-amber-500/40 bg-amber-500/10 text-amber-400' :
-              'border-neutral-600/40 bg-neutral-600/10 text-neutral-400'
-            }`}>{iv.status}</span>
+            <Badge variant={iv.status === 'completed' ? 'success' : iv.status === 'scheduled' ? 'warning' : 'neutral'} size="md" className="capitalize">{iv.status}</Badge>
           </div>
         </div>
       </div>
@@ -158,7 +156,7 @@ export default function InterviewDetailPage() {
 
       {/* Edit quick fields */}
       {editing ? (
-        <div className="rounded-2xl border border-gold-500/30 bg-primary-800/30 p-4 space-y-3">
+        <div className="rounded-2xl border border-portal bg-primary-800/30 p-4 space-y-3">
           <h3 className="text-sm font-semibold text-neutral-200">Edit Interview Details</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -185,11 +183,13 @@ export default function InterviewDetailPage() {
           </div>
           <div className="flex gap-2 justify-end">
             <button onClick={() => setEditing(false)} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-            <button onClick={updateFieldsFromForm} className="rounded-xl bg-gold-500 px-4 py-2 text-sm font-semibold text-primary-900 hover:bg-gold-400">Save</button>
+            <button onClick={updateFieldsFromForm} className="rounded-xl bg-portal-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">Save</button>
           </div>
         </div>
       ) : (
-        <button onClick={() => setEditing(true)} className="text-xs text-neutral-500 hover:text-neutral-300">✏ Edit interview details</button>
+        <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-300">
+          <PencilIcon width={12} height={12} /> Edit interview details
+        </button>
       )}
 
       {/* Tabs */}
@@ -199,7 +199,7 @@ export default function InterviewDetailPage() {
             key={t.key}
             onClick={() => setTab(t.key)}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              tab === t.key ? 'border-gold-500 text-gold-400' : 'border-transparent text-neutral-500 hover:text-neutral-200'
+              tab === t.key ? 'border-portal-solid text-portal' : 'border-transparent text-neutral-500 hover:text-neutral-200'
             }`}
           >
             {t.label}
@@ -212,14 +212,14 @@ export default function InterviewDetailPage() {
           <div className="rounded-2xl border border-white/8 bg-primary-800/30 p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-neutral-200">Meeting Summary</h3>
-              {!editingSummary && <button onClick={() => setEditingSummary(true)} className="text-xs text-gold-400 hover:text-gold-300">Edit</button>}
+              {!editingSummary && <button onClick={() => setEditingSummary(true)} className="text-xs text-portal hover:opacity-80">Edit</button>}
             </div>
             {editingSummary ? (
               <div className="space-y-3">
                 <textarea className="field w-full resize-none" rows={6} value={summaryVal} onChange={e => setSummaryVal(e.target.value)} placeholder="Describe what was discussed in this meeting…" />
                 <div className="flex gap-2 justify-end">
                   <button onClick={() => setEditingSummary(false)} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-                  <button onClick={saveSummary} className="rounded-xl bg-gold-500 px-4 py-2 text-sm font-semibold text-primary-900 hover:bg-gold-400">Save</button>
+                  <button onClick={saveSummary} className="rounded-xl bg-portal-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">Save</button>
                 </div>
               </div>
             ) : (
@@ -235,7 +235,7 @@ export default function InterviewDetailPage() {
               <ul className="space-y-2">
                 {iv.takeaways.map((t, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-neutral-300">
-                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-gold-400 flex-shrink-0" />
+                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-portal-accent flex-shrink-0" />
                     {t}
                   </li>
                 ))}
@@ -249,14 +249,14 @@ export default function InterviewDetailPage() {
         <div className="rounded-2xl border border-white/8 bg-primary-800/30 p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-neutral-200">Private Notes</h3>
-            {!editingNotes && <button onClick={() => setEditingNotes(true)} className="text-xs text-gold-400 hover:text-gold-300">Edit</button>}
+            {!editingNotes && <button onClick={() => setEditingNotes(true)} className="text-xs text-portal hover:opacity-80">Edit</button>}
           </div>
           {editingNotes ? (
             <div className="space-y-3">
               <textarea className="field w-full resize-none" rows={8} value={notesVal} onChange={e => setNotesVal(e.target.value)} placeholder="Private notes not included in interview summary…" />
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setEditingNotes(false)} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-                <button onClick={saveNotes} className="rounded-xl bg-gold-500 px-4 py-2 text-sm font-semibold text-primary-900 hover:bg-gold-400">Save</button>
+                <button onClick={saveNotes} className="rounded-xl bg-portal-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">Save</button>
               </div>
             </div>
           ) : (
@@ -276,10 +276,10 @@ export default function InterviewDetailPage() {
             ) : (
               <ul className="space-y-2">
                 {iv.takeaways.map((t, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-gold-400 flex-shrink-0" />
+                  <li key={i} className="flex items-start gap-3 stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-portal-accent flex-shrink-0" />
                     <span className="flex-1 text-sm text-neutral-300">{t}</span>
-                    <button onClick={() => removeTakeaway(i)} className="text-neutral-600 hover:text-red-400 transition-colors flex-shrink-0">
+                    <button onClick={() => removeTakeaway(i)} className="text-neutral-600 hover:text-crimson-400 transition-colors flex-shrink-0">
                       <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                   </li>
@@ -317,7 +317,7 @@ export default function InterviewDetailPage() {
                       onClick={() => toggleStep(step.id)}
                       className={`h-5 w-5 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${step.status === 'done' ? 'bg-emerald-500 border-emerald-500' : 'border-white/20 hover:border-white/40'}`}
                     >
-                      {step.status === 'done' && <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                      {step.status === 'done' && <CheckIcon width={10} height={10} className="text-white" />}
                     </button>
                     <span className={`flex-1 text-sm ${step.status === 'done' ? 'line-through text-neutral-600' : 'text-neutral-300'}`}>{step.text}</span>
                     {step.dueDate && <span className="text-xs text-neutral-500 flex-shrink-0">{step.dueDate}</span>}

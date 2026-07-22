@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card } from '../../../components/ui/Card'
+import { Badge } from '../../../components/ui/Badge'
+import { CheckIcon, XCircleIcon } from '../../../components/icons/Icons'
 import { getIncomingBookings, verifyPayment, type CaseItem } from '../../../lib/casesApi'
 
 type Row = {
@@ -146,9 +148,11 @@ export default function SecretaryPaymentsPage() {
       </div>
 
       {actionError && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300 flex items-center justify-between">
+        <div className="rounded-xl border border-crimson-500/30 bg-crimson-500/10 px-4 py-3 text-sm text-crimson-300 flex items-center justify-between">
           <span>{actionError}</span>
-          <button onClick={() => setActionError('')} className="ml-4 text-red-400 hover:text-red-200 text-xs">✕</button>
+          <button onClick={() => setActionError('')} className="ml-4 text-crimson-400 hover:text-crimson-200 text-xs">
+            <XCircleIcon width={14} height={14} />
+          </button>
         </div>
       )}
 
@@ -160,7 +164,7 @@ export default function SecretaryPaymentsPage() {
             onClick={() => setFilter(f.key)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
               filter === f.key
-                ? 'bg-gold-500/15 border-gold-500/30 text-gold-300'
+                ? 'bg-portal-soft border-portal-solid text-portal'
                 : 'border-neutral-700/40 text-neutral-400 hover:border-neutral-500 hover:text-neutral-200'
             }`}
           >
@@ -171,7 +175,7 @@ export default function SecretaryPaymentsPage() {
 
       {loading && (
         <div className="flex items-center gap-2 text-neutral-400 py-8 justify-center">
-          <span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />
+          <span className="animate-spin h-4 w-4 border-2 border-portal-solid border-t-transparent rounded-full" />
           Loading…
         </div>
       )}
@@ -192,7 +196,7 @@ export default function SecretaryPaymentsPage() {
                 <th className="text-right px-4 py-3 text-xs text-amber-400 font-semibold">Consult Fee</th>
                 <th className="text-right px-4 py-3 text-xs text-amber-400 font-semibold">Procedural Fee</th>
                 <th className="text-right px-4 py-3 text-xs text-emerald-400 font-semibold">Prof. Fee</th>
-                <th className="text-right px-4 py-3 text-xs text-gold-400 font-semibold">Due Now</th>
+                <th className="text-right px-4 py-3 text-xs text-portal font-semibold">Due Now</th>
                 <th className="text-left px-4 py-3 text-xs text-neutral-400 font-semibold">Method</th>
                 <th className="text-left px-4 py-3 text-xs text-neutral-400 font-semibold">Reference</th>
                 <th className="text-left px-4 py-3 text-xs text-neutral-400 font-semibold">Status</th>
@@ -213,17 +217,13 @@ export default function SecretaryPaymentsPage() {
                   <td className="px-4 py-3 text-right text-neutral-300">{row.consultation_fee > 0 ? `${row.consultation_fee.toLocaleString()}` : '—'}</td>
                   <td className="px-4 py-3 text-right text-neutral-300">{row.procedural_fee > 0 ? `${row.procedural_fee.toLocaleString()}` : '—'}</td>
                   <td className="px-4 py-3 text-right text-emerald-400 text-xs italic">{row.professional_fee > 0 ? `${row.professional_fee.toLocaleString()}` : 'TBD'}</td>
-                  <td className="px-4 py-3 text-right text-gold-300 font-bold">{row.total_compulsory > 0 ? `${row.total_compulsory.toLocaleString()} XAF` : '—'}</td>
+                  <td className="px-4 py-3 text-right text-portal font-bold">{row.total_compulsory > 0 ? `${row.total_compulsory.toLocaleString()} XAF` : '—'}</td>
                   <td className="px-4 py-3 text-neutral-400 text-xs">{paymentMethodLabel(row.payment_method)}</td>
                   <td className="px-4 py-3 text-neutral-400 font-mono text-xs">{row.payment_ref || '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium border ${
-                      row.payment_status === 'verified' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' :
-                      row.payment_status === 'pending_verification' ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
-                      'border-neutral-700/30 text-neutral-500'
-                    }`}>
+                    <Badge variant={row.payment_status === 'verified' ? 'success' : row.payment_status === 'pending_verification' ? 'warning' : 'neutral'}>
                       {row.payment_status === 'pending_verification' ? 'Pending' : row.payment_status === 'verified' ? 'Verified' : 'None'}
-                    </span>
+                    </Badge>
                   </td>
                   <td className="px-4 py-3 text-neutral-500 text-xs">{formatDate(row.created_at)}</td>
                   <td className="px-4 py-3">
@@ -233,20 +233,20 @@ export default function SecretaryPaymentsPage() {
                           <button
                             onClick={() => handlePaymentAction(row.id, 'verify')}
                             disabled={actioning !== null}
-                            className="px-2 py-1 rounded-md text-[11px] font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 disabled:opacity-50 transition-colors"
                           >
-                            {actioning === row.id + 'verify' ? '…' : '✓ Verify'}
+                            {actioning === row.id + 'verify' ? '…' : <><CheckIcon width={11} height={11} />Verify</>}
                           </button>
                           <button
                             onClick={() => handlePaymentAction(row.id, 'reject')}
                             disabled={actioning !== null}
-                            className="px-2 py-1 rounded-md text-[11px] font-medium border border-red-500/30 text-red-300 hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border border-crimson-500/30 text-crimson-300 hover:bg-crimson-500/10 disabled:opacity-50 transition-colors"
                           >
-                            {actioning === row.id + 'reject' ? '…' : '✗ Reject'}
+                            {actioning === row.id + 'reject' ? '…' : <><XCircleIcon width={11} height={11} />Reject</>}
                           </button>
                         </>
                       )}
-                      <Link href={`/secretary/bookings/${row.id}`} className="text-xs text-gold-400 hover:text-gold-300 font-medium">View →</Link>
+                      <Link href={`/secretary/bookings/${row.id}`} className="text-xs text-portal hover:opacity-80 font-medium">View →</Link>
                     </div>
                   </td>
                 </tr>

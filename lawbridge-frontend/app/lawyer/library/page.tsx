@@ -1,8 +1,13 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { listMyBooks, listMyArticles, listReviewQueue, publishBook, rejectBook, type BookItem, type BookStatus, type ArticleItem } from '../../../lib/libraryApi'
+import { Badge } from '../../../components/ui/Badge'
+import { SkeletonCard } from '../../../components/ui/Skeleton'
+import {
+  BookmarkIcon, ClipboardIcon, PencilIcon, BookOpenIcon, EyeIcon, ExpandIcon, XCircleIcon, PlusIcon,
+} from '../../../components/icons/Icons'
 
 // ── Reading progress ──────────────────────────────────────────────────────────
 
@@ -80,9 +85,7 @@ function BookmarkButton({ id, title, type, url }: { id: string; title: string; t
           : 'bg-white/4 border-white/8 text-white/30 hover:text-white/60 hover:bg-white/8'
       }`}
     >
-      <svg width="10" height="10" viewBox="0 0 24 24" fill={bookmarked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
-      </svg>
+      <BookmarkIcon width={10} height={10} className={bookmarked ? 'fill-current' : ''} />
       {bookmarked ? 'Saved' : 'Save'}
     </button>
   )
@@ -103,9 +106,7 @@ function CiteButton({ item, type }: { item: BookItem | ArticleItem; type: 'book'
         copied ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/4 border-white/8 text-white/30 hover:text-white/60 hover:bg-white/8'
       }`}
     >
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
-      </svg>
+      <ClipboardIcon width={10} height={10} />
       {copied ? 'Copied!' : 'Cite'}
     </button>
   )
@@ -130,11 +131,9 @@ function BookmarksTab() {
 
   return (
     <div className="space-y-2">
-      {bookmarks.map(b => (
-        <div key={b.id} className="flex items-center gap-3 rounded-xl bg-primary-900/60 border border-white/8 px-5 py-4 hover:border-white/12 transition-all group">
-          <svg className="flex-shrink-0 w-4 h-4 text-gold-400" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/>
-          </svg>
+      {bookmarks.map((b, i) => (
+        <div key={b.id} className="flex items-center gap-3 rounded-xl bg-primary-900/60 border border-white/8 px-5 py-4 hover:border-white/12 transition-all group stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+          <BookmarkIcon className="flex-shrink-0 w-4 h-4 text-gold-400 fill-current" />
           <div className="flex-1 min-w-0">
             <Link href={b.url} className="text-[13px] font-medium text-white/70 hover:text-white transition-colors truncate block">{b.title}</Link>
             <div className="flex items-center gap-2 mt-0.5">
@@ -146,7 +145,7 @@ function BookmarksTab() {
             onClick={() => remove(b.id)}
             className="opacity-0 group-hover:opacity-100 transition-opacity text-white/20 hover:text-crimson-400 p-1"
           >
-            ✕
+            <XCircleIcon width={14} height={14} />
           </button>
         </div>
       ))}
@@ -337,9 +336,7 @@ export default function LawyerLibraryPage() {
                 <Link href="/library" className="text-xs text-white/30 hover:text-white/50 transition-colors">
                   Library
                 </Link>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" className="text-white/20">
-                  <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <ExpandIcon width={12} height={12} className="text-white/20" />
                 <span className="text-xs text-white/50">My Publications</span>
               </div>
               <h1 className="font-display text-xl sm:text-2xl font-bold text-white">My Publications</h1>
@@ -350,18 +347,14 @@ export default function LawyerLibraryPage() {
                 href="/lawyer/library/articles/new"
                 className="inline-flex items-center gap-2 rounded-xl border border-white/12 bg-white/6 px-4 py-2.5 text-sm font-medium text-white/65 hover:bg-white/10 hover:border-white/18 hover:text-white/85 transition-all flex-shrink-0"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 20h9" strokeLinecap="round"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round"/>
-                </svg>
+                <PencilIcon width={13} height={13} />
                 New Article
               </Link>
               <Link
                 href="/lawyer/library/new"
                 className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors flex-shrink-0 shadow-md shadow-gold-500/20"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <BookOpenIcon width={13} height={13} />
                 New Book
               </Link>
             </div>
@@ -416,40 +409,24 @@ export default function LawyerLibraryPage() {
 
             {loading ? (
               <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <div key={i} className="rounded-xl bg-primary-900/60 border border-white/6 p-5 animate-pulse">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="h-4 bg-white/8 rounded w-2/3 mb-2" />
-                        <div className="h-3 bg-white/5 rounded w-1/3" />
-                      </div>
-                      <div className="h-6 bg-white/6 rounded-full w-20" />
-                    </div>
-                  </div>
-                ))}
+                {[...Array(3)].map((_, i) => <SkeletonCard key={i} lines={2} />)}
               </div>
             ) : myBooks.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-white/10 p-12 text-center">
                 <div className="w-12 h-12 rounded-xl bg-gold-500/8 border border-gold-500/15 flex items-center justify-center mx-auto mb-4">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="text-gold-400/50">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
+                  <BookOpenIcon width={22} height={22} className="text-gold-400/50" />
                 </div>
                 <p className="text-[13px] font-medium text-white/40">No publications yet</p>
                 <p className="text-xs text-white/25 mt-1 mb-5">Share your legal expertise with the LawBridge community</p>
                 <Link href="/lawyer/library/new" className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-5 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" strokeLinecap="round"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round"/>
-                  </svg>
+                  <BookOpenIcon width={14} height={14} />
                   Write your first book
                 </Link>
               </div>
             ) : (
               <div className="space-y-3">
-                {myBooks.map(book => (
-                  <div key={book.id} className="group rounded-xl bg-primary-900/60 border border-white/8 p-5 hover:border-white/12 transition-all">
+                {myBooks.map((book, bi) => (
+                  <div key={book.id} className="group rounded-xl bg-primary-900/60 border border-white/8 p-5 hover:border-white/12 transition-all stagger-child" style={{ '--i': Math.min(bi, 8) } as React.CSSProperties}>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-semibold text-white truncate">{book.title}</p>
@@ -473,10 +450,7 @@ export default function LawyerLibraryPage() {
                           href={`/lawyer/library/${book.id}/edit`}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors"
                         >
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" strokeLinecap="round"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round"/>
-                          </svg>
+                          <PencilIcon width={11} height={11} />
                           Edit
                         </Link>
                       )}
@@ -485,10 +459,7 @@ export default function LawyerLibraryPage() {
                           href={`/library/${book.id}`}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/15 transition-colors"
                         >
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                          </svg>
+                          <EyeIcon width={11} height={11} />
                           View
                         </Link>
                       )}
@@ -509,19 +480,13 @@ export default function LawyerLibraryPage() {
               <h2 className="text-sm font-semibold text-white/70">My Articles</h2>
               <Link href="/lawyer/library/articles/new"
                 className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/75 hover:bg-white/8 transition-colors">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M12 5v14M5 12h14" strokeLinecap="round"/>
-                </svg>
+                <PlusIcon width={11} height={11} />
                 New Article
               </Link>
             </div>
             {loading ? (
               <div className="space-y-2">
-                {[...Array(2)].map((_, i) => (
-                  <div key={i} className="rounded-xl bg-primary-900/60 border border-white/6 p-4 animate-pulse">
-                    <div className="h-3 bg-white/8 rounded w-1/2" />
-                  </div>
-                ))}
+                {[...Array(2)].map((_, i) => <SkeletonCard key={i} lines={1} />)}
               </div>
             ) : myArticles.length === 0 ? (
               <div className="rounded-xl border border-dashed border-white/8 p-8 text-center">
@@ -529,16 +494,14 @@ export default function LawyerLibraryPage() {
                 <p className="text-xs text-white/20 mt-1 mb-4">Share short-form legal insights, case summaries, and alerts</p>
                 <Link href="/lawyer/library/articles/new"
                   className="inline-flex items-center gap-2 rounded-xl bg-white/6 border border-white/10 px-5 py-2.5 text-sm font-medium text-white/60 hover:text-white/85 hover:bg-white/10 transition-colors">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 20h9" strokeLinecap="round"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round"/>
-                  </svg>
+                  <PencilIcon width={14} height={14} />
                   Write your first article
                 </Link>
               </div>
             ) : (
               <div className="space-y-2">
-                {myArticles.map(article => (
-                  <div key={article.id} className="group rounded-xl bg-primary-900/60 border border-white/8 px-5 py-4 hover:border-white/12 transition-all flex items-center justify-between gap-4">
+                {myArticles.map((article, ai) => (
+                  <div key={article.id} className="group rounded-xl bg-primary-900/60 border border-white/8 px-5 py-4 hover:border-white/12 transition-all flex items-center justify-between gap-4 stagger-child" style={{ '--i': Math.min(ai, 8) } as React.CSSProperties}>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-semibold text-white truncate">{article.title}</p>
                       <p className="text-xs text-white/35 mt-0.5">
@@ -557,18 +520,13 @@ export default function LawyerLibraryPage() {
                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity flex-wrap">
                       <Link href={`/lawyer/library/articles/${article.id}/edit`}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-white/6 border border-white/8 px-3 py-1.5 text-xs font-medium text-white/50 hover:text-white/70 hover:bg-white/10 transition-colors">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <path d="M12 20h9" strokeLinecap="round"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" strokeLinecap="round"/>
-                        </svg>
+                        <PencilIcon width={11} height={11} />
                         Edit
                       </Link>
                       {article.status === 'published' && (
                         <Link href={`/library/articles/${article.id}`}
                           className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 text-xs font-medium text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/15 transition-colors">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                          </svg>
+                          <EyeIcon width={11} height={11} />
                           Read
                         </Link>
                       )}
@@ -587,9 +545,7 @@ export default function LawyerLibraryPage() {
           <section>
             <div className="flex items-center gap-3 mb-4">
               <h2 className="text-sm font-semibold text-white/70">Review Queue</h2>
-              <span className="rounded-full bg-amber-500/15 border border-amber-500/25 px-2 py-0.5 text-xs font-semibold text-amber-400">
-                {reviewQueue.length}
-              </span>
+              <Badge variant="warning" size="md">{reviewQueue.length}</Badge>
             </div>
             {reviewQueue.length === 0 ? (
               <div className="rounded-xl border border-dashed border-white/8 p-8 text-center">
@@ -597,13 +553,14 @@ export default function LawyerLibraryPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {reviewQueue.map(book => (
-                  <ReviewCard
-                    key={book.id}
-                    book={book}
-                    onApprove={handleApprove}
-                    onReject={handleReject}
-                  />
+                {reviewQueue.map((book, ri) => (
+                  <div key={book.id} className="stagger-child" style={{ '--i': Math.min(ri, 8) } as React.CSSProperties}>
+                    <ReviewCard
+                      book={book}
+                      onApprove={handleApprove}
+                      onReject={handleReject}
+                    />
+                  </div>
                 ))}
               </div>
             )}
@@ -685,13 +642,10 @@ export default function LawyerLibraryPage() {
                   {Object.entries(areaCount)
                     .sort((a, b) => b[1] - a[1])
                     .map(([area, count]) => (
-                      <span
-                        key={area}
-                        className="rounded-full bg-white/5 border border-white/8 px-3 py-1 text-xs text-white/50"
-                      >
+                      <Badge key={area} variant="neutral" size="md">
                         {area}
                         <span className="ml-1.5 text-white/25 font-mono text-[10px]">{count}</span>
-                      </span>
+                      </Badge>
                     ))}
                 </div>
               </div>

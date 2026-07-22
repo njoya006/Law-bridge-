@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../../../lib/api'
 import { toastSuccess, toastError } from '../../../lib/toast'
+import { AlertTriangleIcon } from '../../../components/icons/Icons'
 
 type Tab = 'account' | 'security' | 'system'
 
@@ -13,7 +14,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gold-500/50 ${checked ? 'bg-gold-500' : 'bg-neutral-700'}`}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gold-500/50 ${checked ? 'bg-portal-accent' : 'bg-neutral-700'}`}
     >
       <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
     </button>
@@ -119,7 +120,7 @@ export default function AdminSettingsPage() {
                   onClick={() => setTab(t.id)}
                   className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                     tab === t.id
-                      ? 'bg-gold-500/15 text-gold-400'
+                      ? 'bg-portal-soft text-portal'
                       : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'
                   }`}
                 >
@@ -138,7 +139,7 @@ export default function AdminSettingsPage() {
               <p className="text-xs text-neutral-500 mb-6">Your display name and email address.</p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Full Name <span className="text-red-400">*</span></label>
+                  <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Full Name <span className="text-crimson-400">*</span></label>
                   <input
                     value={name}
                     onChange={e => setName(e.target.value)}
@@ -158,7 +159,7 @@ export default function AdminSettingsPage() {
                 <button
                   onClick={saveAccount}
                   disabled={savingAccount}
-                  className="px-5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 rounded-xl bg-portal-accent hover:opacity-90 text-white text-sm font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {savingAccount ? 'Saving…' : 'Save Profile'}
                 </button>
@@ -178,7 +179,7 @@ export default function AdminSettingsPage() {
                     { key: 'confirm' as const, label: 'Confirm New Password', placeholder: 'Repeat new password' },
                   ].map(({ key, label, placeholder }) => (
                     <div key={key}>
-                      <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">{label} <span className="text-red-400">*</span></label>
+                      <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">{label} <span className="text-crimson-400">*</span></label>
                       <input
                         type="password"
                         value={pw[key]}
@@ -189,7 +190,7 @@ export default function AdminSettingsPage() {
                     </div>
                   ))}
                   {pwError && (
-                    <div className="flex items-start gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+                    <div className="flex items-start gap-2 text-crimson-400 text-sm bg-crimson-500/10 border border-crimson-500/20 rounded-xl px-4 py-3">
                       <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                       {pwError}
                     </div>
@@ -197,7 +198,7 @@ export default function AdminSettingsPage() {
                   <button
                     onClick={changePassword}
                     disabled={savingPw || !pw.current || !pw.next || !pw.confirm}
-                    className="px-5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="px-5 py-2.5 rounded-xl bg-portal-accent hover:opacity-90 text-white text-sm font-semibold transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {savingPw ? 'Changing…' : 'Change Password'}
                   </button>
@@ -214,7 +215,7 @@ export default function AdminSettingsPage() {
                   </div>
                   <div className="flex items-center justify-between py-2 border-b border-white/6">
                     <span className="text-neutral-400">Role</span>
-                    <span className="text-red-400 font-semibold capitalize">
+                    <span className="text-crimson-400 font-semibold capitalize">
                       {localStorage.getItem('userRole') || 'admin'}
                     </span>
                   </div>
@@ -242,14 +243,14 @@ export default function AdminSettingsPage() {
               </Row>
               {systemPrefs.maintenance_mode && (
                 <div className="mt-4 flex items-start gap-2 text-amber-400 text-sm bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
-                  <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <AlertTriangleIcon width={16} height={16} className="flex-shrink-0 mt-0.5" />
                   Maintenance mode is active. Only admin accounts can access the platform.
                 </div>
               )}
               <div className="mt-6">
                 <button
                   onClick={() => toastSuccess('System settings saved.')}
-                  className="px-5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors"
+                  className="px-5 py-2.5 rounded-xl bg-portal-accent hover:opacity-90 text-white text-sm font-semibold transition-opacity"
                 >
                   Save Settings
                 </button>

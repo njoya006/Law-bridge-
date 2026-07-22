@@ -11,16 +11,11 @@ import {
   type ChatMessage,
   type ChatSession,
 } from '../../lib/aiApi'
+import { SendIcon as SendIconBase, PlusIcon as PlusIconBase, DocumentIcon } from '../../components/icons/Icons'
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
-function SendIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" />
-    </svg>
-  )
-}
+function SendIcon() { return <SendIconBase width={16} height={16} className="h-4 w-4" /> }
 
 function TrashIcon() {
   return (
@@ -30,13 +25,7 @@ function TrashIcon() {
   )
 }
 
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
-    </svg>
-  )
-}
+function PlusIcon() { return <PlusIconBase width={16} height={16} className="h-4 w-4" /> }
 
 function BotIcon() {
   return (
@@ -125,9 +114,7 @@ function MessageBubble({ msg, isStreaming }: { msg: ChatMessage; isStreaming?: b
 function CaseBanner({ caseTitle, caseId }: { caseTitle: string; caseId: string }) {
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gold-500/30 bg-gold-500/10 text-xs text-gold-300 max-w-full">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} className="h-3.5 w-3.5 flex-shrink-0">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-      </svg>
+      <DocumentIcon width={14} height={14} className="h-3.5 w-3.5 flex-shrink-0" />
       <span className="font-medium truncate">Case context: {caseTitle || caseId}</span>
     </div>
   )
@@ -163,13 +150,14 @@ function EmptyState({ onPrompt, caseTitle }: { onPrompt: (text: string) => void;
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
-        {caseSuggestions.map(s => (
+        {caseSuggestions.map((s, i) => (
           <button
             key={s}
             onClick={() => onPrompt(s)}
-            className="text-left px-4 py-3 rounded-xl border border-neutral-700/50 bg-primary-800/30
+            className="stagger-child text-left px-4 py-3 rounded-xl border border-neutral-700/50 bg-primary-800/30
                        text-sm text-neutral-300 hover:border-gold-400/40 hover:bg-primary-700/40
                        transition-all duration-150"
+            style={{ '--i': i } as React.CSSProperties}
           >
             {s}
           </button>
@@ -329,13 +317,14 @@ function ChatPageInner() {
           {sessions.length === 0 && (
             <p className="text-xs text-neutral-500 text-center py-8 px-4">No conversations yet.</p>
           )}
-          {sessions.map(s => (
+          {sessions.map((s, i) => (
             <button
               key={s.id}
               onClick={() => void openSession(s.id)}
-              className={`w-full text-left px-3 py-2.5 group flex items-start gap-2 transition-colors
+              className={`stagger-child w-full text-left px-3 py-2.5 group flex items-start gap-2 transition-colors
                           hover:bg-primary-700/30
                           ${activeSessionId === s.id ? 'bg-primary-700/50 border-r-2 border-gold-400' : ''}`}
+              style={{ '--i': Math.min(i, 8) } as React.CSSProperties}
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-neutral-200 truncate">{s.title || 'Untitled'}</p>

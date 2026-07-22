@@ -7,7 +7,8 @@ import { getIncomingBookings, acceptBooking, declineBooking, type CaseItem } fro
 import { listReportRequests, updateReportRequestStatus, REPORT_TYPE_LABELS, PERIOD_LABELS, type ReportRequest } from '../../../lib/reportRequestsApi'
 import { getMyFirmMemberships, getFirmLawyers, type FirmLawyer } from '../../../lib/firmsApi'
 import { getCaseRisks, type CaseRiskResponse } from '../../../lib/monitoringApi'
-import { ChartBarIcon, UsersIcon } from '../../../components/icons/Icons'
+import { ChartBarIcon, UsersIcon, AlertTriangleIcon, CheckIcon, XCircleIcon, ClipboardIcon, CheckCircleIcon } from '../../../components/icons/Icons'
+import { Badge } from '../../../components/ui/Badge'
 import SmartAssignmentPanel from '../../../components/SmartAssignmentPanel'
 
 function CaseRiskWidget({ token }: { token: string }) {
@@ -26,9 +27,9 @@ function CaseRiskWidget({ token }: { token: string }) {
           <p className="text-xs text-neutral-500 mt-0.5">AI-powered early warning for at-risk matters</p>
         </div>
         <div className="flex gap-2">
-          {counts.critical > 0 && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-red-500/15 text-red-400 border border-red-500/30">{counts.critical} Critical</span>}
-          {counts.watch > 0 && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-gold-500/15 text-gold-400 border border-gold-500/30">{counts.watch} Watch</span>}
-          {counts.healthy > 0 && <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">{counts.healthy} Healthy</span>}
+          {counts.critical > 0 && <Badge variant="danger" size="md">{counts.critical} Critical</Badge>}
+          {counts.watch > 0 && <Badge variant="warning" size="md">{counts.watch} Watch</Badge>}
+          {counts.healthy > 0 && <Badge variant="success" size="md">{counts.healthy} Healthy</Badge>}
         </div>
       </div>
       {topCases.length === 0 ? (
@@ -36,8 +37,8 @@ function CaseRiskWidget({ token }: { token: string }) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {topCases.map(c => {
-            const barColor = c.risk_level === 'critical' ? 'bg-red-500' : 'bg-gold-400'
-            const textColor = c.risk_level === 'critical' ? 'text-red-400' : 'text-gold-400'
+            const barColor = c.risk_level === 'critical' ? 'bg-crimson-500' : 'bg-amber-400'
+            const textColor = c.risk_level === 'critical' ? 'text-crimson-400' : 'text-amber-400'
             return (
               <Link key={c.case_id} href={`/cases/${c.case_id}`} className="flex items-center gap-3 p-3 rounded-lg bg-neutral-800/40 hover:bg-neutral-800/70 transition-colors group">
                 <div className="flex-shrink-0 w-10 text-center">
@@ -45,7 +46,7 @@ function CaseRiskWidget({ token }: { token: string }) {
                   <div className={`h-1 rounded-full ${barColor} mt-1`} style={{ width: `${c.risk_score}%`, minWidth: '4px' }} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-neutral-100 truncate group-hover:text-gold-300">{c.title}</div>
+                  <div className="text-sm font-medium text-neutral-100 truncate group-hover:text-portal">{c.title}</div>
                   <div className="flex flex-wrap gap-1 mt-0.5">
                     {c.risk_factors.slice(0, 2).map(f => (
                       <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-700/60 text-neutral-400">{f}</span>
@@ -77,7 +78,7 @@ function payStatusCls(s: string) {
 function bookStatusCls(s: string) {
   if (s === 'accepted') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
   if (s === 'pending') return 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-  if (s === 'declined') return 'bg-red-500/10 text-red-400 border-red-500/30'
+  if (s === 'declined') return 'bg-crimson-500/10 text-crimson-400 border-crimson-500/30'
   return 'bg-neutral-800/30 text-neutral-500 border-neutral-700/30'
 }
 function reportStatusCls(s: string) {
@@ -194,22 +195,22 @@ export default function SecretaryDashboardPage() {
           <p className="mt-1 text-sm text-neutral-400">{firmId ? `Firm #${firmId} · ` : ''}Bookings, payments &amp; reports</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Link href="/secretary/reports" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gold-500/20 border border-gold-500/30 text-gold-300 text-sm font-medium hover:bg-gold-500/30 transition-colors">
-            <ChartBarIcon className="w-4 h-4" width={16} height={16} />Generate Reports
+          <Link href="/secretary/reports" className="flex items-center gap-2 px-3 py-2 rounded-lg bg-portal-soft border border-portal text-portal text-sm font-medium hover:opacity-90 transition-colors">
+            <ChartBarIcon width={16} height={16} />Generate Reports
           </Link>
           <Link href="/secretary/members" className="flex items-center gap-2 px-3 py-2 rounded-lg border border-neutral-700 text-neutral-300 hover:text-neutral-100 text-sm transition-colors">
-            <UsersIcon className="w-4 h-4" width={16} height={16} />Members
+            <UsersIcon width={16} height={16} />Members
           </Link>
         </div>
       </header>
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 text-neutral-400 py-16">
-          <span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />Loading…
+          <span className="animate-spin h-4 w-4 border-2 border-portal-solid border-t-transparent rounded-full" />Loading…
         </div>
       ) : (
         <>
-          {error && <Card className="border border-red-500/30 p-4"><p className="text-red-300 text-sm">{error}</p></Card>}
+          {error && <Card className="border border-crimson-500/30 p-4"><p className="text-crimson-300 text-sm">{error}</p></Card>}
 
           {/* Stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -228,19 +229,19 @@ export default function SecretaryDashboardPage() {
               <p className="text-sm text-neutral-300 mt-0.5 font-medium">Verified Revenue</p>
               <p className="text-xs text-neutral-500 mt-0.5">Consultation + procedural</p>
             </div>
-            <div className={`bg-primary-900/50 border rounded-xl p-4 ${pendingReports.length > 0 ? 'border-gold-500/30' : 'border-neutral-700/40'}`}>
-              <p className={`text-3xl font-bold ${pendingReports.length > 0 ? 'text-gold-400' : 'text-neutral-300'}`}>{reportRequests.length}</p>
+            <div className={`bg-primary-900/50 border rounded-xl p-4 ${pendingReports.length > 0 ? 'border-portal/40' : 'border-neutral-700/40'}`}>
+              <p className={`text-3xl font-bold ${pendingReports.length > 0 ? 'text-portal' : 'text-neutral-300'}`}>{reportRequests.length}</p>
               <p className="text-sm text-neutral-300 mt-0.5 font-medium">Report Requests</p>
               <p className="text-xs text-neutral-500 mt-0.5">{pendingReports.length} pending action</p>
             </div>
           </div>
 
           {unassignedPending.length > 0 && (
-            <div className="rounded-xl border border-gold-500/30 bg-gold-500/5 p-4">
+            <div className="rounded-xl border border-portal bg-portal-soft p-4">
               <div className="flex items-center gap-2">
-                <span className="text-gold-400">⚡</span>
-                <h3 className="text-sm font-semibold text-gold-300">Unassigned Firm Bookings</h3>
-                <span className="ml-auto text-xs bg-gold-500/20 text-gold-400 px-2 py-0.5 rounded-full">{unassignedPending.length}</span>
+                <AlertTriangleIcon width={16} height={16} className="text-portal" />
+                <h3 className="text-sm font-semibold text-portal">Unassigned Firm Bookings</h3>
+                <span className="ml-auto"><Badge variant="portal">{unassignedPending.length}</Badge></span>
               </div>
               <p className="text-xs text-neutral-400 mt-1">These cases were booked to your firm but haven't been assigned to a lawyer yet.</p>
             </div>
@@ -250,7 +251,7 @@ export default function SecretaryDashboardPage() {
           <div className="flex gap-1 p-0.5 bg-neutral-800/60 rounded-lg w-fit flex-wrap">
             {tabs.map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`px-4 py-1.5 text-sm rounded-md transition-colors ${activeTab === t.id ? 'bg-gold-500/20 text-gold-300' : 'text-neutral-400 hover:text-neutral-200'}`}>
+                className={`px-4 py-1.5 text-sm rounded-md transition-colors ${activeTab === t.id ? 'bg-portal-soft text-portal' : 'text-neutral-400 hover:text-neutral-200'}`}>
                 {t.label}
               </button>
             ))}
@@ -264,19 +265,19 @@ export default function SecretaryDashboardPage() {
                 <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">Recent Bookings</h3>
                 {bookings.length === 0 ? <Card className="p-4 text-center"><p className="text-neutral-500 text-sm">No bookings yet.</p></Card> : (
                   <>
-                    {bookings.slice(0, 5).map(b => (
-                      <div key={b.id} className="flex items-center gap-3 p-3 rounded-xl border border-neutral-700/40 bg-primary-900/20">
+                    {bookings.slice(0, 5).map((b, i) => (
+                      <div key={b.id} className="stagger-child flex items-center gap-3 p-3 rounded-xl border border-neutral-700/40 bg-primary-900/20" style={{ '--i': i } as React.CSSProperties}>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-neutral-100 truncate">{b.title}</p>
                           <p className="text-xs text-neutral-500 mt-0.5">{b.booking_metadata?.client_email || 'Client'} · {fmtDate(b.created_at)}</p>
                         </div>
                         <span className={`text-[11px] px-1.5 py-0.5 rounded-full border ${bookStatusCls(b.booking_status || '')}`}>{b.booking_status || 'new'}</span>
                         {!b.assigned_lawyer_id && b.booking_status === 'pending' && (
-                          <button onClick={() => setAssignTarget(b)} className="text-xs text-gold-400 hover:text-gold-300 font-medium flex-shrink-0">Assign →</button>
+                          <button onClick={() => setAssignTarget(b)} className="text-xs text-portal hover:opacity-80 font-medium flex-shrink-0">Assign →</button>
                         )}
                       </div>
                     ))}
-                    {bookings.length > 5 && <button onClick={() => setActiveTab('bookings')} className="text-xs text-gold-300 hover:text-gold-200">View all {bookings.length} →</button>}
+                    {bookings.length > 5 && <button onClick={() => setActiveTab('bookings')} className="text-xs text-portal hover:opacity-80">View all {bookings.length} →</button>}
                   </>
                 )}
               </div>
@@ -296,7 +297,7 @@ export default function SecretaryDashboardPage() {
                         </span>
                       </div>
                     ))}
-                    <Link href="/secretary/members" className="block text-xs text-gold-300 hover:text-gold-200 text-center mt-1">Manage members →</Link>
+                    <Link href="/secretary/members" className="block text-xs text-portal hover:opacity-80 text-center mt-1">Manage members →</Link>
                   </>
                 )}
               </div>
@@ -307,17 +308,17 @@ export default function SecretaryDashboardPage() {
           {activeTab === 'bookings' && (
             <div className="space-y-3">
               {bookings.length === 0 ? <Card className="p-8 text-center"><p className="text-neutral-400 text-sm">No bookings yet.</p></Card> : (
-                bookings.map(b => {
+                bookings.map((b, i) => {
                   const meta = b.booking_metadata ?? {}
                   const assignedLawyer = firmLawyers.find(l => l.id === b.assigned_lawyer_id)
                   return (
-                    <div key={b.id} className={`rounded-xl border p-4 ${b.booking_status === 'pending' && !b.assigned_lawyer_id ? 'border-gold-500/20 bg-gold-500/5' : 'border-neutral-700/40 bg-primary-900/20'}`}>
+                    <div key={b.id} className={`stagger-child rounded-xl border p-4 ${b.booking_status === 'pending' && !b.assigned_lawyer_id ? 'border-portal/30 bg-portal-soft' : 'border-neutral-700/40 bg-primary-900/20'}`} style={{ '--i': i } as React.CSSProperties}>
                       <div className="flex items-start gap-4 flex-wrap">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="text-sm font-semibold text-neutral-100">{b.title}</p>
                             <span className={`text-[11px] px-1.5 py-0.5 rounded-full border ${bookStatusCls(b.booking_status || '')}`}>{b.booking_status || '—'}</span>
-                            {!b.assigned_lawyer_id && <span className="text-[11px] px-1.5 py-0.5 rounded-full border border-gold-500/30 bg-gold-500/10 text-gold-400">Unassigned</span>}
+                            {!b.assigned_lawyer_id && <Badge variant="portal">Unassigned</Badge>}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-neutral-400 flex-wrap">
                             <span>{b.case_type}</span>
@@ -331,12 +332,12 @@ export default function SecretaryDashboardPage() {
                         <div className="flex gap-2 flex-shrink-0 flex-wrap">
                           {b.booking_status === 'pending' && (
                             <>
-                              <button onClick={() => setAssignTarget(b)} className="px-3 py-1.5 rounded-lg border border-gold-500/30 text-gold-300 text-xs font-medium hover:bg-gold-500/10 transition-colors">Assign Lawyer</button>
-                              <button onClick={() => handleAccept(b.id)} disabled={acceptingId === b.id} className="px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-300 text-xs font-medium hover:bg-emerald-500/10 disabled:opacity-50 transition-colors">
-                                {acceptingId === b.id ? '…' : '✓ Accept'}
+                              <button onClick={() => setAssignTarget(b)} className="px-3 py-1.5 rounded-lg border border-portal text-portal text-xs font-medium hover:bg-portal-soft transition-colors">Assign Lawyer</button>
+                              <button onClick={() => handleAccept(b.id)} disabled={acceptingId === b.id} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-300 text-xs font-medium hover:bg-emerald-500/10 disabled:opacity-50 transition-colors">
+                                {acceptingId === b.id ? '…' : <><CheckIcon width={12} height={12} />Accept</>}
                               </button>
-                              <button onClick={() => handleDecline(b.id)} disabled={decliningId === b.id} className="px-3 py-1.5 rounded-lg border border-red-500/30 text-red-300 text-xs font-medium hover:bg-red-500/10 disabled:opacity-50 transition-colors">
-                                {decliningId === b.id ? '…' : '✗ Decline'}
+                              <button onClick={() => handleDecline(b.id)} disabled={decliningId === b.id} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-crimson-500/30 text-crimson-300 text-xs font-medium hover:bg-crimson-500/10 disabled:opacity-50 transition-colors">
+                                {decliningId === b.id ? '…' : <><XCircleIcon width={12} height={12} />Decline</>}
                               </button>
                             </>
                           )}
@@ -373,7 +374,7 @@ export default function SecretaryDashboardPage() {
                       <td className="px-4 py-3"><span className={`text-[11px] px-1.5 py-0.5 rounded-full border ${payStatusCls(r.pay_status)}`}>{r.pay_status === 'pending_verification' ? 'Pending' : r.pay_status === 'verified' ? 'Verified' : 'None'}</span></td>
                       <td className="px-4 py-3"><span className={`text-[11px] px-1.5 py-0.5 rounded-full border capitalize ${bookStatusCls(r.book_status)}`}>{r.book_status}</span></td>
                       <td className="px-4 py-3 text-neutral-500 text-xs">{fmtDate(r.created_at)}</td>
-                      <td className="px-4 py-3"><Link href={`/bookings/${r.id}`} className="text-xs text-gold-400 hover:text-gold-300">View →</Link></td>
+                      <td className="px-4 py-3"><Link href={`/bookings/${r.id}`} className="text-xs text-portal hover:opacity-80">View →</Link></td>
                     </tr>
                   ))}
                 </tbody>
@@ -386,8 +387,8 @@ export default function SecretaryDashboardPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-neutral-400">Report requests from firm admins and partners.</p>
-                <Link href="/secretary/reports" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gold-500/20 border border-gold-500/30 text-gold-300 text-xs font-medium hover:bg-gold-500/30 transition-colors">
-                  <ChartBarIcon className="w-3.5 h-3.5" width={14} height={14} />Generate a Report →
+                <Link href="/secretary/reports" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-portal-soft border border-portal text-portal text-xs font-medium hover:opacity-90 transition-colors">
+                  <ChartBarIcon width={14} height={14} />Generate a Report →
                 </Link>
               </div>
               {reportRequests.length === 0 ? (
@@ -395,8 +396,8 @@ export default function SecretaryDashboardPage() {
                   <p className="text-neutral-400 text-sm">No report requests yet.</p>
                   <p className="text-neutral-500 text-xs mt-1">Firm owners and partners can request reports from the office dashboard.</p>
                 </Card>
-              ) : reportRequests.map(rr => (
-                <div key={rr.id} className={`rounded-xl border p-4 ${rr.status === 'pending' ? 'border-gold-500/30 bg-gold-500/5' : 'border-neutral-700/40 bg-primary-900/20'}`}>
+              ) : reportRequests.map((rr, i) => (
+                <div key={rr.id} className={`stagger-child rounded-xl border p-4 ${rr.status === 'pending' ? 'border-portal/30 bg-portal-soft' : 'border-neutral-700/40 bg-primary-900/20'}`} style={{ '--i': i } as React.CSSProperties}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -413,8 +414,12 @@ export default function SecretaryDashboardPage() {
                     <div className="flex gap-2 flex-shrink-0">
                       {NEXT_STATUS[rr.status] && (
                         <button onClick={() => advanceReport(rr)} disabled={updatingReport === rr.id}
-                          className="px-3 py-1.5 rounded-lg bg-gold-500/20 text-gold-300 border border-gold-500/30 hover:bg-gold-500/30 text-xs font-medium disabled:opacity-50 transition-colors">
-                          {updatingReport === rr.id ? '…' : rr.status === 'pending' ? '✓ Acknowledge' : rr.status === 'acknowledged' ? '📋 Mark Generated' : '✅ Mark Delivered'}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-portal-soft text-portal border border-portal hover:opacity-90 text-xs font-medium disabled:opacity-50 transition-colors">
+                          {updatingReport === rr.id ? '…' : rr.status === 'pending'
+                            ? <><CheckIcon width={12} height={12} />Acknowledge</>
+                            : rr.status === 'acknowledged'
+                            ? <><ClipboardIcon width={12} height={12} />Mark Generated</>
+                            : <><CheckCircleIcon width={12} height={12} />Mark Delivered</>}
                         </button>
                       )}
                       {rr.status === 'acknowledged' && (

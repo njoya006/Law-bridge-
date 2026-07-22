@@ -6,6 +6,10 @@ import { api } from '../../../lib/api'
 import { getMyFirmMemberships, type FirmMembership } from '../../../lib/firmsApi'
 import { getMyCases, type CaseItem } from '../../../lib/casesApi'
 import AvatarUploader from '../../../components/ui/AvatarUploader'
+import {
+  PencilIcon, CheckIcon, AlertTriangleIcon, MailIcon, BriefcaseIcon, ClockIcon,
+  BuildingIcon, ShieldIcon, TrophyIcon, BadgeCheckIcon,
+} from '../../../components/icons/Icons'
 
 type AuthMe = { id: string; email: string; full_name: string; role: string; avatar_url?: string | null }
 
@@ -218,10 +222,7 @@ export default function LawyerProfilePage() {
           href="/lawyer/office/me/settings"
           className="inline-flex items-center gap-2 rounded-xl border border-neutral-700/50 bg-white/4 px-4 py-2 text-sm font-medium text-neutral-300 hover:border-neutral-600 hover:text-neutral-100 transition-colors flex-shrink-0"
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
+          <PencilIcon width={13} height={13} />
           Edit Profile
         </Link>
       </div>
@@ -279,12 +280,12 @@ export default function LawyerProfilePage() {
                 {lawyerProfile && (
                   lawyerProfile.verified_at ? (
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-400">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                      <CheckIcon width={10} height={10} />
                       Verified Lawyer
                     </span>
                   ) : (
                     <Link href="/lawyer/verify" className="inline-flex items-center gap-1 rounded-full border border-amber-500/25 bg-amber-500/8 px-2.5 py-1 text-[11px] text-amber-400/80 hover:bg-amber-500/15 transition-all">
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><line x1="12" y1="8" x2="12" y2="13" /><circle cx="12" cy="16" r="0.5" fill="currentColor" /></svg>
+                      <AlertTriangleIcon width={10} height={10} />
                       Not Verified · Get Verified
                     </Link>
                   )
@@ -316,7 +317,7 @@ export default function LawyerProfilePage() {
 
               <div className="mt-4 pt-4 border-t border-white/6 space-y-3">
                 <div className="flex items-start gap-2.5">
-                  <svg className="mt-0.5 flex-shrink-0 text-neutral-600" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
+                  <MailIcon width={13} height={13} className="mt-0.5 flex-shrink-0 text-neutral-600" />
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-wider text-neutral-600">Email</p>
                     <p className="text-xs text-neutral-300 truncate">{me.email}</p>
@@ -325,7 +326,7 @@ export default function LawyerProfilePage() {
 
                 {lawyerProfile?.bar_number && (
                   <div className="flex items-start gap-2.5">
-                    <svg className="mt-0.5 flex-shrink-0 text-neutral-600" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /></svg>
+                    <BriefcaseIcon width={13} height={13} className="mt-0.5 flex-shrink-0 text-neutral-600" />
                     <div className="min-w-0">
                       <p className="text-[10px] uppercase tracking-wider text-neutral-600">Bar Number</p>
                       <p className="text-xs text-neutral-300 font-mono">{lawyerProfile.bar_number}</p>
@@ -335,7 +336,7 @@ export default function LawyerProfilePage() {
 
                 {lawyerProfile?.years_of_experience !== undefined && (
                   <div className="flex items-start gap-2.5">
-                    <svg className="mt-0.5 flex-shrink-0 text-neutral-600" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                    <ClockIcon width={13} height={13} className="mt-0.5 flex-shrink-0 text-neutral-600" />
                     <div className="min-w-0">
                       <p className="text-[10px] uppercase tracking-wider text-neutral-600">Experience</p>
                       <p className="text-xs text-neutral-300">{lawyerProfile.years_of_experience} yrs · <span className="text-gold-400/70">{expLevel}</span></p>
@@ -345,7 +346,7 @@ export default function LawyerProfilePage() {
 
                 {firm && (
                   <div className="flex items-start gap-2.5">
-                    <svg className="mt-0.5 flex-shrink-0 text-neutral-600" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+                    <BuildingIcon width={13} height={13} className="mt-0.5 flex-shrink-0 text-neutral-600" />
                     <div className="min-w-0">
                       <p className="text-[10px] uppercase tracking-wider text-neutral-600">Firm</p>
                       <p className="text-xs text-neutral-300 capitalize">Firm #{firm.firm} · {firm.role?.replace(/_/g, ' ')}</p>
@@ -505,9 +506,7 @@ export default function LawyerProfilePage() {
                     {lawyerProfile?.bijural_flag && (
                       <div className="rounded-xl border border-primary-600/25 bg-primary-900/40 px-4 py-3.5 flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-primary-600/25 flex items-center justify-center flex-shrink-0">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary-400">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                          </svg>
+                          <ShieldIcon width={14} height={14} className="text-primary-400" />
                         </div>
                         <div>
                           <p className="text-[10px] uppercase tracking-wider text-neutral-600">Legal Tradition</p>
@@ -532,8 +531,8 @@ export default function LawyerProfilePage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {cases.slice(0, 12).map(c => (
-                        <Link key={c.id} href={`/cases/${c.id}`} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-colors group">
+                      {cases.slice(0, 12).map((c, i) => (
+                        <Link key={c.id} href={`/cases/${c.id}`} className="stagger-child flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-colors group" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-neutral-100 truncate group-hover:text-white">{c.title}</p>
                             <p className="text-xs text-neutral-600 capitalize mt-0.5">{c.case_type?.replace(/_/g, ' ')}</p>
@@ -586,9 +585,7 @@ export default function LawyerProfilePage() {
                     : expLevel === 'Senior' ? 'bg-primary-500/20 text-primary-400'
                     : 'bg-emerald-500/15 text-emerald-400'
                   }`}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
+                    <TrophyIcon width={18} height={18} />
                   </div>
                   <div>
                     <p className="font-semibold text-sm text-neutral-100">{expLevel}</p>
@@ -614,10 +611,7 @@ export default function LawyerProfilePage() {
               <div className={`rounded-2xl border p-5 ${lawyerProfile.verified_at ? 'border-emerald-500/25 bg-emerald-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
                 <div className="flex items-start gap-3">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${lawyerProfile.verified_at ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                      {lawyerProfile.verified_at && <polyline points="9 12 11 14 15 10" />}
-                    </svg>
+                    {lawyerProfile.verified_at ? <BadgeCheckIcon width={15} height={15} /> : <ShieldIcon width={15} height={15} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     {lawyerProfile.verified_at ? (

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { getTasks, saveTask, getFirms, generateId, syncTasksFromApi, syncFirmsFromApi, Task, OutreachFirm } from '../../../../lib/outreachStore'
+import { PlusIcon, SearchIcon, CheckIcon } from '../../../../components/icons/Icons'
 
 function fmtDate(iso?: string) {
   if (!iso) return ''
@@ -83,7 +84,7 @@ function AddTaskModal({ firms, onClose, onSave }: { firms: OutreachFirm[]; onClo
         </div>
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-          <button type="submit" className="rounded-xl bg-gold-500 px-5 py-2 text-sm font-semibold text-primary-900 hover:bg-gold-400">Add Task</button>
+          <button type="submit" className="rounded-xl bg-portal-accent px-5 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">Add Task</button>
         </div>
       </form>
     </div>
@@ -133,12 +134,12 @@ export default function TasksPage() {
   ]
 
   function TaskCard({ t }: { t: Task }) {
-    const prioColor = t.priority === 'high' ? 'bg-red-500' : t.priority === 'medium' ? 'bg-amber-500' : 'bg-neutral-600'
+    const prioColor = t.priority === 'high' ? 'bg-crimson-500' : t.priority === 'medium' ? 'bg-amber-500' : 'bg-neutral-600'
     return (
       <div className="rounded-xl border border-white/8 bg-primary-800/40 p-3 space-y-2">
         <div className="flex items-start gap-2">
           <button onClick={() => toggle(t.id)} className={`mt-0.5 h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center ${t.status === 'done' ? 'bg-emerald-500 border-emerald-500' : 'border-white/20 hover:border-white/40'}`}>
-            {t.status === 'done' && <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+            {t.status === 'done' && <CheckIcon width={8} height={8} className="text-white" />}
           </button>
           <p className={`text-sm leading-snug ${t.status === 'done' ? 'line-through text-neutral-600' : 'text-neutral-200'}`}>{t.title}</p>
         </div>
@@ -165,8 +166,8 @@ export default function TasksPage() {
             <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-xs font-medium transition-colors ${view === 'kanban' ? 'bg-white/10 text-neutral-100' : 'text-neutral-500 hover:text-neutral-200'}`}>Kanban</button>
             <button onClick={() => setView('table')} className={`px-3 py-1.5 text-xs font-medium transition-colors ${view === 'table' ? 'bg-white/10 text-neutral-100' : 'text-neutral-500 hover:text-neutral-200'}`}>Table</button>
           </div>
-          <button onClick={() => setShowModal(true)} className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2 text-sm font-semibold text-primary-900 hover:bg-gold-400">
-            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <button onClick={() => setShowModal(true)} className="inline-flex items-center gap-2 rounded-xl bg-portal-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">
+            <PlusIcon width={14} height={14} />
             Add Task
           </button>
         </div>
@@ -185,7 +186,11 @@ export default function TasksPage() {
                 <div className="space-y-2 min-h-[80px]">
                   {colTasks.length === 0
                     ? <div className="rounded-xl border border-dashed border-white/8 py-6 text-center text-xs text-neutral-700">Empty</div>
-                    : colTasks.map(t => <TaskCard key={t.id} t={t} />)
+                    : colTasks.map((t, i) => (
+                      <div key={t.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                        <TaskCard t={t} />
+                      </div>
+                    ))
                   }
                 </div>
               </div>
@@ -195,7 +200,7 @@ export default function TasksPage() {
       ) : (
         <div className="space-y-3">
           <div className="relative max-w-sm">
-            <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+            <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-500"><SearchIcon width={16} height={16} /></span>
             <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tasks…" className="w-full rounded-xl border border-white/10 bg-primary-900/60 py-2 pl-9 pr-3 text-sm text-neutral-200 placeholder-neutral-500 outline-none focus:border-gold-500/40" />
           </div>
           <div className="rounded-2xl border border-white/8 overflow-hidden">
@@ -213,17 +218,17 @@ export default function TasksPage() {
               <tbody className="divide-y divide-white/5">
                 {filtered.length === 0
                   ? <tr><td colSpan={6} className="px-4 py-12 text-center text-neutral-500 text-sm">No tasks</td></tr>
-                  : filtered.map(t => (
-                    <tr key={t.id} className={`hover:bg-white/3 transition-colors ${t.status === 'done' ? 'opacity-50' : ''}`}>
+                  : filtered.map((t, i) => (
+                    <tr key={t.id} className={`hover:bg-white/3 transition-colors stagger-child ${t.status === 'done' ? 'opacity-50' : ''}`} style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                       <td className="px-4 py-3">
                         <button onClick={() => toggle(t.id)} className={`h-4 w-4 rounded border flex items-center justify-center ${t.status === 'done' ? 'bg-emerald-500 border-emerald-500' : 'border-white/20 hover:border-white/40'}`}>
-                          {t.status === 'done' && <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                          {t.status === 'done' && <CheckIcon width={8} height={8} className="text-white" />}
                         </button>
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-200">{t.title}</td>
                       <td className="px-4 py-3 text-sm text-neutral-400 hidden sm:table-cell">{t.firmName ?? '—'}</td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex h-2 w-2 rounded-full ${t.priority === 'high' ? 'bg-red-500' : t.priority === 'medium' ? 'bg-amber-500' : 'bg-neutral-600'}`} />
+                        <span className={`inline-flex h-2 w-2 rounded-full ${t.priority === 'high' ? 'bg-crimson-500' : t.priority === 'medium' ? 'bg-amber-500' : 'bg-neutral-600'}`} />
                       </td>
                       <td className="px-4 py-3 text-sm text-neutral-400 hidden md:table-cell">{t.assignedTo ?? '—'}</td>
                       <td className="px-4 py-3 text-xs text-neutral-500">{fmtDate(t.dueDate) || '—'}</td>

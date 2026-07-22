@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getBook, getBookVersions, incrementBookView, listBooks, type BookItem, type BookVersion } from '../../../lib/libraryApi'
+import { CheckIcon, ClipboardIcon, AlertTriangleIcon, CollapseIcon, ExpandIcon, ChatIcon, ArrowRightIcon } from '../../../components/icons/Icons'
 
 // ─── Cover themes (keep in sync with library/page.tsx) ───────────────────────
 
@@ -141,17 +142,12 @@ function CitationBlock({ book }: { book: BookItem }) {
         >
           {copied ? (
             <>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <CheckIcon width={11} height={11} />
               Copied
             </>
           ) : (
             <>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" stroke="currentColor" strokeWidth="1.5"/>
-              </svg>
+              <ClipboardIcon width={11} height={11} />
               Copy
             </>
           )}
@@ -338,11 +334,8 @@ export default function BookDetailPage() {
   if (error || !book) {
     return (
       <div className="min-h-screen bg-[#07111a] flex flex-col items-center justify-center gap-4 text-center px-4">
-        <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-red-400">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5"/>
-            <path d="M12 8v4M12 16h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
+        <div className="w-14 h-14 rounded-2xl bg-crimson-500/10 border border-crimson-500/20 flex items-center justify-center">
+          <AlertTriangleIcon width={24} height={24} className="text-crimson-400" />
         </div>
         <p className="text-white/60 text-sm">{error || 'Publication not found.'}</p>
         <button onClick={() => router.back()} className="text-gold-400 text-sm hover:text-gold-300 transition-colors">
@@ -364,9 +357,7 @@ export default function BookDetailPage() {
             onClick={() => router.back()}
             className="flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            <CollapseIcon width={16} height={16} />
             Library
           </button>
           <div className="flex items-center gap-3">
@@ -404,7 +395,7 @@ export default function BookDetailPage() {
                     </span>
                   ))}
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight tracking-tight">
+                <h1 className="font-display text-2xl sm:text-3xl font-bold text-white leading-tight tracking-tight">
                   {book.title}
                 </h1>
                 {book.subtitle && (
@@ -459,11 +450,12 @@ export default function BookDetailPage() {
                   )}
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {relatedBooks.map(rb => (
+                  {relatedBooks.map((rb, i) => (
                     <Link
                       key={rb.id}
                       href={`/library/${rb.id}`}
-                      className="group rounded-xl bg-white/[0.025] border border-white/8 hover:border-white/15 hover:bg-white/5 p-4 transition-all"
+                      className="stagger-child group rounded-xl bg-white/[0.025] border border-white/8 hover:border-white/15 hover:bg-white/5 p-4 transition-all"
+                      style={{ '--i': i } as React.CSSProperties}
                     >
                       <p className="text-[12px] font-semibold text-white/70 group-hover:text-white leading-snug line-clamp-2 transition-colors mb-2">
                         {rb.title}
@@ -497,10 +489,7 @@ export default function BookDetailPage() {
                     className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{ background: theme.accent + '18' }}
                   >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ color: theme.accent }}>
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
-                            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                    <span style={{ color: theme.accent }}><ChatIcon width={18} height={18} /></span>
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-white/80">
@@ -517,9 +506,7 @@ export default function BookDetailPage() {
                           style={{ background: theme.accent }}
                         >
                           Book a Consultation
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
+                          <ArrowRightIcon width={14} height={14} />
                         </Link>
                       ) : (
                         <Link
@@ -527,9 +514,7 @@ export default function BookDetailPage() {
                           className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors"
                         >
                           Create a free account to book
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
+                          <ArrowRightIcon width={14} height={14} />
                         </Link>
                       )}
                     </div>
@@ -567,9 +552,7 @@ export default function BookDetailPage() {
                   <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider mb-1">Firm Publication</p>
                   <p className="text-xs text-white/55 group-hover:text-white/80 transition-colors">View all firm publications →</p>
                 </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-white/25 group-hover:text-white/50 transition-colors flex-shrink-0">
-                  <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <ExpandIcon width={14} height={14} className="text-white/25 group-hover:text-white/50 transition-colors flex-shrink-0" />
               </Link>
             )}
 

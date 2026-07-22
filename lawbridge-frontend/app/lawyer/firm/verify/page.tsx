@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import {
   getMyFirmVerificationStatus,
@@ -11,6 +11,7 @@ import {
 } from '../../../../lib/verificationApi'
 import { getMyFirmMemberships, getFirmGallery, deleteFirmGalleryImage, type FirmGalleryImage } from '../../../../lib/firmsApi'
 import { uploadFirmGalleryImage, validateImageFile } from '../../../../lib/avatarApi'
+import { CheckIcon, ClockIcon } from '../../../../components/icons/Icons'
 
 const FIRM_TYPES = Object.entries(FIRM_TYPE_LABELS) as [FirmType, string][]
 
@@ -60,9 +61,7 @@ function StatusBanner({ request, isVerified }: { request: FirmVerificationReques
     return (
       <div className="rounded-2xl bg-emerald-500/8 border border-emerald-500/20 p-6 flex items-start gap-4">
         <div className="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-emerald-400">
-            <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <CheckIcon width={18} height={18} className="text-emerald-400" />
         </div>
         <div>
           <p className="font-semibold text-emerald-400">Firm Verified</p>
@@ -76,10 +75,7 @@ function StatusBanner({ request, isVerified }: { request: FirmVerificationReques
     return (
       <div className="rounded-2xl bg-amber-500/8 border border-amber-500/20 p-5 flex items-start gap-4">
         <div className="w-10 h-10 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-amber-400">
-            <path d="M12 8v4l3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5"/>
-          </svg>
+          <ClockIcon width={18} height={18} className="text-amber-400" />
         </div>
         <div>
           <p className="font-semibold text-amber-400">Under Review</p>
@@ -93,14 +89,14 @@ function StatusBanner({ request, isVerified }: { request: FirmVerificationReques
   }
   if (request.status === 'rejected') {
     return (
-      <div className="rounded-2xl bg-red-500/8 border border-red-500/20 p-5 flex items-start gap-4">
-        <div className="w-10 h-10 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center flex-shrink-0">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-red-400">
+      <div className="rounded-2xl bg-crimson-500/8 border border-crimson-500/20 p-5 flex items-start gap-4">
+        <div className="w-10 h-10 rounded-full bg-crimson-500/15 border border-crimson-500/30 flex items-center justify-center flex-shrink-0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className="text-crimson-400">
             <path d="M18 6 6 18M6 6l12 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
         </div>
         <div>
-          <p className="font-semibold text-red-400">Request Rejected</p>
+          <p className="font-semibold text-crimson-400">Request Rejected</p>
           {request.rejection_reason && (
             <p className="text-sm text-white/50 mt-0.5">Reason: {request.rejection_reason}</p>
           )}
@@ -359,8 +355,8 @@ export default function FirmVerifyPage() {
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {BENEFITS.map(b => (
-              <div key={b.title} className="flex items-start gap-3 rounded-xl bg-primary-900/30 border border-white/5 p-3.5">
+            {BENEFITS.map((b, bi) => (
+              <div key={b.title} className="flex items-start gap-3 rounded-xl bg-primary-900/30 border border-white/5 p-3.5 stagger-child" style={{ '--i': bi } as React.CSSProperties}>
                 <div className="w-7 h-7 rounded-lg bg-gold-500/10 border border-gold-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-gold-400">
                     {b.icon}
@@ -418,7 +414,7 @@ export default function FirmVerifyPage() {
           />
 
           {galleryError && (
-            <p className="text-xs text-red-400 mb-3 whitespace-pre-wrap">{galleryError}</p>
+            <p className="text-xs text-crimson-400 mb-3 whitespace-pre-wrap">{galleryError}</p>
           )}
 
           {gallery.length === 0 ? (
@@ -438,8 +434,8 @@ export default function FirmVerifyPage() {
             </button>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {gallery.map(img => (
-                <div key={img.id} className="relative group aspect-[4/3] rounded-xl overflow-hidden bg-white/5 border border-white/8">
+              {gallery.map((img, gi) => (
+                <div key={img.id} className="relative group aspect-[4/3] rounded-xl overflow-hidden bg-white/5 border border-white/8 stagger-child" style={{ '--i': Math.min(gi, 8) } as React.CSSProperties}>
                   <img
                     src={`/api/v1/firms/gallery/${img.id}/`}
                     alt={img.caption || 'Firm photo'}
@@ -448,7 +444,7 @@ export default function FirmVerifyPage() {
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <button
                       onClick={() => { void handleGalleryDelete(img.id) }}
-                      className="w-8 h-8 rounded-full bg-red-500/80 hover:bg-red-500 flex items-center justify-center transition-colors"
+                      className="w-8 h-8 rounded-full bg-crimson-500/80 hover:bg-crimson-500 flex items-center justify-center transition-colors"
                       title="Remove photo"
                     >
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white">
@@ -479,7 +475,7 @@ export default function FirmVerifyPage() {
         </div>
 
         {error && (
-          <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">{error}</div>
+          <div className="rounded-xl bg-crimson-500/10 border border-crimson-500/20 px-4 py-3 text-sm text-crimson-400">{error}</div>
         )}
         {success && (
           <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 text-sm text-emerald-400">{success}</div>
@@ -494,7 +490,7 @@ export default function FirmVerifyPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-xs text-white/40 mb-1.5 block">
-                  Company Registration Number <span className="text-red-400">*</span>
+                  Company Registration Number <span className="text-crimson-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -507,7 +503,7 @@ export default function FirmVerifyPage() {
               </div>
 
               <div>
-                <label className="text-xs text-white/40 mb-1.5 block">Firm Type <span className="text-red-400">*</span></label>
+                <label className="text-xs text-white/40 mb-1.5 block">Firm Type <span className="text-crimson-400">*</span></label>
                 <select
                   value={firmType}
                   onChange={e => setFirmType(e.target.value as FirmType)}
@@ -521,7 +517,7 @@ export default function FirmVerifyPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-white/40 mb-1.5 block">Year Founded <span className="text-red-400">*</span></label>
+                  <label className="text-xs text-white/40 mb-1.5 block">Year Founded <span className="text-crimson-400">*</span></label>
                   <input
                     type="number"
                     value={foundingYear}

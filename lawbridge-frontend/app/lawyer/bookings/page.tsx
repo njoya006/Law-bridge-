@@ -5,6 +5,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getIncomingBookings, acceptBooking, declineBooking, type CaseItem } from '../../../lib/casesApi'
 import { toastSuccess, toastError } from '../../../lib/toast'
+import { Badge } from '../../../components/ui/Badge'
+import { SkeletonCard } from '../../../components/ui/Skeleton'
+import { CheckIcon, XCircleIcon, CollapseIcon, ExpandIcon, PencilIcon } from '../../../components/icons/Icons'
 
 type Tab = 'pending' | 'accepted' | 'declined'
 
@@ -17,13 +20,13 @@ function formatDate(iso: string) {
 
 function PaymentBadge({ status }: { status?: string }) {
   if (!status || status === 'none') return null
-  const cfg: Record<string, { label: string; color: string }> = {
-    pending_verification: { label: 'Payment pending',  color: 'text-amber-400 border-amber-500/30 bg-amber-500/10' },
-    verified:             { label: 'Payment verified', color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' },
-    failed:               { label: 'Payment failed',   color: 'text-crimson-400 border-crimson-500/30 bg-crimson-500/10' },
+  const cfg: Record<string, { label: string; variant: 'warning' | 'success' | 'danger' | 'neutral' }> = {
+    pending_verification: { label: 'Payment pending',  variant: 'warning' },
+    verified:             { label: 'Payment verified', variant: 'success' },
+    failed:               { label: 'Payment failed',   variant: 'danger' },
   }
-  const c = cfg[status] ?? { label: status, color: 'text-neutral-400 border-neutral-700 bg-neutral-800' }
-  return <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${c.color}`}>{c.label}</span>
+  const c = cfg[status] ?? { label: status, variant: 'neutral' as const }
+  return <Badge variant={c.variant}>{c.label}</Badge>
 }
 
 // ── Mini Calendar ─────────────────────────────────────────────────────────────
@@ -65,11 +68,11 @@ function MiniCalendar({
       {/* Month nav */}
       <div className="flex items-center justify-between mb-3">
         <button onClick={prev} className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          <CollapseIcon className="w-4 h-4" />
         </button>
         <span className="text-xs font-semibold text-neutral-300">{monthLabel}</span>
         <button onClick={next} className="w-7 h-7 rounded-lg flex items-center justify-center text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+          <ExpandIcon className="w-4 h-4" />
         </button>
       </div>
 
@@ -178,11 +181,12 @@ function BookingCard({ booking, onAccept, onDecline }: {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {hasFee && <PaymentBadge status={meta.payment_status as string | undefined} />}
-          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium capitalize ${
-            isPending ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
-            booking.booking_status === 'accepted' ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' :
-            'text-neutral-400 border-neutral-600/30'
-          }`}>{booking.booking_status}</span>
+          <Badge
+            className="capitalize"
+            variant={isPending ? 'warning' : booking.booking_status === 'accepted' ? 'success' : 'neutral'}
+          >
+            {booking.booking_status}
+          </Badge>
         </div>
       </div>
 
@@ -239,11 +243,11 @@ function BookingCard({ booking, onAccept, onDecline }: {
           <div className="flex gap-2 pt-1">
             <button onClick={handleAccept} disabled={loading !== null}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors disabled:opacity-50">
-              {loading === 'accept' ? <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" /> : '✓'} Accept
+              {loading === 'accept' ? <span className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full" /> : <CheckIcon width={14} height={14} />} Accept
             </button>
             <button onClick={() => setDeclining(true)} disabled={loading !== null}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-crimson-500/40 text-crimson-300 text-sm hover:bg-crimson-500/10 transition-colors disabled:opacity-50">
-              ✕ Decline
+              <XCircleIcon width={14} height={14} /> Decline
             </button>
             <Link href={`/bookings/${booking.id}`} className="ml-auto px-3 py-2 rounded-lg border border-neutral-600/40 text-neutral-400 text-xs hover:text-gold-400 transition-colors flex items-center">
               Details
@@ -420,7 +424,7 @@ export default function LawyerBookingsPage() {
         <div className="lg:col-span-2">
           {loading ? (
             <div className="space-y-3">
-              {[1, 2, 3].map(i => <div key={i} className="h-40 rounded-xl bg-primary-800/30 animate-pulse" />)}
+              {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
             </div>
           ) : visibleBookings.length === 0 ? (
             <div className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-10 text-center">

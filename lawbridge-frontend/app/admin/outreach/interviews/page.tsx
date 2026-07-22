@@ -4,6 +4,8 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getInterviews, getFirms, saveInterview, generateId, syncInterviewsFromApi, syncFirmsFromApi, Interview, OutreachFirm } from '../../../../lib/outreachStore'
+import { Badge } from '../../../../components/ui/Badge'
+import { PlusIcon, SearchIcon } from '../../../../components/icons/Icons'
 
 function fmtDate(iso?: string) {
   if (!iso) return '—'
@@ -12,11 +14,11 @@ function fmtDate(iso?: string) {
 
 type StatusFilter = 'all' | Interview['status']
 
-const STATUS_CHIP: Record<Interview['status'], string> = {
-  scheduled: 'border-amber-500/40 bg-amber-500/10 text-amber-400',
-  completed: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400',
-  cancelled: 'border-red-500/40 bg-red-500/10 text-red-400',
-  rescheduled: 'border-blue-500/40 bg-blue-500/10 text-blue-400',
+const STATUS_BADGE: Record<Interview['status'], 'warning' | 'success' | 'danger' | 'info'> = {
+  scheduled: 'warning',
+  completed: 'success',
+  cancelled: 'danger',
+  rescheduled: 'info',
 }
 
 function AddInterviewModal({ firms, prefirmId, onClose, onSave }: {
@@ -117,7 +119,7 @@ function AddInterviewModal({ firms, prefirmId, onClose, onSave }: {
 
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-          <button type="submit" className="rounded-xl bg-gold-500 px-5 py-2 text-sm font-semibold text-primary-900 hover:bg-gold-400">Log Interview</button>
+          <button type="submit" className="rounded-xl bg-portal-accent px-5 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">Log Interview</button>
         </div>
       </form>
     </div>
@@ -175,8 +177,8 @@ function InterviewsContent() {
           <h1 className="font-display text-2xl font-bold text-neutral-50">Interviews</h1>
           <p className="text-sm text-neutral-500 mt-1">{interviews.length} interviews logged</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors">
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button onClick={() => setShowModal(true)} className="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-portal-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity">
+          <PlusIcon width={14} height={14} />
           Log Interview
         </button>
       </div>
@@ -184,13 +186,13 @@ function InterviewsContent() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-500">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <SearchIcon width={16} height={16} />
           </span>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by firm or contact…" className="w-full rounded-xl border border-white/10 bg-primary-900/60 py-2 pl-9 pr-3 text-sm text-neutral-200 placeholder-neutral-500 outline-none focus:border-gold-500/40" />
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {(['all', 'scheduled', 'completed', 'rescheduled', 'cancelled'] as const).map(s => (
-            <button key={s} onClick={() => setStatusFilter(s)} className={`rounded-lg px-3 py-1.5 text-xs font-medium border transition-all capitalize ${statusFilter === s ? 'bg-gold-500/15 border-gold-500/30 text-gold-300' : 'bg-primary-800/40 border-white/8 text-neutral-400 hover:text-neutral-200'}`}>
+            <button key={s} onClick={() => setStatusFilter(s)} className={`rounded-lg px-3 py-1.5 text-xs font-medium border transition-all capitalize ${statusFilter === s ? 'bg-portal-soft border-portal-solid text-portal' : 'bg-primary-800/40 border-white/8 text-neutral-400 hover:text-neutral-200'}`}>
               {s === 'all' ? `All (${statusCounts.all ?? 0})` : `${s} (${statusCounts[s] ?? 0})`}
             </button>
           ))}
@@ -212,20 +214,21 @@ function InterviewsContent() {
           <tbody className="divide-y divide-white/5">
             {filtered.length === 0 ? (
               <tr><td colSpan={6} className="px-4 py-16 text-center text-neutral-500 text-sm">No interviews found</td></tr>
-            ) : filtered.map(iv => (
+            ) : filtered.map((iv, i) => (
               <tr
                 key={iv.id}
-                className="hover:bg-white/3 transition-colors cursor-pointer"
+                className="hover:bg-white/3 transition-colors cursor-pointer stagger-child"
+                style={{ '--i': Math.min(i, 8) } as React.CSSProperties}
                 onClick={() => router.push(`/admin/outreach/interviews/${iv.id}`)}
               >
                 <td className="px-4 py-3">
-                  <span className="text-sm font-semibold text-neutral-100 group-hover:text-gold-400">{iv.firmName}</span>
+                  <span className="text-sm font-semibold text-neutral-100 group-hover:text-portal">{iv.firmName}</span>
                 </td>
                 <td className="px-4 py-3 text-sm text-neutral-400">{iv.contactName ?? '—'}</td>
                 <td className="px-4 py-3 text-sm text-neutral-400">{fmtDate(iv.date)}</td>
                 <td className="px-4 py-3 text-sm text-neutral-400 capitalize hidden sm:table-cell">{iv.type.replace('_', ' ')}</td>
                 <td className="px-4 py-3">
-                  <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize ${STATUS_CHIP[iv.status]}`}>{iv.status}</span>
+                  <Badge variant={STATUS_BADGE[iv.status]} size="md" className="capitalize">{iv.status}</Badge>
                 </td>
                 <td className="px-4 py-3 hidden md:table-cell">
                   {iv.overallInterestLevel != null

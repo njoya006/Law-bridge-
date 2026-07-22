@@ -8,33 +8,13 @@ import {
   type ChatSession, type ResearchResult, type ResearchCitation,
 } from '../../lib/aiApi'
 import { MarkdownRenderer } from '../../components/ui/MarkdownRenderer'
+import { SparklesIcon, SearchIcon, ChatIcon, PlusIcon, SendIcon } from '../../components/icons/Icons'
 
 type Tab = 'chat' | 'research' | 'ask'
 
-function SparkIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z" />
-    </svg>
-  )
-}
-
-function SearchIcon2() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <circle cx="11" cy="11" r="8" strokeWidth={1.8} />
-      <path strokeLinecap="round" strokeWidth={1.8} d="m21 21-4.35-4.35" />
-    </svg>
-  )
-}
-
-function MsgIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-    </svg>
-  )
-}
+function SparkIcon() { return <SparklesIcon width={20} height={20} className="w-5 h-5" /> }
+function SearchIcon2() { return <SearchIcon width={20} height={20} className="w-5 h-5" /> }
+function MsgIcon() { return <ChatIcon width={20} height={20} className="w-5 h-5" /> }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -71,9 +51,7 @@ function SessionsSidebar({
           onClick={onNew}
           className="w-full flex items-center justify-center gap-2 rounded-xl border border-gold-500/25 bg-gold-500/8 px-3 py-2 text-xs font-semibold text-gold-400 transition-all hover:bg-gold-500/15 hover:border-gold-500/40"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
+          <PlusIcon width={14} height={14} className="w-3.5 h-3.5" />
           New Chat
         </button>
       </div>
@@ -98,7 +76,7 @@ function SessionsSidebar({
             <p className="text-[10px] text-neutral-600 mt-0.5">{relTime(s.updated_at)}</p>
             <button
               onClick={(e) => onDelete(e, s.id)}
-              className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 rounded-md p-0.5 text-neutral-600 hover:text-red-400 transition-all"
+              className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 rounded-md p-0.5 text-neutral-600 hover:text-crimson-400 transition-all"
               title="Delete"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -289,11 +267,12 @@ function ChatPanel({ token }: { token: string }) {
                   'How do I file a small claims case in Cameroon?',
                   'What does OHADA law say about business contracts?',
                   'Can my employer fire me without compensation?',
-                ].map(q => (
+                ].map((q, i) => (
                   <button
                     key={q}
                     onClick={() => { setInput(q); inputRef.current?.focus() }}
-                    className="rounded-xl border border-white/8 bg-primary-800/40 px-3 py-2.5 text-left text-xs text-neutral-400 transition-all hover:border-gold-500/25 hover:bg-gold-500/5 hover:text-neutral-200"
+                    className="stagger-child rounded-xl border border-white/8 bg-primary-800/40 px-3 py-2.5 text-left text-xs text-neutral-400 transition-all hover:border-gold-500/25 hover:bg-gold-500/5 hover:text-neutral-200"
+                    style={{ '--i': i } as React.CSSProperties}
                   >
                     {q}
                   </button>
@@ -337,7 +316,7 @@ function ChatPanel({ token }: { token: string }) {
             </div>
           )}
 
-          {error && <p className="text-center text-xs text-red-400">{error}</p>}
+          {error && <p className="text-center text-xs text-crimson-400">{error}</p>}
           <div ref={bottomRef} />
         </div>
 
@@ -358,9 +337,7 @@ function ChatPanel({ token }: { token: string }) {
               disabled={!input.trim() || streaming}
               className="flex h-8 w-8 items-center justify-center rounded-xl bg-gold-500/20 text-gold-300 transition-all hover:bg-gold-500/30 disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
+              <SendIcon width={16} height={16} className="w-4 h-4" />
             </button>
           </div>
           <p className="mt-2 text-center text-[10px] text-neutral-600">LexAI may make mistakes. Verify important legal information with a licensed lawyer.</p>
@@ -429,7 +406,7 @@ function ResearchPanel({ token }: { token: string }) {
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-400 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3">{error}</p>}
+      {error && <p className="text-sm text-crimson-400 rounded-xl bg-crimson-500/10 border border-crimson-500/20 px-4 py-3">{error}</p>}
 
       {loading && streamText && (
         <div className="rounded-xl border border-white/8 bg-primary-800/40 p-4">
@@ -448,7 +425,7 @@ function ResearchPanel({ token }: { token: string }) {
               <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">Legal References</p>
               <div className="space-y-2">
                 {result.citations.map((c: ResearchCitation, i: number) => (
-                  <div key={i} className="flex gap-3 rounded-xl border border-white/6 bg-primary-900/40 px-4 py-2.5">
+                  <div key={i} className="stagger-child flex gap-3 rounded-xl border border-white/6 bg-primary-900/40 px-4 py-2.5" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                     <span className="text-gold-400 font-mono text-xs mt-0.5 flex-shrink-0">§</span>
                     <div>
                       <p className="text-sm font-medium text-neutral-200">{c.title}</p>
@@ -469,11 +446,12 @@ function ResearchPanel({ token }: { token: string }) {
             'OHADA commercial contract obligations',
             'Employee dismissal compensation',
             'Land title dispute procedures',
-          ].map(q => (
+          ].map((q, i) => (
             <button
               key={q}
               onClick={() => void search(q)}
-              className="rounded-xl border border-white/6 bg-primary-800/30 px-3 py-2.5 text-left text-xs text-neutral-400 transition-all hover:border-gold-500/20 hover:text-neutral-200"
+              className="stagger-child rounded-xl border border-white/6 bg-primary-800/30 px-3 py-2.5 text-left text-xs text-neutral-400 transition-all hover:border-gold-500/20 hover:text-neutral-200"
+              style={{ '--i': i } as React.CSSProperties}
             >
               {q} →
             </button>

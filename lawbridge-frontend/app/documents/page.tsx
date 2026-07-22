@@ -5,6 +5,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { getMyCases } from '../../lib/casesApi'
 import { listDocuments, fetchDocumentBlob, downloadDocument, type DocumentItem } from '../../lib/documentsApi'
+import { Badge } from '../../components/ui/Badge'
+import { SkeletonCard } from '../../components/ui/Skeleton'
+import { DocumentIcon, UploadIcon, AlertTriangleIcon, ExpandIcon, EyeIcon } from '../../components/icons/Icons'
 
 type DocumentGroup = { caseId: string; title: string; items: DocumentItem[] }
 
@@ -25,20 +28,13 @@ function formatDate(iso: string): string {
 
 function FileIcon({ mime }: { mime: string }) {
   if (mime?.includes('pdf')) return (
-    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-red-500/12 text-red-400">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="9" y1="15" x2="15" y2="15"/><line x1="9" y1="11" x2="11" y2="11"/>
-      </svg>
+    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-crimson-500/12 text-crimson-400">
+      <DocumentIcon width={17} height={17} />
     </div>
   )
   if (mime?.includes('word') || mime?.includes('document')) return (
     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-blue-500/12 text-blue-400">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-      </svg>
+      <DocumentIcon width={17} height={17} />
     </div>
   )
   if (mime?.includes('image')) return (
@@ -52,29 +48,26 @@ function FileIcon({ mime }: { mime: string }) {
   )
   return (
     <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-gold-500/12 text-gold-400">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-        <polyline points="13 2 13 9 20 9"/>
-      </svg>
+      <DocumentIcon width={17} height={17} />
     </div>
   )
 }
 
 function StatusBadge({ status }: { status: string }) {
   if (status === 'stored') return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+    <Badge variant="success">
       <span className="h-1.5 w-1.5 rounded-full bg-emerald-400"/>Stored
-    </span>
+    </Badge>
   )
   if (status === 'pending_scan') return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
+    <Badge variant="warning">
       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400"/>Scanning
-    </span>
+    </Badge>
   )
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-red-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-400">
-      <span className="h-1.5 w-1.5 rounded-full bg-red-400"/>Error
-    </span>
+    <Badge variant="danger">
+      <span className="h-1.5 w-1.5 rounded-full bg-crimson-400"/>Error
+    </Badge>
   )
 }
 
@@ -188,11 +181,7 @@ export default function DocumentsPage() {
               href="/upload"
               className="flex flex-shrink-0 items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="16 16 12 12 8 16"/>
-                <line x1="12" y1="12" x2="12" y2="21"/>
-                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
-              </svg>
+              <UploadIcon width={15} height={15} />
               Upload
             </Link>
           )}
@@ -200,42 +189,24 @@ export default function DocumentsPage() {
       </div>
 
       {error && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/8 px-4 py-4">
-          <svg className="mt-0.5 flex-shrink-0 text-red-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <p className="text-sm text-red-300">{error}</p>
+        <div className="flex items-start gap-3 rounded-2xl border border-crimson-500/30 bg-crimson-500/8 px-4 py-4">
+          <AlertTriangleIcon className="mt-0.5 flex-shrink-0 text-crimson-400" width={16} height={16} />
+          <p className="text-sm text-crimson-300">{error}</p>
         </div>
       )}
 
       {/* Loading skeletons */}
       {loading && (
         <div className="space-y-4">
-          {[1, 2].map(i => (
-            <div key={i} className="rounded-2xl border border-white/6 bg-primary-800/30 p-5">
-              <div className="h-4 w-40 rounded bg-white/8 animate-pulse mb-4" />
-              {[1, 2].map(j => (
-                <div key={j} className="flex items-center gap-3 py-3">
-                  <div className="h-9 w-9 rounded-xl bg-white/6 animate-pulse" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 w-48 rounded bg-white/6 animate-pulse" />
-                    <div className="h-2.5 w-32 rounded bg-white/5 animate-pulse" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
+          {[1, 2].map(i => <SkeletonCard key={i} lines={2} />)}
         </div>
       )}
 
       {/* Groups */}
       {!loading && groups.length === 0 && !error && (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-16 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-400">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-              <polyline points="13 2 13 9 20 9"/>
-            </svg>
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-portal-soft text-portal">
+            <DocumentIcon width={28} height={28} />
           </div>
           <h3 className="mt-4 font-semibold text-neutral-200 text-base">Your document vault is empty</h3>
           <p className="mt-1.5 max-w-sm text-sm text-neutral-500 leading-relaxed">
@@ -246,17 +217,15 @@ export default function DocumentsPage() {
               { step: '1', text: 'Book a lawyer from the Lawyers page — this opens your first case', href: '/lawyers', label: 'Find a Lawyer' },
               { step: '2', text: 'Once your case is active, use the Upload button above to share evidence, contracts, or identity documents', href: '/upload', label: 'Upload Now' },
               { step: '3', text: 'Your lawyer gets notified instantly and can view files from their portal', href: null, label: null },
-            ].map(({ step, text, href, label }) => (
-              <div key={step} className="flex items-start gap-3 rounded-xl border border-white/6 bg-primary-900/40 px-4 py-3">
-                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-xs font-bold text-blue-400">{step}</span>
+            ].map(({ step, text, href, label }, i) => (
+              <div key={step} className="stagger-child flex items-start gap-3 rounded-xl border border-white/6 bg-primary-900/40 px-4 py-3" style={{ '--i': i } as React.CSSProperties}>
+                <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-portal-soft text-xs font-bold text-portal">{step}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-neutral-400 leading-relaxed">{text}</p>
                   {href && label && (
-                    <Link href={href} className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-blue-400 hover:text-blue-300 transition-colors">
+                    <Link href={href} className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-portal hover:opacity-80 transition-opacity">
                       {label}
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <polyline points="9 18 15 12 9 6"/>
-                      </svg>
+                      <ExpandIcon width={10} height={10} />
                     </Link>
                   )}
                 </div>
@@ -266,8 +235,8 @@ export default function DocumentsPage() {
         </div>
       )}
 
-      {!loading && groups.map(group => (
-        <div key={group.caseId} className="rounded-2xl border border-white/8 bg-primary-800/30">
+      {!loading && groups.map((group, gi) => (
+        <div key={group.caseId} className="stagger-child rounded-2xl border border-white/8 bg-primary-800/30" style={{ '--i': Math.min(gi, 8) } as React.CSSProperties}>
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
             <p className="font-semibold text-neutral-100">{group.title}</p>
             <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-neutral-500">
@@ -303,10 +272,7 @@ export default function DocumentsPage() {
                     onClick={() => handleAction(doc, 'open')}
                     className="min-h-[36px] inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:bg-white/10 hover:text-neutral-100 transition-colors"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
+                    <EyeIcon width={12} height={12} />
                     Open
                   </button>
                   <button
@@ -355,7 +321,7 @@ export default function DocumentsPage() {
               placeholder="Enter document password"
               autoFocus
             />
-            {passwordError && <p className="mt-2 text-xs text-red-400">{passwordError}</p>}
+            {passwordError && <p className="mt-2 text-xs text-crimson-400">{passwordError}</p>}
             <div className="mt-4 flex gap-3">
               <button
                 onClick={async () => {

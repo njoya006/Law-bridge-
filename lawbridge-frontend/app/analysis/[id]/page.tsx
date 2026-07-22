@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Card } from '../../../components/ui/Card'
+import { Badge } from '../../../components/ui/Badge'
 import { SERVICE_URLS } from '../../../lib/serviceUrls'
 
 type CaseProgress = {
@@ -16,18 +17,18 @@ type CaseProgress = {
   updated_at: string
 }
 
+const STATUS_VARIANT: Record<string, 'gold' | 'neutral' | 'info' | 'warning'> = {
+  open: 'gold',
+  closed: 'neutral',
+  in_progress: 'info',
+  pending: 'warning',
+}
+
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    open: 'text-gold-400 bg-gold-500/10 border-gold-500/30',
-    closed: 'text-neutral-400 bg-neutral-700/30 border-neutral-600/30',
-    in_progress: 'text-sky-400 bg-sky-500/10 border-sky-500/30',
-    pending: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
-  }
-  const cls = map[status.toLowerCase()] ?? 'text-neutral-400 bg-neutral-700/30 border-neutral-600/30'
   return (
-    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold border ${cls}`}>
+    <Badge variant={STATUS_VARIANT[status.toLowerCase()] ?? 'neutral'} size="md">
       {status}
-    </span>
+    </Badge>
   )
 }
 

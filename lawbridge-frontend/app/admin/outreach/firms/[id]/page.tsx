@@ -11,6 +11,8 @@ import {
   OutreachFirm, Interview, FeatureRequest, Task, Contact,
   RelationshipStatus, STATUS_LABELS, STATUS_COLORS,
 } from '../../../../../lib/outreachStore'
+import { Badge } from '../../../../../components/ui/Badge'
+import { CalendarIcon, CheckIcon } from '../../../../../components/icons/Icons'
 
 const STATUSES: RelationshipStatus[] = [
   'not_contacted', 'contacted', 'meeting_requested', 'meeting_scheduled',
@@ -28,7 +30,7 @@ function StatusBadge({ status }: { status: RelationshipStatus }) {
 }
 
 function PriorityDot({ p }: { p: FeatureRequest['priority'] }) {
-  const c = p === 'high' ? 'bg-red-500' : p === 'medium' ? 'bg-amber-500' : 'bg-neutral-600'
+  const c = p === 'high' ? 'bg-crimson-500' : p === 'medium' ? 'bg-amber-500' : 'bg-neutral-600'
   return <span className={`inline-block h-2 w-2 rounded-full ${c}`} />
 }
 
@@ -164,7 +166,7 @@ export default function FirmDetailPage() {
             </button>
           )}
           <Link href={`/admin/outreach/interviews?firmId=${firm.id}`} className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-3 py-1.5 text-xs text-neutral-300 hover:bg-white/5 transition-colors">
-            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <CalendarIcon width={12} height={12} />
             Log Interview
           </Link>
         </div>
@@ -187,13 +189,13 @@ export default function FirmDetailPage() {
             onClick={() => setTab(t.key)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === t.key
-                ? 'border-gold-500 text-gold-400'
+                ? 'border-portal-solid text-portal'
                 : 'border-transparent text-neutral-500 hover:text-neutral-200'
             }`}
           >
             {t.label}
             {t.count != null && t.count > 0 && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${tab === t.key ? 'bg-gold-500/20 text-gold-400' : 'bg-white/8 text-neutral-500'}`}>{t.count}</span>
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${tab === t.key ? 'bg-portal-soft text-portal' : 'bg-white/8 text-neutral-500'}`}>{t.count}</span>
             )}
           </button>
         ))}
@@ -242,7 +244,7 @@ export default function FirmDetailPage() {
               <div className="rounded-2xl border border-white/8 bg-primary-800/30 p-4">
                 <p className="text-xs uppercase tracking-wider text-neutral-500 mb-3">Primary Contact</p>
                 <div className="flex items-center gap-3 mb-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-gold-400/20 to-gold-500/20 text-sm font-bold text-gold-400">
+                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-portal-soft text-sm font-bold text-portal">
                     {primaryContact.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                   </span>
                   <div>
@@ -263,7 +265,7 @@ export default function FirmDetailPage() {
             ) : (
               <div className="rounded-2xl border border-white/8 bg-primary-800/30 p-4">
                 <p className="text-xs uppercase tracking-wider text-neutral-500 mb-3">Primary Contact</p>
-                <button onClick={() => { setTab('contacts'); setShowAddContact(true) }} className="text-xs text-gold-400 hover:text-gold-300">+ Add contact →</button>
+                <button onClick={() => { setTab('contacts'); setShowAddContact(true) }} className="text-xs text-portal hover:opacity-80">+ Add contact →</button>
               </div>
             )}
 
@@ -292,12 +294,12 @@ export default function FirmDetailPage() {
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <p className="text-sm text-neutral-400">{interviews.length} interview{interviews.length !== 1 ? 's' : ''}</p>
-            <Link href={`/admin/outreach/interviews?firmId=${firm.id}`} className="text-xs text-gold-400 hover:text-gold-300">+ Log Interview</Link>
+            <Link href={`/admin/outreach/interviews?firmId=${firm.id}`} className="text-xs text-portal hover:opacity-80">+ Log Interview</Link>
           </div>
           {interviews.length === 0 ? (
             <div className="rounded-2xl border border-white/8 bg-primary-800/20 py-12 text-center text-neutral-500 text-sm">No interviews yet</div>
-          ) : interviews.map(iv => (
-            <Link key={iv.id} href={`/admin/outreach/interviews/${iv.id}`} className="block rounded-2xl border border-white/8 bg-primary-800/30 p-4 hover:bg-primary-800/50 transition-colors">
+          ) : interviews.map((iv, i) => (
+            <Link key={iv.id} href={`/admin/outreach/interviews/${iv.id}`} className="block rounded-2xl border border-white/8 bg-primary-800/30 p-4 hover:bg-primary-800/50 transition-colors stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -324,7 +326,7 @@ export default function FirmDetailPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-neutral-200">Internal Notes</h3>
             {!editingNotes && (
-              <button onClick={() => setEditingNotes(true)} className="text-xs text-gold-400 hover:text-gold-300">Edit</button>
+              <button onClick={() => setEditingNotes(true)} className="text-xs text-portal hover:opacity-80">Edit</button>
             )}
           </div>
           {editingNotes ? (
@@ -338,7 +340,7 @@ export default function FirmDetailPage() {
               />
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setEditingNotes(false)} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-                <button onClick={saveNotes} className="rounded-xl bg-gold-500 px-4 py-2 text-sm font-semibold text-primary-900 hover:bg-gold-400">Save</button>
+                <button onClick={saveNotes} className="rounded-xl bg-portal-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">Save</button>
               </div>
             </div>
           ) : (
@@ -353,14 +355,14 @@ export default function FirmDetailPage() {
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <p className="text-sm text-neutral-400">{contacts.length} contact{contacts.length !== 1 ? 's' : ''}</p>
-            <button onClick={() => setShowAddContact(true)} className="text-xs text-gold-400 hover:text-gold-300">+ Add Contact</button>
+            <button onClick={() => setShowAddContact(true)} className="text-xs text-portal hover:opacity-80">+ Add Contact</button>
           </div>
           {contacts.length === 0 && !showAddContact && (
             <div className="rounded-2xl border border-white/8 bg-primary-800/20 py-12 text-center text-neutral-500 text-sm">No contacts yet</div>
           )}
           <div className="grid gap-3 sm:grid-cols-2">
-            {contacts.map(c => (
-              <div key={c.id} className="rounded-2xl border border-white/8 bg-primary-800/30 p-4">
+            {contacts.map((c, i) => (
+              <div key={c.id} className="rounded-2xl border border-white/8 bg-primary-800/30 p-4 stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-primary-700 to-primary-800 text-xs font-bold text-neutral-300 ring-1 ring-white/10">
@@ -372,8 +374,8 @@ export default function FirmDetailPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    {c.isPrimary && <span className="text-[10px] rounded-full bg-gold-500/15 text-gold-400 px-2 py-0.5">Primary</span>}
-                    <button onClick={() => removeContact(c.id)} className="text-neutral-600 hover:text-red-400 p-1">
+                    {c.isPrimary && <Badge variant="gold">Primary</Badge>}
+                    <button onClick={() => removeContact(c.id)} className="text-neutral-600 hover:text-crimson-400 p-1">
                       <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                   </div>
@@ -389,7 +391,7 @@ export default function FirmDetailPage() {
           </div>
 
           {showAddContact && (
-            <div className="rounded-2xl border border-gold-500/30 bg-primary-800/30 p-4 space-y-3">
+            <div className="rounded-2xl border border-portal bg-primary-800/30 p-4 space-y-3">
               <h4 className="text-sm font-semibold text-neutral-200">New Contact</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label className="label-xs">Name *</label><input className="field mt-1 w-full" value={newContact.name ?? ''} onChange={e => setNewContact(p => ({ ...p, name: e.target.value }))} /></div>
@@ -401,7 +403,7 @@ export default function FirmDetailPage() {
               </div>
               <div className="flex gap-2 justify-end">
                 <button onClick={() => setShowAddContact(false)} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-                <button onClick={addContact} className="rounded-xl bg-gold-500 px-4 py-2 text-sm font-semibold text-primary-900 hover:bg-gold-400">Add Contact</button>
+                <button onClick={addContact} className="rounded-xl bg-portal-accent px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">Add Contact</button>
               </div>
             </div>
           )}
@@ -425,8 +427,8 @@ export default function FirmDetailPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {features.map(fr => (
-                    <tr key={fr.id} className="hover:bg-white/3 transition-colors">
+                  {features.map((fr, i) => (
+                    <tr key={fr.id} className="hover:bg-white/3 transition-colors stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                       <td className="px-4 py-3 text-sm text-neutral-200">{fr.title}</td>
                       <td className="px-4 py-3"><PriorityDot p={fr.priority} /></td>
                       <td className="px-4 py-3 text-xs text-neutral-400 capitalize">{fr.status.replace(/_/g, ' ')}</td>
@@ -447,8 +449,8 @@ export default function FirmDetailPage() {
           </div>
           {tasks.length === 0 ? (
             <div className="rounded-2xl border border-white/8 bg-primary-800/20 py-12 text-center text-neutral-500 text-sm">No tasks for this firm</div>
-          ) : tasks.map(t => (
-            <div key={t.id} className="flex items-start gap-3 rounded-2xl border border-white/8 bg-primary-800/30 p-4">
+          ) : tasks.map((t, i) => (
+            <div key={t.id} className="flex items-start gap-3 rounded-2xl border border-white/8 bg-primary-800/30 p-4 stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <button
                 onClick={() => {
                   const next = t.status === 'done' ? 'pending' : 'done'
@@ -457,7 +459,7 @@ export default function FirmDetailPage() {
                 }}
                 className={`mt-0.5 h-4 w-4 rounded border flex-shrink-0 flex items-center justify-center ${t.status === 'done' ? 'bg-emerald-500 border-emerald-500' : 'border-white/20 hover:border-white/40'}`}
               >
-                {t.status === 'done' && <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                {t.status === 'done' && <CheckIcon width={10} height={10} className="text-white" />}
               </button>
               <div className={t.status === 'done' ? 'opacity-50' : ''}>
                 <p className="text-sm text-neutral-200">{t.title}</p>

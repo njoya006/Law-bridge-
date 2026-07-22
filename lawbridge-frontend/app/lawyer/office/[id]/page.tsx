@@ -5,16 +5,16 @@ import Link from 'next/link'
 import { Card } from '../../../../components/ui/Card'
 import { useParams } from 'next/navigation'
 import { getCaseProgress, getLawyerStats, type CaseProgressItem, type LawyerStats } from '../../../../lib/monitoringApi'
+import { Badge } from '../../../../components/ui/Badge'
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    open: 'text-gold-400 bg-gold-500/10 border-gold-500/30',
-    closed: 'text-neutral-400 bg-neutral-700/30 border-neutral-600/30',
-    in_progress: 'text-sky-400 bg-sky-500/10 border-sky-500/30',
-    pending: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+  const map: Record<string, 'gold' | 'neutral' | 'info' | 'warning'> = {
+    open: 'gold',
+    closed: 'neutral',
+    in_progress: 'info',
+    pending: 'warning',
   }
-  const cls = map[status?.toLowerCase()] ?? 'text-neutral-400 bg-neutral-700/30 border-neutral-600/30'
-  return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${cls}`}>{status}</span>
+  return <Badge variant={map[status?.toLowerCase()] ?? 'neutral'}>{status}</Badge>
 }
 
 export default function LawyerOfficePage() {
@@ -111,8 +111,8 @@ export default function LawyerOfficePage() {
               <p className="text-neutral-400 text-sm">No matters assigned to this lawyer.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {matters.map(m => (
-                  <div key={m.id} className="rounded-xl border border-neutral-700/40 bg-primary-800/20 p-4 flex flex-col gap-2 hover:border-gold-400/20 transition-colors">
+                {matters.map((m, i) => (
+                  <div key={m.id} className="rounded-xl border border-neutral-700/40 bg-primary-800/20 p-4 flex flex-col gap-2 hover:border-gold-400/20 transition-colors stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                     <div className="flex items-start justify-between gap-2">
                       <p className="font-medium text-neutral-100 text-sm">{m.case_type}</p>
                       <StatusBadge status={m.status} />

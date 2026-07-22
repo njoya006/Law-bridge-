@@ -25,6 +25,10 @@ import {
   type ResearchCitation,
   type ResearchResult,
 } from '../../../lib/aiApi'
+import { Badge } from '../../../components/ui/Badge'
+import {
+  DocumentIcon, AlertTriangleIcon, CheckIcon, XCircleIcon, BookOpenIcon, ClipboardIcon, SearchIcon,
+} from '../../../components/icons/Icons'
 
 type Tab = 'chat' | 'drafts' | 'analysis' | 'contract' | 'research' | 'clauses'
 
@@ -32,14 +36,6 @@ function SparkIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z"/>
-    </svg>
-  )
-}
-
-function DocIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
     </svg>
   )
 }
@@ -128,10 +124,10 @@ function CaseAnalysisCard({ data }: { data: CaseAnalysisData }) {
           <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">Risk Flags</p>
           <div className="flex flex-wrap gap-1.5">
             {riskFlags.map((flag, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-crimson-500/10 border border-crimson-500/20 px-2.5 py-1 text-xs text-crimson-300">
+              <Badge key={i} variant="danger" size="md">
                 <span className="h-1.5 w-1.5 rounded-full bg-crimson-400 flex-shrink-0" />
                 {flag}
-              </span>
+              </Badge>
             ))}
           </div>
         </div>
@@ -1236,7 +1232,7 @@ function DraftsPanel({ token }: { token: string }) {
         {step === 'form' && !selected && false && (
           <div className="flex-1 flex items-center justify-center text-center text-neutral-500 text-sm p-8">
             <div>
-              <div className="text-3xl mb-3">📄</div>
+              <div className="mb-3 flex justify-center text-neutral-500"><DocumentIcon width={30} height={30} /></div>
               <p className="font-medium text-neutral-300 mb-1">Legal Document Drafts</p>
               <p>Generate professionally formatted legal documents using AI trained on Cameroonian law.</p>
             </div>
@@ -1370,7 +1366,7 @@ function AnalysisPanel({ token }: { token: string }) {
               <ul className="space-y-1">
                 {result.risks.map((r, i) => (
                   <li key={i} className="flex gap-2 text-sm text-neutral-300">
-                    <span className="text-crimson-400 mt-0.5">⚠</span>
+                    <AlertTriangleIcon width={14} height={14} className="text-crimson-400 mt-0.5 flex-shrink-0" />
                     <span>{r}</span>
                   </li>
                 ))}
@@ -1384,7 +1380,7 @@ function AnalysisPanel({ token }: { token: string }) {
               <ul className="space-y-1">
                 {result.recommendations.map((r, i) => (
                   <li key={i} className="flex gap-2 text-sm text-neutral-300">
-                    <span className="text-emerald-400 mt-0.5">✓</span>
+                    <CheckIcon width={14} height={14} className="text-emerald-400 mt-0.5 flex-shrink-0" />
                     <span>{r}</span>
                   </li>
                 ))}
@@ -1422,11 +1418,11 @@ const RISK_COLORS: Record<string, string> = {
   critical: 'border-crimson-500/40 bg-crimson-700/10',
 }
 
-const RISK_BADGE: Record<string, string> = {
-  low: 'bg-emerald-500/15 text-emerald-400',
-  medium: 'bg-gold-500/15 text-gold-400',
-  high: 'bg-amber-500/15 text-amber-400',
-  critical: 'bg-crimson-500/15 text-crimson-400',
+const RISK_VARIANT: Record<string, 'success' | 'gold' | 'warning' | 'danger'> = {
+  low: 'success',
+  medium: 'gold',
+  high: 'warning',
+  critical: 'danger',
 }
 
 const RISK_SCORE_COLOR = (score: number) =>
@@ -1453,9 +1449,7 @@ function ClauseCard({ clause }: { clause: ContractClause }) {
       style={{ borderLeftColor: clause.risk_level === 'critical' ? '#ef4444' : clause.risk_level === 'high' ? '#f97316' : clause.risk_level === 'medium' ? '#f59e0b' : '#10b981' }}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${RISK_BADGE[clause.risk_level]}`}>
-            {clause.risk_level.toUpperCase()}
-          </span>
+          <Badge variant={RISK_VARIANT[clause.risk_level]}>{clause.risk_level}</Badge>
           <span className="text-sm font-medium text-neutral-100">{clause.title}</span>
         </div>
         <button
@@ -1571,9 +1565,7 @@ function ContractReviewPanel({ token }: { token: string }) {
           ) : (
             <div className="space-y-2">
               <div className="flex justify-center">
-                <svg className="w-10 h-10 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <DocumentIcon width={40} height={40} className="w-10 h-10 text-neutral-600" />
               </div>
               <p className="text-neutral-400 text-sm">Click to upload a contract</p>
               <p className="text-neutral-600 text-xs">PDF, DOCX, TXT — up to 10 MB</p>
@@ -1634,9 +1626,7 @@ function ContractReviewPanel({ token }: { token: string }) {
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-3">
                   <h4 className="font-heading text-body-md text-neutral-50">Overall Risk Assessment</h4>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${RISK_BADGE[result.risk_level]}`}>
-                    {result.risk_level.toUpperCase()}
-                  </span>
+                  <Badge variant={RISK_VARIANT[result.risk_level]} size="md">{result.risk_level}</Badge>
                 </div>
                 <p className="text-neutral-300 text-sm">{result.summary}</p>
                 <button
@@ -1656,16 +1646,12 @@ function ContractReviewPanel({ token }: { token: string }) {
           {result.missing_clauses.length > 0 && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-900/10 p-5">
               <h4 className="font-heading text-body-md text-neutral-50 mb-3 flex items-center gap-2">
-                <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <AlertTriangleIcon width={16} height={16} className="text-amber-400" />
                 Missing Standard Clauses
               </h4>
               <div className="flex flex-wrap gap-2">
                 {result.missing_clauses.map((c, i) => (
-                  <span key={i} className="text-xs px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
-                    {c}
-                  </span>
+                  <Badge key={i} variant="warning">{c}</Badge>
                 ))}
               </div>
             </div>
@@ -1730,12 +1716,6 @@ function ResearchPanel({ token }: { token: string }) {
     navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) }).catch(() => {})
   }
 
-  const confidenceStyle: Record<string, string> = {
-    high: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
-    medium: 'text-gold-400 bg-gold-500/10 border-gold-500/20',
-    low: 'text-crimson-400 bg-crimson-500/10 border-crimson-500/20',
-  }
-
   return (
     <div className="flex flex-col lg:flex-row gap-4 lg:gap-5">
       {/* Recent searches — horizontal scroll on mobile, sidebar on desktop */}
@@ -1784,9 +1764,7 @@ function ResearchPanel({ token }: { token: string }) {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
               ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                <SearchIcon width={16} height={16} className="w-4 h-4" />
               )}
               Search
             </button>
@@ -1810,9 +1788,9 @@ function ResearchPanel({ token }: { token: string }) {
             <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-5 space-y-3">
               <div className="flex items-center gap-3">
                 <h4 className="font-heading text-body-md text-neutral-50">Research Answer</h4>
-                <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${confidenceStyle[result.confidence]}`}>
+                <Badge variant={result.confidence === 'high' ? 'success' : result.confidence === 'medium' ? 'gold' : 'danger'} size="md">
                   {result.confidence === 'high' ? 'High Confidence' : result.confidence === 'medium' ? 'Medium Confidence' : 'Low — verify independently'}
-                </span>
+                </Badge>
               </div>
               <MarkdownRenderer content={result.answer} />
               {result.disclaimer && (
@@ -1835,7 +1813,7 @@ function ResearchPanel({ token }: { token: string }) {
                       onClick={() => copyCitation(c)}
                       className="flex-shrink-0 px-2.5 py-1 rounded-lg border border-neutral-700/40 text-neutral-400 text-xs hover:text-gold-400 hover:border-gold-500/30 transition-colors"
                     >
-                      {copied ? '✓' : 'Copy'}
+                      {copied ? <CheckIcon width={14} height={14} /> : 'Copy'}
                     </button>
                   </div>
                 ))}
@@ -1847,7 +1825,7 @@ function ResearchPanel({ token }: { token: string }) {
         {/* Empty state */}
         {!streaming && !result && !error && (
           <div className="rounded-xl border border-dashed border-neutral-700/30 p-10 text-center">
-            <div className="text-4xl mb-3">📚</div>
+            <div className="mb-3 flex justify-center text-neutral-500"><BookOpenIcon width={32} height={32} /></div>
             <p className="font-medium text-neutral-300 mb-1">Search Cameroonian Law</p>
             <p className="text-neutral-500 text-sm">Ask a legal question and receive a cited answer backed by specific statutes, articles, and OHADA regulations.</p>
           </div>
@@ -2006,7 +1984,7 @@ function ClauseLibraryPanel() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-sm text-neutral-100">{c.title}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-primary-700/50 border border-white/8 text-[10px] text-neutral-400">{c.category}</span>
+                    <Badge variant="neutral">{c.category}</Badge>
                   </div>
                   <p className="text-[10px] text-neutral-600 mt-0.5">{new Date(c.savedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
@@ -2017,13 +1995,13 @@ function ClauseLibraryPanel() {
                       copied === c.id ? 'border-emerald-500/30 text-emerald-400' : 'border-neutral-700/40 text-neutral-400 hover:text-gold-400 hover:border-gold-500/30'
                     }`}
                   >
-                    {copied === c.id ? '✓ Copied' : 'Copy'}
+                    {copied === c.id ? <span className="flex items-center gap-1"><CheckIcon width={12} height={12} /> Copied</span> : 'Copy'}
                   </button>
                   <button
                     onClick={() => remove(c.id)}
                     className="px-2 py-1 rounded-lg border border-neutral-700/40 text-neutral-600 text-xs hover:text-crimson-400 hover:border-crimson-500/30 transition-colors"
                   >
-                    ✕
+                    <XCircleIcon width={12} height={12} />
                   </button>
                 </div>
               </div>
@@ -2033,7 +2011,7 @@ function ClauseLibraryPanel() {
         </div>
       ) : clauses.length === 0 ? (
         <div className="rounded-xl border border-dashed border-neutral-700/30 p-10 text-center">
-          <div className="text-4xl mb-3">📋</div>
+          <div className="mb-3 flex justify-center text-neutral-500"><ClipboardIcon width={32} height={32} /></div>
           <p className="font-medium text-neutral-300 mb-1">No saved clauses yet</p>
           <p className="text-neutral-500 text-sm">Save contract clauses from your drafts or add them manually to reuse across matters.</p>
           <button
@@ -2062,18 +2040,14 @@ export default function LawyerAIPage() {
 
   const tabs: { key: Tab; label: string; short: string; icon: React.ReactNode }[] = [
     { key: 'chat',     label: 'LexAI Chat',        short: 'Chat',     icon: <ChatBubbleIcon /> },
-    { key: 'drafts',   label: 'Legal Drafts',       short: 'Drafts',   icon: <DocIcon /> },
+    { key: 'drafts',   label: 'Legal Drafts',       short: 'Drafts',   icon: <DocumentIcon className="w-5 h-5" /> },
     { key: 'analysis', label: 'Doc Analysis',       short: 'Analysis', icon: <SparkIcon /> },
     { key: 'contract', label: 'Contract Review',    short: 'Contract', icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
       </svg>
     )},
-    { key: 'research', label: 'Legal Research',     short: 'Research', icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-      </svg>
-    )},
+    { key: 'research', label: 'Legal Research',     short: 'Research', icon: <SearchIcon className="w-5 h-5" /> },
     { key: 'clauses', label: 'Clause Library', short: 'Clauses', icon: (
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414A1 1 0 0120 8.414V17a2 2 0 01-2 2H8M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />

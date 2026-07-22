@@ -3,6 +3,10 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { api } from '../../../../lib/api'
+import { SkeletonCard } from '../../../../components/ui/Skeleton'
+import {
+  ClipboardIcon, BadgeCheckIcon, HandshakeIcon, NetworkIcon, PencilIcon, ReferralIcon,
+} from '../../../../components/icons/Icons'
 
 type LawyerProfile = {
   id: string
@@ -34,7 +38,7 @@ export default function OpportunitiesPage() {
       cta: 'View Bookings',
       href: '/lawyer/bookings',
       active: capacity > 0,
-      icon: '📋',
+      icon: ClipboardIcon,
     },
     {
       id: 'verify',
@@ -43,7 +47,7 @@ export default function OpportunitiesPage() {
       cta: 'Start Verification',
       href: '/lawyer/verify',
       active: true,
-      icon: '✅',
+      icon: BadgeCheckIcon,
     },
     {
       id: 'partnerships',
@@ -52,7 +56,7 @@ export default function OpportunitiesPage() {
       cta: 'Explore Partnerships',
       href: '/lawyer/network/partnerships',
       active: profile?.open_to_partnerships !== false,
-      icon: '🏛️',
+      icon: HandshakeIcon,
     },
     {
       id: 'discover',
@@ -61,7 +65,7 @@ export default function OpportunitiesPage() {
       cta: 'View Your Profile',
       href: '/lawyer/profile',
       active: true,
-      icon: '🌐',
+      icon: NetworkIcon,
     },
     {
       id: 'library',
@@ -70,7 +74,7 @@ export default function OpportunitiesPage() {
       cta: 'Write an Article',
       href: '/lawyer/library/new',
       active: true,
-      icon: '✍️',
+      icon: PencilIcon,
     },
     {
       id: 'referrals',
@@ -79,7 +83,7 @@ export default function OpportunitiesPage() {
       cta: 'View Referrals',
       href: '/lawyer/network/referrals',
       active: true,
-      icon: '↗️',
+      icon: ReferralIcon,
     },
   ]
 
@@ -92,17 +96,17 @@ export default function OpportunitiesPage() {
 
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-40 rounded-2xl border border-white/8 bg-primary-800/20 animate-pulse"/>)}
+          {[1,2,3,4].map(i => <SkeletonCard key={i} />)}
         </div>
       )}
 
       {!loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {opportunities.map(opp => (
-            <div key={opp.id} className={`rounded-2xl border p-5 flex flex-col gap-3 transition-all ${
+          {opportunities.map((opp, i) => (
+            <div key={opp.id} className={`rounded-2xl border p-5 flex flex-col gap-3 transition-all stagger-child ${
               opp.active ? 'border-white/8 bg-primary-800/20 hover:border-white/15' : 'border-white/5 bg-primary-900/40 opacity-60'
-            }`}>
-              <div className="text-3xl">{opp.icon}</div>
+            }`} style={{ '--i': i } as React.CSSProperties}>
+              <div className="text-gold-400"><opp.icon className="w-7 h-7" /></div>
               <div className="flex-1">
                 <p className="font-semibold text-neutral-100">{opp.title}</p>
                 <p className="text-sm text-neutral-500 mt-1 leading-relaxed">{opp.desc}</p>

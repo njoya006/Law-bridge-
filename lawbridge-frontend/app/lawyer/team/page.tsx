@@ -11,6 +11,9 @@ import {
 } from '../../../lib/firmsApi'
 import { uploadFirmLogo, validateImageFile } from '../../../lib/avatarApi'
 import { toastSuccess, toastError } from '../../../lib/toast'
+import { CheckIcon, MailIcon, AlertTriangleIcon, BuildingIcon, UsersIcon, ActivityIcon } from '../../../components/icons/Icons'
+import { Badge } from '../../../components/ui/Badge'
+import { EmptyState } from '../../../components/ui/EmptyState'
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -32,6 +35,14 @@ const ROLE_COLORS: Record<string, string> = {
   partner:    'bg-emerald-500/15 text-emerald-300 border-emerald-400/20',
   associate:  'bg-neutral-500/15 text-neutral-300 border-neutral-400/20',
   guest:      'bg-neutral-700/30 text-neutral-400 border-neutral-600/20',
+}
+
+const ROLE_VARIANT: Record<string, 'gold' | 'info' | 'success' | 'neutral'> = {
+  owner:      'gold',
+  firm_admin: 'info',
+  partner:    'success',
+  associate:  'neutral',
+  guest:      'neutral',
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -138,7 +149,7 @@ function InviteModal({ firmId, firmName, onClose, onDone }: {
               step === s ? 'bg-gold-500 border-gold-400 text-primary-900' :
               step > s  ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300' :
                           'bg-neutral-800 border-neutral-600 text-neutral-400'
-            }`}>{step > s ? '✓' : s}</div>
+            }`}>{step > s ? <CheckIcon width={12} height={12} /> : s}</div>
             {s < 3 && <div className={`flex-1 h-px ${step > s ? 'bg-emerald-500/40' : 'bg-neutral-700'}`} />}
           </React.Fragment>
         ))}
@@ -197,7 +208,7 @@ function InviteModal({ firmId, firmName, onClose, onDone }: {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-neutral-400">As</span>
-              <span className={`px-2 py-0.5 rounded-full text-xs border font-medium ${ROLE_COLORS[role]}`}>{selectedRole?.label}</span>
+              <Badge variant={ROLE_VARIANT[role] ?? 'neutral'} size="md">{selectedRole?.label}</Badge>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-neutral-400">Firm</span>
@@ -228,7 +239,7 @@ function InviteSuccessModal({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Invite Sent" onClose={onClose}>
       <div className="text-center py-4 space-y-4">
-        <div className="text-5xl">✉️</div>
+        <div className="flex justify-center text-gold-400"><MailIcon width={40} height={40} /></div>
         <p className="text-neutral-200">The invite has been created successfully. Share the invite link with your colleague so they can accept and join the firm.</p>
         <p className="text-neutral-400 text-sm">They will appear in the team list once they accept. You can see pending invites in the <strong className="text-neutral-300">Invites</strong> tab.</p>
         <Button variant="gold" onClick={onClose}>Done</Button>
@@ -274,9 +285,9 @@ function RoleModal({ member, onClose, onDone }: {
             <div className="text-xs text-neutral-400">{member.user_email}</div>
           </div>
           <div className="ml-auto">
-            <span className={`px-2 py-0.5 rounded-full text-xs border font-medium ${ROLE_COLORS[member.role] ?? ROLE_COLORS.associate}`}>
+            <Badge variant={ROLE_VARIANT[member.role] ?? 'neutral'} size="md">
               {ROLE_LABELS[member.role] ?? member.role}
-            </span>
+            </Badge>
           </div>
         </div>
 
@@ -350,7 +361,7 @@ function RemoveModal({ member, onClose, onDone }: {
     <Modal title="Remove Team Member" onClose={onClose}>
       <div className="space-y-5">
         <div className="p-4 rounded-xl border border-crimson-500/30 bg-crimson-500/5">
-          <p className="text-crimson-200 text-sm font-medium">⚠ This action is permanent</p>
+          <p className="text-crimson-200 text-sm font-medium flex items-center gap-1.5"><AlertTriangleIcon width={14} height={14} /> This action is permanent</p>
           <p className="text-neutral-400 text-sm mt-1">
             Removing <strong className="text-neutral-200">{name}</strong> will immediately revoke their access to the firm's cases and documents.
             This action is logged and attributed to your account.
@@ -433,9 +444,9 @@ function MemberCard({ member, isAdmin, currentUserId, onRoleChange, onRemove }: 
             <p className="font-medium text-neutral-100 text-sm truncate">{name}</p>
             <p className="text-xs text-neutral-400 truncate">{member.user_email ?? member.invited_email ?? '—'}</p>
           </div>
-          <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs border font-medium ${ROLE_COLORS[member.role] ?? ROLE_COLORS.associate}`}>
+          <Badge variant={ROLE_VARIANT[member.role] ?? 'neutral'} size="md" className="flex-shrink-0">
             {ROLE_LABELS[member.role] ?? member.role}
-          </span>
+          </Badge>
         </div>
 
         <div className="mt-2 flex items-center gap-4 text-xs text-neutral-500">
@@ -698,7 +709,7 @@ export default function LawyerTeamPage() {
           </div>
         )}
         <Card className="p-8 text-center">
-          <div className="text-4xl mb-4">🏛</div>
+          <div className="mb-4 flex justify-center text-neutral-400"><BuildingIcon width={32} height={32} /></div>
           <h2 className="font-heading text-lg text-neutral-100 mb-2">You're not part of a firm</h2>
           <p className="text-neutral-400 text-sm mb-6">
             You need to belong to a firm to view and manage a team.
@@ -813,17 +824,18 @@ export default function LawyerTeamPage() {
       {tab === 'members' && (
         <div className="space-y-3">
           {members.length === 0 && (
-            <Card className="p-8 text-center text-neutral-400">No team members yet.</Card>
+            <EmptyState icon={<UsersIcon width={24} height={24} />} title="No team members yet" />
           )}
-          {members.map(m => (
-            <MemberCard
-              key={m.id}
-              member={m}
-              isAdmin={isAdmin}
-              currentUserId={currentUserId}
-              onRoleChange={setRoleTarget}
-              onRemove={setRemoveTarget}
-            />
+          {members.map((m, i) => (
+            <div key={m.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+              <MemberCard
+                member={m}
+                isAdmin={isAdmin}
+                currentUserId={currentUserId}
+                onRoleChange={setRoleTarget}
+                onRemove={setRemoveTarget}
+              />
+            </div>
           ))}
           {isAdmin && (
             <p className="text-xs text-neutral-600 pt-2">
@@ -837,11 +849,11 @@ export default function LawyerTeamPage() {
       {tab === 'invites' && isAdmin && (
         <div className="space-y-3">
           {pendingInvites.length === 0 && (
-            <Card className="p-8 text-center text-neutral-400">No pending invites.</Card>
+            <EmptyState icon={<MailIcon width={24} height={24} />} title="No pending invites" />
           )}
-          {pendingInvites.map(inv => (
+          {pendingInvites.map((inv, i) => (
             <div key={inv.token}
-              className="flex items-center justify-between p-4 rounded-xl border border-neutral-700/30 bg-primary-800/10">
+              className="flex items-center justify-between p-4 rounded-xl border border-neutral-700/30 bg-primary-800/10 stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <div>
                 <p className="font-medium text-neutral-100 text-sm">{inv.email}</p>
                 <div className="flex items-center gap-3 mt-1 text-xs text-neutral-400">
@@ -850,9 +862,9 @@ export default function LawyerTeamPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded-full text-xs border font-medium ${ROLE_COLORS[inv.role] ?? ROLE_COLORS.associate}`}>
+                <Badge variant={ROLE_VARIANT[inv.role] ?? 'neutral'} size="md">
                   {ROLE_LABELS[inv.role] ?? inv.role}
-                </span>
+                </Badge>
                 <button
                   onClick={async () => {
                     if (!firm) return
@@ -865,7 +877,7 @@ export default function LawyerTeamPage() {
                       setErr(e instanceof Error ? e.message : 'Failed to cancel invite')
                     }
                   }}
-                  className="rounded-lg border border-neutral-700 px-2 py-0.5 text-xs text-neutral-400 hover:border-red-500/50 hover:text-red-400 transition-colors"
+                  className="rounded-lg border border-neutral-700 px-2 py-0.5 text-xs text-neutral-400 hover:border-crimson-500/50 hover:text-crimson-400 transition-colors"
                 >
                   Cancel
                 </button>
@@ -880,11 +892,11 @@ export default function LawyerTeamPage() {
       {tab === 'activity' && isAdmin && (
         <div className="space-y-3">
           {activityLog.length === 0 && (
-            <Card className="p-8 text-center text-neutral-400">No activity recorded yet.</Card>
+            <EmptyState icon={<ActivityIcon width={24} height={24} />} title="No activity recorded yet" />
           )}
-          {activityLog.map(log => (
+          {activityLog.map((log, i) => (
             <div key={log.id}
-              className="p-4 rounded-xl border border-neutral-700/30 bg-primary-800/10 space-y-2">
+              className="p-4 rounded-xl border border-neutral-700/30 bg-primary-800/10 space-y-2 stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <span className={`text-sm font-medium ${ACTION_COLORS[log.action] ?? 'text-neutral-300'}`}>

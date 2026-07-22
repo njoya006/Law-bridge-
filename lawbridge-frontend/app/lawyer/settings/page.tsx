@@ -5,6 +5,7 @@ import Button from '../../../components/ui/Button'
 import Input from '../../../components/ui/Input'
 import { api } from '../../../lib/api'
 import { toastSuccess, toastError } from '../../../lib/toast'
+import { CheckIcon } from '../../../components/icons/Icons'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -713,7 +714,7 @@ export default function LawyerSettingsPage() {
                     <Button onClick={handleSaveFees} disabled={feesSaving}>
                       {feesSaving ? 'Saving…' : 'Save Fees'}
                     </Button>
-                    {feesSuccess && <span className="text-emerald-400 text-sm">Fees saved ✓</span>}
+                    {feesSuccess && <span className="text-emerald-400 text-sm inline-flex items-center gap-1">Fees saved <CheckIcon width={14} height={14} /></span>}
                     {feesError && <span className="text-crimson-300 text-sm">{feesError}</span>}
                   </div>
                 </Card>

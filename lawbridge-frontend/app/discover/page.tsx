@@ -8,6 +8,7 @@ import { search } from '../../lib/searchApi'
 import { getOpenCases, applyForCase, type CaseItem } from '../../lib/casesApi'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { CheckIcon, ClockIcon, MapPinIcon, SlidersIcon, SearchIcon, BuildingIcon } from '../../components/icons/Icons'
 
 function isStaffPortal(): boolean {
   try {
@@ -87,9 +88,7 @@ function LawyerCard({ lawyer, isStaff }: { lawyer: LawyerDiscovery; isStaff: boo
           </div>
           {lawyer.is_verified && (
             <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gold-500 border-2 border-primary-800 flex items-center justify-center">
-              <svg className="w-3 h-3 text-primary-900" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-              </svg>
+              <CheckIcon width={12} height={12} className="text-primary-900" />
             </span>
           )}
         </div>
@@ -100,9 +99,9 @@ function LawyerCard({ lawyer, isStaff }: { lawyer: LawyerDiscovery; isStaff: boo
 
         {/* Affiliation row */}
         <div className="mt-2 flex items-center gap-1.5 text-[11px] text-neutral-500">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <ClockIcon width={11} height={11} />
           {lawyer.years_of_experience}yr exp
-          {lawyer.practice_circuit && <><span>·</span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>{lawyer.practice_circuit}</>}
+          {lawyer.practice_circuit && <><span>·</span><MapPinIcon width={11} height={11} />{lawyer.practice_circuit}</>}
         </div>
 
         {/* Star rating */}
@@ -180,9 +179,7 @@ function FirmCard({ firm, isStaff, isOwnFirm }: { firm: FirmDiscovery; isStaff: 
           </div>
           {firm.is_verified && (
             <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gold-500 border-2 border-primary-800 flex items-center justify-center">
-              <svg className="w-3 h-3 text-primary-900" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-              </svg>
+              <CheckIcon width={12} height={12} className="text-primary-900" />
             </span>
           )}
         </div>
@@ -194,7 +191,7 @@ function FirmCard({ firm, isStaff, isOwnFirm }: { firm: FirmDiscovery; isStaff: 
         {/* Location */}
         {(firm.city || firm.country) && (
           <div className="mt-2 flex items-center gap-1 text-[11px] text-neutral-500">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+            <MapPinIcon width={11} height={11} />
             {[firm.city, firm.country].filter(Boolean).join(', ')}
             {firm.year_established && <><span>·</span>Est. {firm.year_established}</>}
           </div>
@@ -487,9 +484,7 @@ export default function DiscoverPage() {
                 : 'bg-primary-800/40 border-neutral-700/40 text-neutral-400 hover:text-neutral-200'
             }`}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="inline mr-1.5">
-              <path d="M3 6h18M7 12h10M11 18h2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
+            <SlidersIcon width={16} height={16} className="inline mr-1.5" />
             Filters
           </button>
         )}
@@ -645,7 +640,7 @@ export default function DiscoverPage() {
             </div>
           ) : lawyers.length === 0 ? (
             <EmptyState
-              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>}
+              icon={<SearchIcon width={24} height={24} />}
               title="No lawyers found"
               body="Try adjusting your filters or search term."
             />
@@ -685,7 +680,7 @@ export default function DiscoverPage() {
             </div>
           ) : firms.length === 0 ? (
             <EmptyState
-              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>}
+              icon={<BuildingIcon width={24} height={24} />}
               title="No firms found"
               body="Try different search terms."
             />

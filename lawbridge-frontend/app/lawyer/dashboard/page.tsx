@@ -11,6 +11,11 @@ import { SERVICE_URLS } from '../../../lib/serviceUrls'
 import { useCountUp } from '../../../lib/useCountUp'
 import { SkeletonStat, SkeletonTable } from '../../../components/ui/Skeleton'
 import { EmptyState } from '../../../components/ui/EmptyState'
+import { Badge } from '../../../components/ui/Badge'
+import {
+  CaseIcon, UploadIcon, ChatIcon, CalendarIcon, SparklesIcon, SearchIcon, UsersIcon,
+  ActivityIcon, PaymentIcon, BellIcon, ArrowRightIcon, CheckIcon, ChevronDownIcon, PlusIcon,
+} from '../../../components/icons/Icons'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -102,27 +107,15 @@ function CaseRiskWidget({ token }: { token: string }) {
           <p className="text-xs text-neutral-500 mt-0.5">AI-powered early warning</p>
         </div>
         <div className="flex gap-2 flex-wrap justify-end">
-          {counts.critical > 0 && (
-            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-crimson-500/15 text-crimson-400 border border-crimson-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-crimson-400 inline-block" />{counts.critical} Critical
-            </span>
-          )}
-          {counts.watch > 0 && (
-            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />{counts.watch} Watch
-            </span>
-          )}
-          {counts.healthy > 0 && (
-            <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />{counts.healthy} Healthy
-            </span>
-          )}
+          {counts.critical > 0 && <Badge variant="danger" size="md">{counts.critical} Critical</Badge>}
+          {counts.watch > 0 && <Badge variant="warning" size="md">{counts.watch} Watch</Badge>}
+          {counts.healthy > 0 && <Badge variant="success" size="md">{counts.healthy} Healthy</Badge>}
         </div>
       </div>
 
       {atRisk.length === 0 ? (
         <div className="flex items-center gap-2 text-emerald-400 text-sm">
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+          <CheckIcon className="w-4 h-4 flex-shrink-0" />
           All active cases are healthy.
         </div>
       ) : (
@@ -144,13 +137,13 @@ function CaseRiskWidget({ token }: { token: string }) {
                       ))}
                     </div>
                   </div>
-                  <svg className="w-4 h-4 text-neutral-600 flex-shrink-0 group-hover:text-neutral-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  <ArrowRightIcon className="w-4 h-4 text-neutral-600 flex-shrink-0 group-hover:text-neutral-400 transition-colors" />
                 </div>
               </Link>
             )
           })}
-          <Link href="/admin/risks" className="block text-xs text-gold-400 hover:text-gold-300 text-center pt-1 transition-colors">
-            View all risk cases →
+          <Link href="/admin/risks" className="flex items-center justify-center gap-1 text-xs text-portal hover:opacity-80 text-center pt-1 transition-colors">
+            View all risk cases <ArrowRightIcon width={12} height={12} />
           </Link>
         </div>
       )}
@@ -447,9 +440,7 @@ export default function LawyerDashboardPage() {
                     : <span className={`w-2 h-2 rounded-full ${currentAvail.dot}`} />
                   }
                   {currentAvail.label}
-                  <svg className="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronDownIcon width={12} height={12} className="opacity-50" />
                 </button>
                 {showAvailMenu && (
                   <div className="absolute top-full left-0 mt-1.5 z-30 min-w-[160px] rounded-xl border border-white/10 bg-primary-900 shadow-2xl overflow-hidden">
@@ -462,9 +453,7 @@ export default function LawyerDashboardPage() {
                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${opt.dot}`} />
                         <span className={opt.color}>{opt.label}</span>
                         {opt.value === profile.availability_status && (
-                          <svg className="w-3 h-3 ml-auto text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
+                          <CheckIcon width={12} height={12} className="ml-auto text-portal" />
                         )}
                       </button>
                     ))}
@@ -477,17 +466,13 @@ export default function LawyerDashboardPage() {
           <div className="flex gap-2 flex-wrap flex-shrink-0 items-start">
             <Link href="/lawyer/matters">
               <button className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-black text-sm font-bold shadow-[0_2px_12px_rgba(212,168,67,0.35)] hover:shadow-[0_4px_20px_rgba(212,168,67,0.5)] hover:from-gold-300 hover:to-gold-500 transition-all active:scale-95">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <PlusIcon width={16} height={16} />
                 Matters
               </button>
             </Link>
             <Link href="/lawyer/bookings">
               <button className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] hover:border-white/15 text-neutral-200 text-sm font-medium transition-all active:scale-95">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+                <CalendarIcon width={16} height={16} />
                 Bookings
                 {bookingCount > 0 && (
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-black">
@@ -503,23 +488,21 @@ export default function LawyerDashboardPage() {
       {/* ── Quick-action rail ───────────────────────────────────────────────── */}
       <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1">
         {[
-          { label: 'New Matter',  href: '/lawyer/matters',   gold: true,  d: 'M12 4v16m8-8H4' },
-          { label: 'Upload Doc',  href: '/lawyer/documents', gold: false, d: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
-          { label: 'Message',     href: '/messages',         gold: false, d: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z' },
-          { label: 'Calendar',    href: '/lawyer/calendar',  gold: false, d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
-          { label: 'AI Review',   href: '/lawyer/ai',        gold: false, d: 'M13 10V3L4 14h7v7l9-11h-7z' },
-          { label: 'Case Triage', href: '/lawyer/triage',    gold: false, d: 'M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z' },
-          { label: 'My Clients',  href: '/lawyer/clients',   gold: false, d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
-        ].map(({ label, href, gold, d }) => (
+          { label: 'New Matter',  href: '/lawyer/matters',   gold: true,  Icon: CaseIcon },
+          { label: 'Upload Doc',  href: '/lawyer/documents', gold: false, Icon: UploadIcon },
+          { label: 'Message',     href: '/messages',         gold: false, Icon: ChatIcon },
+          { label: 'Calendar',    href: '/lawyer/calendar',  gold: false, Icon: CalendarIcon },
+          { label: 'AI Review',   href: '/lawyer/ai',        gold: false, Icon: SparklesIcon },
+          { label: 'Case Triage', href: '/lawyer/triage',    gold: false, Icon: SearchIcon },
+          { label: 'My Clients',  href: '/lawyer/clients',   gold: false, Icon: UsersIcon },
+        ].map(({ label, href, gold, Icon }) => (
           <Link key={href} href={href} className="flex-shrink-0">
             <button className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all active:scale-95 ${
               gold
-                ? 'bg-gold-500/20 border border-gold-400/30 text-gold-300 hover:bg-gold-500/30'
+                ? 'bg-portal-soft border border-portal text-portal hover:opacity-90'
                 : 'border border-white/8 bg-white/[0.03] text-neutral-400 hover:border-white/15 hover:text-neutral-200 hover:bg-white/[0.06]'
             }`}>
-              <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d={d} />
-              </svg>
+              <Icon width={16} height={16} className="flex-shrink-0" />
               {label}
             </button>
           </Link>
@@ -542,8 +525,9 @@ export default function LawyerDashboardPage() {
               value: animActiveCases,
               sub: `${cases.length} total matters`,
               href: '/lawyer/matters',
-              color: 'text-gold-400',
-              d: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+              color: 'text-portal',
+              Icon: CaseIcon,
+              portal: true,
             },
             {
               label: 'Pending Bookings',
@@ -551,7 +535,7 @@ export default function LawyerDashboardPage() {
               sub: 'awaiting response',
               href: '/lawyer/bookings',
               color: bookingCount > 0 ? 'text-amber-400' : 'text-neutral-400',
-              d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+              Icon: CalendarIcon,
             },
             {
               label: 'Cases This Month',
@@ -559,7 +543,7 @@ export default function LawyerDashboardPage() {
               sub: 'newly opened',
               href: '/lawyer/matters',
               color: 'text-primary-400',
-              d: 'M22 12h-4l-3 9L9 3l-3 9H2',
+              Icon: ActivityIcon,
             },
             {
               label: earnings !== null ? 'Earnings (Month)' : 'Billing',
@@ -567,7 +551,7 @@ export default function LawyerDashboardPage() {
               sub: 'XAF collected',
               href: '/lawyer/billing',
               color: earnings !== null && earnings > 0 ? 'text-emerald-400' : 'text-neutral-500',
-              d: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+              Icon: PaymentIcon,
             },
             {
               label: 'Unread Updates',
@@ -575,16 +559,14 @@ export default function LawyerDashboardPage() {
               sub: 'notifications',
               href: '/notifications',
               color: unread > 0 ? 'text-crimson-400' : 'text-neutral-400',
-              d: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
+              Icon: BellIcon,
             },
-          ].map(({ label, value, sub, href, color, d }, i) => (
+          ].map(({ label, value, sub, href, color, Icon, portal }, i) => (
             <Link key={label} href={href} className="block stagger-child" style={{ '--i': i } as React.CSSProperties}>
-              <div className="bg-primary-800/30 border border-white/8 rounded-2xl p-5 hover:border-white/15 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 group h-full">
+              <div className={`bg-primary-800/30 border rounded-2xl p-5 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 group h-full ${portal ? 'border-portal/40 hover:shadow-portal-glow' : 'border-white/8 hover:border-white/15'}`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className={`p-2 rounded-xl bg-white/5 ${color} group-hover:bg-white/8 transition-colors`}>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d={d} />
-                    </svg>
+                    <Icon width={20} height={20} />
                   </div>
                 </div>
                 <p className={`text-3xl stat-num ${color}`}>{value}</p>
@@ -610,15 +592,15 @@ export default function LawyerDashboardPage() {
             <SkeletonTable rows={4} />
           ) : recentCases.length === 0 ? (
             <EmptyState
-              icon={<svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}
+              icon={<CaseIcon width={24} height={24} />}
               title="No active matters yet"
               body="Cases assigned to you will appear here."
               action={{ label: 'View all matters', href: '/lawyer/matters' }}
             />
           ) : (
             <div className="space-y-2">
-              {recentCases.map(c => (
-                <Link key={c.id} href={`/cases/${c.id}`} className="block group">
+              {recentCases.map((c, i) => (
+                <Link key={c.id} href={`/cases/${c.id}`} className="block group stagger-child" style={{ '--i': i } as React.CSSProperties}>
                   <div className="flex items-center gap-3 p-3.5 rounded-xl border border-white/6 bg-primary-800/20 hover:border-white/12 hover:bg-primary-800/40 transition-all">
                     <div className={`flex-shrink-0 w-1.5 h-10 rounded-full ${
                       c.status === 'in_progress' ? 'bg-primary-400' :
@@ -636,9 +618,7 @@ export default function LawyerDashboardPage() {
                     <span className={`flex-shrink-0 text-[11px] px-2 py-0.5 rounded-full border capitalize ${statusColor(c.status)}`}>
                       {c.status.replace(/_/g, ' ')}
                     </span>
-                    <svg className="w-4 h-4 text-neutral-600 flex-shrink-0 group-hover:text-neutral-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    <ArrowRightIcon className="w-4 h-4 text-neutral-600 flex-shrink-0 group-hover:text-neutral-400 transition-colors" />
                   </div>
                 </Link>
               ))}

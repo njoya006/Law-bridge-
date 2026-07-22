@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { getMyCases, type CaseItem } from '../../../../../lib/casesApi'
 import { listDocuments, fetchDocumentBlob, downloadDocument, type DocumentItem } from '../../../../../lib/documentsApi'
 import { toastError } from '../../../../../lib/toast'
+import { Badge } from '../../../../../components/ui/Badge'
+import { DocumentIcon, CaseIcon, EyeIcon } from '../../../../../components/icons/Icons'
 
 function formatBytes(bytes: number) {
   if (!bytes) return '—'
@@ -20,31 +22,23 @@ function formatDate(iso: string) {
 
 function FileIcon({ mime }: { mime: string }) {
   const base = 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg'
-  if (mime?.includes('pdf')) return <div className={`${base} bg-crimson-500/12 text-crimson-400`}>📄</div>
-  if (mime?.includes('image')) return <div className={`${base} bg-emerald-500/12 text-emerald-400`}>🖼️</div>
-  if (mime?.includes('word') || mime?.includes('document')) return <div className={`${base} bg-primary-400/12 text-primary-100`}>📝</div>
-  if (mime?.includes('sheet') || mime?.includes('excel')) return <div className={`${base} bg-emerald-600/12 text-emerald-400`}>📊</div>
-  return <div className={`${base} bg-gold-500/12 text-gold-400`}>📎</div>
+  if (mime?.includes('pdf')) return <div className={`${base} bg-crimson-500/12 text-crimson-400`}><DocumentIcon width={16} height={16} /></div>
+  if (mime?.includes('image')) return <div className={`${base} bg-emerald-500/12 text-emerald-400`}><DocumentIcon width={16} height={16} /></div>
+  if (mime?.includes('word') || mime?.includes('document')) return <div className={`${base} bg-primary-400/12 text-primary-100`}><DocumentIcon width={16} height={16} /></div>
+  if (mime?.includes('sheet') || mime?.includes('excel')) return <div className={`${base} bg-emerald-600/12 text-emerald-400`}><DocumentIcon width={16} height={16} /></div>
+  return <div className={`${base} bg-gold-500/12 text-gold-400`}><DocumentIcon width={16} height={16} /></div>
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const cls = status === 'stored'
-    ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-    : status === 'pending_scan'
-    ? 'text-amber-400 bg-amber-500/10 border-amber-500/30'
-    : 'text-neutral-400 bg-neutral-700/30 border-neutral-600/30'
-  return (
-    <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full border ${cls}`}>
-      {status === 'pending_scan' ? 'scanning' : status}
-    </span>
-  )
+  const variant = status === 'stored' ? 'success' : status === 'pending_scan' ? 'warning' : 'neutral'
+  return <Badge variant={variant}>{status === 'pending_scan' ? 'scanning' : status}</Badge>
 }
 
 function EmptyVault() {
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-14 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-500/10 text-gold-400 text-2xl">
-        📁
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-500/10 text-gold-400">
+        <CaseIcon width={26} height={26} />
       </div>
       <h3 className="mt-4 font-semibold text-neutral-200">No documents yet</h3>
       <p className="mt-1.5 max-w-xs text-sm text-neutral-500 leading-relaxed">
@@ -200,11 +194,11 @@ export default function MyOfficeDocumentsPage() {
       )}
 
       {!loading && error && (
-        <div className="flex items-start gap-3 rounded-xl border border-red-500/30 bg-red-500/8 px-4 py-4">
-          <svg className="mt-0.5 flex-shrink-0 text-red-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <div className="flex items-start gap-3 rounded-xl border border-crimson-500/30 bg-crimson-500/8 px-4 py-4">
+          <svg className="mt-0.5 flex-shrink-0 text-crimson-400" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          <p className="text-sm text-red-300">{error}</p>
+          <p className="text-sm text-crimson-300">{error}</p>
         </div>
       )}
 
@@ -214,8 +208,8 @@ export default function MyOfficeDocumentsPage() {
         <EmptyVault />
       )}
 
-      {!loading && !error && groups.map(group => (
-        <div key={group.caseId} className="rounded-xl border border-white/8 bg-primary-800/30 overflow-hidden">
+      {!loading && !error && groups.map((group, gi) => (
+        <div key={group.caseId} className="rounded-xl border border-white/8 bg-primary-800/30 overflow-hidden stagger-child" style={{ '--i': Math.min(gi, 8) } as React.CSSProperties}>
           <div className="flex items-center justify-between px-5 py-3 border-b border-white/6 bg-primary-800/40">
             <p className="text-sm font-semibold text-neutral-100 truncate">{group.title}</p>
             <span className="ml-3 flex-shrink-0 text-[10px] uppercase tracking-wider text-neutral-500">
@@ -224,7 +218,7 @@ export default function MyOfficeDocumentsPage() {
           </div>
           {group.items.length === 0 ? (
             <div className="flex items-center gap-3 px-5 py-4 text-xs text-neutral-500">
-              <span className="opacity-50">📄</span>
+              <DocumentIcon width={14} height={14} className="opacity-50" />
               No files yet — your client can upload from their portal, or add one yourself.
             </div>
           ) : (
@@ -249,10 +243,7 @@ export default function MyOfficeDocumentsPage() {
                       onClick={() => void handleOpen(doc)}
                       className="min-h-[32px] inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-neutral-300 hover:bg-white/10 hover:text-neutral-100 transition-colors"
                     >
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                      </svg>
+                      <EyeIcon width={11} height={11} />
                       Open
                     </button>
                     <button
@@ -331,10 +322,10 @@ export default function MyOfficeDocumentsPage() {
                 autoFocus
                 placeholder="Document password"
                 className={`w-full rounded-xl bg-primary-900/50 border px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none transition-colors ${
-                  docPwErr ? 'border-red-500/40 focus:border-red-500/60' : 'border-white/10 focus:border-amber-500/40'
+                  docPwErr ? 'border-crimson-500/40 focus:border-crimson-500/60' : 'border-white/10 focus:border-amber-500/40'
                 }`}
               />
-              {docPwErr && <p className="mt-2 text-xs text-red-400">{docPwErr}</p>}
+              {docPwErr && <p className="mt-2 text-xs text-crimson-400">{docPwErr}</p>}
             </div>
             <div className="flex gap-3 px-6 pb-6">
               <button

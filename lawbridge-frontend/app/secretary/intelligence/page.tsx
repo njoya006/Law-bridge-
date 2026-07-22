@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from 'react'
 import { getFirmIntelligence, type FirmIntelligence, type StalledCase } from '../../../lib/monitoringApi'
 import { SERVICE_URLS } from '../../../lib/serviceUrls'
+import { Badge } from '../../../components/ui/Badge'
+import { AlertTriangleIcon } from '../../../components/icons/Icons'
 
 // ── Expandable Stalled Case Card ───────────────────────────────────────────────
 function StalledCard({ c }: { c: StalledCase }) {
   const [open, setOpen] = useState(false)
   const urgency = c.days_stale > 30 ? 'critical' : c.days_stale > 21 ? 'high' : 'medium'
-  const urgencyColor = urgency === 'critical' ? 'text-red-400' : urgency === 'high' ? 'text-amber-400' : 'text-amber-300'
+  const urgencyColor = urgency === 'critical' ? 'text-crimson-400' : urgency === 'high' ? 'text-amber-400' : 'text-amber-300'
 
   return (
     <div className="rounded-lg bg-amber-900/20 border border-amber-500/10 overflow-hidden transition-all">
@@ -167,7 +169,7 @@ Respond ONLY with JSON: {"narrative": "...", "bullet_insights": ["...", "..."]}`
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <svg className="w-8 h-8 animate-spin text-gold-400" fill="none" viewBox="0 0 24 24">
+        <svg className="w-8 h-8 animate-spin text-portal" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
         </svg>
@@ -197,9 +199,7 @@ Respond ONLY with JSON: {"narrative": "...", "bullet_insights": ["...", "..."]}`
         <div className="flex items-center gap-3">
           <h1 className="font-display text-display-md text-neutral-50">Firm Intelligence</h1>
           {data.firm_name && (
-            <span className="rounded-full border border-gold-500/30 bg-gold-500/10 px-3 py-0.5 text-xs font-semibold text-gold-400">
-              {data.firm_name}
-            </span>
+            <Badge variant="portal" size="md">{data.firm_name}</Badge>
           )}
         </div>
         <p className="text-neutral-400 text-sm mt-1">
@@ -239,7 +239,7 @@ Respond ONLY with JSON: {"narrative": "...", "bullet_insights": ["...", "..."]}`
             <div className="space-y-3">
               {data.lawyer_loads.map((lawyer) => {
                 const pct = Math.round((lawyer.active_cases / maxLoad) * 100)
-                const barColor = pct >= 80 ? 'bg-red-500' : pct >= 60 ? 'bg-amber-500' : 'bg-emerald-500'
+                const barColor = pct >= 80 ? 'bg-crimson-500' : pct >= 60 ? 'bg-amber-500' : 'bg-emerald-500'
                 return (
                   <div key={lawyer.lawyer_id} className="space-y-1">
                     <div className="flex justify-between text-xs text-neutral-400">
@@ -272,7 +272,7 @@ Respond ONLY with JSON: {"narrative": "...", "bullet_insights": ["...", "..."]}`
                     <div key={status} className="flex items-center gap-3">
                       <span className="text-xs text-neutral-400 w-36 truncate capitalize">{status.replace(/_/g, ' ')}</span>
                       <div className="flex-1 h-2 bg-neutral-700/40 rounded-full overflow-hidden">
-                        <div className="h-full bg-gold-500/60 rounded-full" style={{ width: `${pct}%` }} />
+                        <div className="h-full bg-portal-accent rounded-full opacity-60" style={{ width: `${pct}%` }} />
                       </div>
                       <span className="text-xs text-neutral-500 w-8 text-right">{count}</span>
                     </div>
@@ -287,23 +287,25 @@ Respond ONLY with JSON: {"narrative": "...", "bullet_insights": ["...", "..."]}`
       {data.stalled_cases.length > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-900/10 p-5 space-y-3">
           <h2 className="font-heading text-body-lg text-neutral-50 flex items-center gap-2">
-            <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
+            <AlertTriangleIcon width={20} height={20} className="text-amber-400" />
             Bottleneck Detector
             <span className="text-xs font-normal text-amber-500 ml-1">cases stalled &gt;14 days — click to expand</span>
           </h2>
           <div className="space-y-2">
-            {data.stalled_cases.map((c) => <StalledCard key={c.case_id} c={c} />)}
+            {data.stalled_cases.map((c, i) => (
+              <div key={c.case_id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                <StalledCard c={c} />
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* AI Insights — always visible, generates on demand if server didn't provide */}
-      <div className="rounded-xl border border-gold-500/20 bg-gold-900/10 p-5 space-y-3">
+      <div className="rounded-xl border border-portal bg-portal-soft p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-body-lg text-neutral-50 flex items-center gap-2">
-            <svg className="w-5 h-5 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-portal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 10V3L4 14h7v7l9-11h-7z"/>
             </svg>
             AI Insights
@@ -311,7 +313,7 @@ Respond ONLY with JSON: {"narrative": "...", "bullet_insights": ["...", "..."]}`
           {!hasInsights && !aiLoading && (
             <button
               onClick={generateInsights}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-gold-500/30 text-gold-300 hover:bg-gold-500/10 transition-colors"
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-portal-solid text-portal hover:bg-portal-soft transition-colors"
             >
               Get AI Insights →
             </button>
@@ -334,8 +336,8 @@ Respond ONLY with JSON: {"narrative": "...", "bullet_insights": ["...", "..."]}`
 
         {aiLoading && (
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-gold-400 text-xs">
-              <span className="animate-spin h-3 w-3 border border-gold-400 border-t-transparent rounded-full" />
+            <div className="flex items-center gap-2 text-portal text-xs">
+              <span className="animate-spin h-3 w-3 border border-portal-solid border-t-transparent rounded-full" />
               Analysing firm data…
             </div>
             {aiStreamText && (
@@ -357,7 +359,7 @@ Respond ONLY with JSON: {"narrative": "...", "bullet_insights": ["...", "..."]}`
               <ul className="space-y-1.5 mt-2">
                 {shownBullets.map((insight, i) => (
                   <li key={i} className="flex gap-2 text-sm text-neutral-300">
-                    <span className="text-gold-500 mt-0.5 flex-shrink-0">•</span>
+                    <span className="text-portal mt-0.5 flex-shrink-0">•</span>
                     <span>{insight}</span>
                   </li>
                 ))}

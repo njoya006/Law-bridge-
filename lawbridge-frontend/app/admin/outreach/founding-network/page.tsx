@@ -65,10 +65,10 @@ export default function FoundingNetworkPage() {
           <tbody className="divide-y divide-white/5">
             {entries.length === 0 ? (
               <tr><td colSpan={7} className="px-4 py-16 text-center text-neutral-500 text-sm">No network members yet. Mark firms as &quot;Interested&quot; or above to see them here.</td></tr>
-            ) : entries.map(({ firm, completedInterviews, avgInterest, engagementScore }) => (
-              <tr key={firm.id} className="hover:bg-white/3 transition-colors">
+            ) : entries.map(({ firm, completedInterviews, avgInterest, engagementScore }, i) => (
+              <tr key={firm.id} className="hover:bg-white/3 transition-colors stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                 <td className="px-4 py-3">
-                  <Link href={`/admin/outreach/firms/${firm.id}`} className="text-sm font-semibold text-neutral-100 hover:text-gold-400 transition-colors">{firm.firmName}</Link>
+                  <Link href={`/admin/outreach/firms/${firm.id}`} className="text-sm font-semibold text-neutral-100 hover:text-portal transition-colors">{firm.firmName}</Link>
                   <div className="flex flex-wrap gap-1 mt-0.5">
                     {firm.practiceAreas.slice(0, 2).map(pa => (
                       <span key={pa} className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-neutral-600">{pa}</span>

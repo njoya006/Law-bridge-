@@ -2,6 +2,9 @@
 
 import React, { useEffect, useState } from 'react'
 import { api } from '../../../../lib/api'
+import { Badge } from '../../../../components/ui/Badge'
+import { SkeletonCard } from '../../../../components/ui/Skeleton'
+import { HandshakeIcon, PlusIcon } from '../../../../components/icons/Icons'
 
 type PartnershipRequest = {
   id: string
@@ -12,11 +15,11 @@ type PartnershipRequest = {
   created_at: string
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  pending:      'bg-amber-500/15 text-amber-300 border-amber-500/30',
-  under_review: 'bg-primary-400/15 text-primary-300 border-primary-400/30',
-  approved:     'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-  rejected:     'bg-crimson-500/15 text-crimson-400 border-crimson-500/30',
+const STATUS_VARIANT: Record<string, 'warning' | 'info' | 'success' | 'danger'> = {
+  pending:      'warning',
+  under_review: 'info',
+  approved:     'success',
+  rejected:     'danger',
 }
 
 export default function PartnershipsPage() {
@@ -72,9 +75,7 @@ export default function PartnershipsPage() {
           onClick={() => setShowForm(v => !v)}
           className="flex-shrink-0 flex items-center gap-2 rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 px-4 py-2.5 text-sm font-bold text-primary-900 shadow-lg hover:from-gold-300 hover:to-gold-400 transition-all active:scale-95"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
-          </svg>
+          <PlusIcon className="w-4 h-4" />
           New Request
         </button>
       </header>
@@ -117,13 +118,15 @@ export default function PartnershipsPage() {
 
       {loading && (
         <div className="space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-2xl border border-white/8 bg-primary-800/20 animate-pulse" />)}
+          {[1, 2, 3].map(i => <SkeletonCard key={i} lines={2} />)}
         </div>
       )}
 
       {!loading && requests.length === 0 && (
         <div className="rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-700/40 text-3xl">🤝</div>
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-700/40 text-neutral-300">
+            <HandshakeIcon width={28} height={28} />
+          </div>
           <h3 className="font-semibold text-neutral-200">No partnership requests yet</h3>
           <p className="mt-1.5 text-sm text-neutral-500">Send a request to start building cross-firm collaborations.</p>
         </div>
@@ -131,17 +134,17 @@ export default function PartnershipsPage() {
 
       {!loading && requests.length > 0 && (
         <div className="space-y-3">
-          {requests.map(r => (
-            <div key={r.id} className="rounded-2xl border border-white/8 bg-primary-800/20 p-5">
+          {requests.map((r, i) => (
+            <div key={r.id} className="rounded-2xl border border-white/8 bg-primary-800/20 p-5 stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <p className="font-semibold text-neutral-100 truncate">{r.firm_name || `Firm #${r.firm.slice(0, 8)}`}</p>
                   {r.message && <p className="text-sm text-neutral-500 mt-1 line-clamp-2">{r.message}</p>}
                   <p className="text-xs text-neutral-700 mt-2">{new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                 </div>
-                <span className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full border capitalize font-semibold ${STATUS_STYLES[r.status] ?? ''}`}>
+                <Badge variant={STATUS_VARIANT[r.status] ?? 'neutral'} size="md" className="flex-shrink-0 capitalize">
                   {r.status.replace('_', ' ')}
-                </span>
+                </Badge>
               </div>
             </div>
           ))}

@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { listBooks, listArticles, listCategories, listFeaturedBooks, ARTICLE_TYPE_LABELS, type BookItem, type BookTier, type BookCategory, type ArticleItem, type ArticleType } from '../../lib/libraryApi'
+import { EmptyState as SharedEmptyState } from '../../components/ui/EmptyState'
+import { SkeletonCard } from '../../components/ui/Skeleton'
+import { EyeIcon, ExpandIcon, BookOpenIcon, DocumentIcon, PlusIcon, SearchIcon } from '../../components/icons/Icons'
 
 const ARTICLE_TYPE_COLORS: Record<string, string> = {
   case_summary: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-  legal_alert:  'text-red-400 bg-red-500/10 border-red-500/20',
+  legal_alert:  'text-crimson-400 bg-crimson-500/10 border-crimson-500/20',
   analysis:     'text-purple-400 bg-purple-500/10 border-purple-500/20',
   commentary:   'text-amber-400 bg-amber-500/10 border-amber-500/20',
   explainer:    'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
@@ -45,14 +48,9 @@ function ArticleCard({ article }: { article: ArticleItem }) {
         </div>
       )}
       <div className="mt-auto flex items-center gap-1.5 text-[11px] font-semibold text-gold-400/60 group-hover:text-gold-400 transition-colors">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
+        <EyeIcon width={11} height={11} />
         Read article
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="ml-0.5">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
+        <ExpandIcon width={10} height={10} className="ml-0.5" />
       </div>
     </Link>
   )
@@ -304,19 +302,12 @@ function BookSkeleton() {
 
 function EmptyState({ search }: { search: string }) {
   return (
-    <div className="col-span-full flex flex-col items-center justify-center py-24 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-gold-500/8 border border-gold-500/15 flex items-center justify-center mb-5">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" className="text-gold-400/60">
-          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z"
-                stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </div>
-      <p className="text-[15px] font-medium text-white/50">
-        {search ? `No books match "${search}"` : 'No books published yet'}
-      </p>
-      <p className="text-sm text-white/25 mt-1">
-        {search ? 'Try a different search term or filter' : 'Check back as lawyers publish resources'}
-      </p>
+    <div className="col-span-full">
+      <SharedEmptyState
+        icon={<BookOpenIcon width={24} height={24} />}
+        title={search ? `No books match "${search}"` : 'No books published yet'}
+        body={search ? 'Try a different search term or filter' : 'Check back as lawyers publish resources'}
+      />
     </div>
   )
 }
@@ -388,14 +379,11 @@ export default function LibraryPage() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-7 h-7 rounded-lg bg-gold-500/12 border border-gold-500/20 flex items-center justify-center">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" className="text-gold-400">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z"
-                          stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  <BookOpenIcon width={14} height={14} className="text-gold-400" />
                 </div>
                 <span className="text-[11px] font-bold tracking-[0.2em] text-gold-400/70 uppercase">CamLex</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">Legal Library</h1>
+              <h1 className="font-display text-3xl sm:text-4xl font-bold text-white tracking-tight">Legal Library</h1>
               <p className="text-sm text-white/35 mt-2 max-w-md">
                 Authoritative legal publications by Cameroonian practitioners — searchable, citable, versioned.
               </p>
@@ -404,9 +392,7 @@ export default function LibraryPage() {
             {isLawyer && (
               <Link href="/lawyer/library"
                     className="inline-flex items-center gap-2 rounded-xl bg-gold-500 px-5 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors flex-shrink-0 shadow-lg shadow-gold-500/20">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
+                <PlusIcon width={14} height={14} />
                 My Publications
               </Link>
             )}
@@ -420,31 +406,22 @@ export default function LibraryPage() {
                 className={`inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
                   contentType === 'books' ? 'bg-gold-500 text-primary-900' : 'text-white/40 hover:text-white/70'
                 }`}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20V2H6.5A2.5 2.5 0 0 0 4 4.5v15z" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <BookOpenIcon width={13} height={13} />
                 Books
               </button>
               <button onClick={() => setContentType('articles')}
                 className={`inline-flex items-center gap-2 rounded-lg px-4 py-1.5 text-sm font-medium transition-all ${
                   contentType === 'articles' ? 'bg-gold-500 text-primary-900' : 'text-white/40 hover:text-white/70'
                 }`}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeLinecap="round" strokeLinejoin="round"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
-                </svg>
+                <DocumentIcon width={13} height={13} />
                 Articles
               </button>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1 max-w-xl">
-                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none"
-                     width="15" height="15" viewBox="0 0 24 24" fill="none">
-                  <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="1.5"/>
-                  <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
+                <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/25 pointer-events-none"
+                     width={15} height={15} />
                 <input
                   type="text"
                   placeholder={contentType === 'books' ? 'Search titles, authors, topics…' : 'Search articles…'}
@@ -514,8 +491,8 @@ export default function LibraryPage() {
                   <div className="h-px flex-1 bg-white/5" />
                 </div>
                 <div className="flex gap-6 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', paddingRight: '12px' }}>
-                  {featuredBooks.map(book => (
-                    <div key={book.id} className="flex-shrink-0" style={{ width: '140px' }}>
+                  {featuredBooks.map((book, i) => (
+                    <div key={book.id} className="stagger-child flex-shrink-0" style={{ width: '140px', '--i': Math.min(i, 8) } as React.CSSProperties}>
                       <BookCover book={book} />
                     </div>
                   ))}
@@ -537,7 +514,11 @@ export default function LibraryPage() {
                 ? Array.from({ length: 12 }).map((_, i) => <BookSkeleton key={i} />)
                 : books.length === 0
                   ? <EmptyState search={search} />
-                  : books.map(book => <BookCover key={book.id} book={book} />)
+                  : books.map((book, i) => (
+                      <div key={book.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                        <BookCover book={book} />
+                      </div>
+                    ))
               }
             </div>
           </>
@@ -551,30 +532,20 @@ export default function LibraryPage() {
             )}
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: 9 }).map((_, i) => (
-                  <div key={i} className="rounded-xl bg-white/3 border border-white/6 p-5 animate-pulse">
-                    <div className="h-4 bg-white/8 rounded w-1/3 mb-3" />
-                    <div className="h-4 bg-white/6 rounded w-full mb-2" />
-                    <div className="h-4 bg-white/5 rounded w-3/4 mb-4" />
-                    <div className="h-3 bg-white/4 rounded w-1/2" />
-                  </div>
-                ))}
+                {Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} lines={3} />)}
               </div>
             ) : articles.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-white/4 border border-white/8 flex items-center justify-center mb-4">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" className="text-white/25">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                    <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="1.5"/>
-                  </svg>
-                </div>
-                <p className="text-[15px] font-medium text-white/40">
-                  {search ? `No articles match "${search}"` : 'No articles published yet'}
-                </p>
-              </div>
+              <SharedEmptyState
+                icon={<DocumentIcon width={24} height={24} />}
+                title={search ? `No articles match "${search}"` : 'No articles published yet'}
+              />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {articles.map(a => <ArticleCard key={a.id} article={a} />)}
+                {articles.map((a, i) => (
+                  <div key={a.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                    <ArticleCard article={a} />
+                  </div>
+                ))}
               </div>
             )}
           </>

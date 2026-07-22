@@ -89,7 +89,7 @@ export default function MyOfficeClientsPage() {
 
       {!loading && !error && clients.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {clients.map(client => {
+          {clients.map((client, ci) => {
             const name = client.profile?.full_name || 'Unknown Client'
             const email = client.profile?.email || ''
             const openCount = client.cases.filter(c => !TERMINAL.has(c.status)).length
@@ -97,7 +97,7 @@ export default function MyOfficeClientsPage() {
             const latestCase = [...client.cases].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0]
             const caseTypes = [...new Set(client.cases.map(c => c.case_type))]
             return (
-              <Card key={client.id} className="p-5 flex flex-col gap-3 hover:border-gold-400/20 transition-colors">
+              <Card key={client.id} className="p-5 flex flex-col gap-3 hover:border-gold-400/20 transition-colors stagger-child" style={{ '--i': Math.min(ci, 8) } as React.CSSProperties}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-600 to-primary-700 border border-gold-500/20 flex items-center justify-center text-gold-300 font-bold text-sm flex-shrink-0">
                     {initials(name)}

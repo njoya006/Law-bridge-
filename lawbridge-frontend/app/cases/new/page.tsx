@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createCase } from '../../../lib/casesApi'
+import { CollapseIcon } from '../../../components/icons/Icons'
 
 const CASE_TYPES = [
   { value: 'criminal',              label: 'Criminal Law' },
@@ -84,12 +85,10 @@ export default function NewCasePage() {
           onClick={() => router.back()}
           className="mb-4 inline-flex items-center gap-1.5 text-xs text-neutral-500 hover:text-neutral-300 transition-colors"
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+          <CollapseIcon width={14} height={14} className="w-3.5 h-3.5" />
           Back
         </button>
-        <p className="text-xs text-gold-400/70 uppercase tracking-[0.2em] font-semibold mb-1">New Matter</p>
+        <p className="text-xs text-portal uppercase tracking-[0.2em] font-semibold mb-1">New Matter</p>
         <h1 className="font-display text-display-md text-neutral-50">File a Case</h1>
         <p className="mt-1 text-sm text-neutral-400">Describe your legal matter. A lawyer will be assigned or you can search for one after filing.</p>
       </div>

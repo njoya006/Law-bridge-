@@ -298,8 +298,8 @@ export default function ManageSeatsPage() {
             </div>
 
             <div className="mt-4 space-y-3">
-              {members.map(member => (
-                <div key={member.id} className="flex items-center justify-between gap-4 rounded-lg border border-white/5 bg-white/5 px-4 py-3">
+              {members.map((member, mi) => (
+                <div key={member.id} className="flex items-center justify-between gap-4 rounded-lg border border-white/5 bg-white/5 px-4 py-3 stagger-child" style={{ '--i': Math.min(mi, 8) } as React.CSSProperties}>
                   <div>
                     <div className="font-medium">{member.user_full_name ?? member.user_email ?? `Member #${member.id}`}</div>
                     <div className="text-xs text-primary-300">{member.user_email ?? 'No email'}</div>

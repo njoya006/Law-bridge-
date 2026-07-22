@@ -2,6 +2,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import PublicHeader from '../components/layout/PublicHeader'
+import {
+  Scale, User, Zap, CircleDollarSign, Smartphone, Wallet, Landmark,
+  Lock, ShieldCheck, ScanLine, ClipboardList, LockKeyhole,
+} from 'lucide-react'
+
+// Icons for payMethods / secItems — order-matched to the bilingual data arrays below
+// (icons aren't translated, so they live outside the en/fr copy objects).
+const PAY_ICONS = [Smartphone, Wallet, Landmark]
+const SEC_ICONS = [Lock, ShieldCheck, ScanLine, ClipboardList, LockKeyhole, Scale]
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Lang = 'en' | 'fr'
@@ -419,7 +428,7 @@ export default function Home() {
 
                 {/* AI badge floating */}
                 <div className="float-card-2 absolute bottom-12 right-0 bg-emerald-500/10 border border-emerald-400/20 backdrop-blur-xl rounded-xl px-4 py-3 flex items-center gap-2.5 shadow-xl">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-sm">⚡</div>
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center"><Zap className="w-4 h-4 text-white" strokeWidth={2} /></div>
                   <div>
                     <div className="text-xs font-bold text-emerald-400">AI Research Complete</div>
                     <div className="text-[10px] text-white/40">3 OHADA citations found</div>
@@ -428,7 +437,7 @@ export default function Home() {
 
                 {/* Payment badge */}
                 <div className="float-card absolute bottom-28 left-0 bg-white/5 border border-white/10 backdrop-blur-xl rounded-xl px-4 py-3 flex items-center gap-2.5 shadow-xl">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gold-500 to-gold-600 flex items-center justify-center text-sm">💰</div>
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gold-500 to-gold-600 flex items-center justify-center"><CircleDollarSign className="w-4 h-4 text-primary-900" strokeWidth={2} /></div>
                   <div>
                     <div className="text-xs font-bold text-gold-400">Payment Confirmed</div>
                     <div className="text-[10px] text-white/40">XAF 150,000 · MTN Money</div>
@@ -473,7 +482,7 @@ export default function Home() {
               {/* Lawyers */}
               <div className="group relative pub-card rounded-2xl p-5 sm:p-8 border border-emerald-500/20 hover:border-emerald-400/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-500/10 overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/40 to-transparent" />
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mb-5 shadow-lg shadow-emerald-500/25 text-xl">⚖️</div>
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center mb-5 shadow-lg shadow-emerald-500/25"><Scale className="w-6 h-6 text-white" strokeWidth={1.8} /></div>
                 <h3 className="font-display text-2xl font-bold pub-heading mb-2">{t.forLawyerTitle}</h3>
                 <p className="pub-subtext text-sm mb-6 leading-relaxed">{t.forLawyerSub}</p>
                 <ul className="space-y-2.5 mb-8">
@@ -495,7 +504,7 @@ export default function Home() {
               {/* Clients */}
               <div className="group relative pub-card rounded-2xl p-5 sm:p-8 border border-gold-500/20 hover:border-gold-400/40 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-gold-500/10 overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-gold-400/40 to-transparent" />
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold-500 to-gold-600 flex items-center justify-center mb-5 shadow-lg shadow-gold-500/25 text-xl">👤</div>
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-gold-500 to-gold-600 flex items-center justify-center mb-5 shadow-lg shadow-gold-500/25"><User className="w-6 h-6 text-primary-900" strokeWidth={1.8} /></div>
                 <h3 className="font-display text-2xl font-bold pub-heading mb-2">{t.forClientTitle}</h3>
                 <p className="pub-subtext text-sm mb-6 leading-relaxed">{t.forClientSub}</p>
                 <ul className="space-y-2.5 mb-8">
@@ -897,15 +906,18 @@ export default function Home() {
           </div>
           <div className="max-w-4xl mx-auto">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
-              {t.payMethods.map((m, i) => (
+              {t.payMethods.map((m, i) => {
+                const PayIcon = PAY_ICONS[i]
+                return (
                 <div key={i} className={`stagger-in rounded-2xl p-5 border bg-gradient-to-br ${m.color} flex sm:flex-col items-center sm:text-center gap-4 sm:gap-0 transition-all duration-300 hover:-translate-y-1 ${paySv.inView ? 'visible' : ''}`} style={{ transitionDelay: paySv.inView ? `${i * 100}ms` : '0ms' }}>
-                  <div className="text-2xl sm:text-3xl sm:mb-3 shrink-0">{m.icon}</div>
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 sm:mb-3 shrink-0 rounded-xl bg-white/10 flex items-center justify-center"><PayIcon className="w-5 h-5 sm:w-6 sm:h-6 pub-heading" strokeWidth={1.8} /></div>
                   <div>
                     <div className="text-sm font-bold pub-heading sm:mb-1">{m.name}</div>
                     <div className="text-xs pub-muted">{m.sub}</div>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
             {/* Invoice flow */}
             <div className="bg-white/3 border border-white/8 rounded-2xl p-4 sm:p-6">
@@ -938,13 +950,16 @@ export default function Home() {
               <p className="pub-subtext max-w-xl mx-auto">{t.secSub}</p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-              {t.secItems.map((item, i) => (
+              {t.secItems.map((item, i) => {
+                const SecIcon = SEC_ICONS[i]
+                return (
                 <div key={i} className={`stagger-in pub-card rounded-2xl p-5 border border-[var(--border-default)] hover:border-blue-400/25 transition-all duration-300 ${secSv.inView ? 'visible' : ''}`} style={{ transitionDelay: secSv.inView ? `${i * 80}ms` : '0ms' }}>
-                  <div className="text-2xl mb-3">{item.icon}</div>
+                  <div className="w-10 h-10 mb-3 rounded-xl bg-primary-500/10 flex items-center justify-center"><SecIcon className="w-5 h-5 text-primary-300" strokeWidth={1.8} /></div>
                   <div className="text-sm font-bold pub-heading mb-1">{item.label}</div>
                   <div className="text-xs pub-muted">{item.sub}</div>
                 </div>
-              ))}
+                )
+              })}
             </div>
             <div className="text-center bg-blue-500/6 border border-blue-400/15 rounded-2xl py-5 px-6">
               <span className="text-sm text-blue-400/80 font-medium">🔒 {t.secTrust}</span>

@@ -7,6 +7,12 @@ import { api } from '../../../lib/api'
 import { acceptBooking, declineBooking, STATUS_LABELS, CaseItem as Booking, BookingMeta } from '../../../lib/casesApi'
 import { buildWorkflow, LAWYER_ACTIONS } from '../../../lib/workflow'
 import { ClientCard, LawyerCard, FirmCard } from '../../../components/IdentityCards'
+import { Badge } from '../../../components/ui/Badge'
+import { SkeletonCard } from '../../../components/ui/Skeleton'
+import {
+  ClockIcon, CheckCircleIcon, XCircleIcon, ClipboardIcon, CheckIcon,
+  CollapseIcon, ExpandIcon, ChatIcon,
+} from '../../../components/icons/Icons'
 
 function formatDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) }
@@ -29,21 +35,21 @@ function getPortalRole(): 'lawyer' | 'client' {
 
 // ── Client view ────────────────────────────────────────────────────────────────
 
-const CLIENT_STATUS: Record<string, { icon: string; color: string; bg: string; border: string; headline: string; sub: string; label: string }> = {
+const CLIENT_STATUS: Record<string, { Icon: React.ComponentType<{ width?: number; height?: number; className?: string }>; color: string; bg: string; border: string; headline: string; sub: string; label: string; variant: 'warning' | 'success' | 'danger' }> = {
   pending: {
-    icon: '⏳', label: 'Awaiting Acceptance',
+    Icon: ClockIcon, label: 'Awaiting Acceptance', variant: 'warning',
     color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30',
     headline: 'Your booking is under review',
     sub: 'The lawyer or firm will respond within 24–48 hours. You will be notified by email and in-app notification.',
   },
   accepted: {
-    icon: '✅', label: 'Accepted',
+    Icon: CheckCircleIcon, label: 'Accepted', variant: 'success',
     color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30',
     headline: 'Booking accepted!',
     sub: 'Your consultation has been confirmed. The lawyer will contact you to finalize the details.',
   },
   declined: {
-    icon: '❌', label: 'Declined',
+    Icon: XCircleIcon, label: 'Declined', variant: 'danger',
     color: 'text-crimson-400', bg: 'bg-crimson-500/10', border: 'border-crimson-500/30',
     headline: 'Booking declined',
     sub: 'Unfortunately your booking was not accepted. If you paid a booking fee, a refund will be issued within 3–5 business days.',
@@ -64,16 +70,16 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <Link href="/bookings" className="inline-flex items-center gap-2 text-neutral-400 hover:text-gold-400 text-sm transition-colors">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+        <CollapseIcon width={16} height={16} className="w-4 h-4" />
         Back to My Bookings
       </Link>
 
       {/* Status Banner */}
       <div className={`rounded-xl border ${cfg.border} ${cfg.bg} p-6 text-center space-y-2`}>
-        <div className="text-4xl">{cfg.icon}</div>
+        <div className={`flex justify-center ${cfg.color}`}><cfg.Icon width={40} height={40} className="w-10 h-10" /></div>
         <h1 className={`font-display text-display-xs ${cfg.color}`}>{cfg.headline}</h1>
         <p className="text-neutral-400 text-sm max-w-md mx-auto">{cfg.sub}</p>
-        <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.color} border ${cfg.border}`}>{cfg.label}</span>
+        <Badge variant={cfg.variant} size="md" className="mt-2">{cfg.label}</Badge>
       </div>
 
       {/* Identity card — lawyer or firm depending on booking target */}
@@ -98,7 +104,7 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
             meta.urgency ? ['Priority', <span key="urg" className={`capitalize ${meta.urgency === 'urgent' ? 'text-crimson-400 font-medium' : ''}`}>{meta.urgency}</span>] : null,
             ['Submitted', formatDate(booking.created_at)],
           ].filter(Boolean) as Array<[React.ReactNode, React.ReactNode]>).map(([label, value], i, arr) => (
-            <div key={String(label)} className={`flex justify-between py-2 ${i < arr.length - 1 ? 'border-b border-neutral-700/20' : ''}`}>
+            <div key={String(label)} className={`stagger-child flex justify-between py-2 ${i < arr.length - 1 ? 'border-b border-neutral-700/20' : ''}`} style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <span className="text-neutral-400">{label}</span>
               <span className="text-neutral-200 text-right max-w-[60%]">{value}</span>
             </div>
@@ -194,9 +200,7 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
                         ${!done && !active ? 'bg-primary-900 border-neutral-700/40 text-neutral-600' : ''}
                       `}>
                         {done ? (
-                          <svg viewBox="0 0 12 12" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
+                          <CheckIcon width={12} height={12} className="h-3 w-3" />
                         ) : active ? (
                           <div className="h-2 w-2 rounded-full bg-gold-400 animate-pulse" />
                         ) : (
@@ -225,7 +229,7 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
                     <div className={`h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border
                       ${done ? 'bg-gold-500 border-gold-400 text-black' : active ? 'bg-gold-500/15 border-gold-400 text-gold-300' : 'bg-primary-900 border-neutral-700/40 text-neutral-600'}
                     `}>
-                      {done ? '✓' : idx + 1}
+                      {done ? <CheckIcon width={12} height={12} className="w-3 h-3" /> : idx + 1}
                     </div>
                     <span className={`text-xs font-medium flex-1 ${done ? 'text-gold-500/80' : active ? 'text-neutral-200' : 'text-neutral-600'}`}>
                       {STATUS_LABELS[stage] ?? stage}
@@ -261,9 +265,7 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
               className="flex items-center justify-between w-full rounded-xl border border-gold-400/25 bg-gold-500/5 px-4 py-3 hover:border-gold-400/50 hover:bg-gold-500/10 transition-all"
             >
               <span className="text-sm font-medium text-gold-300">Track full case progress</span>
-              <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-gold-400 flex-shrink-0">
-                <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-              </svg>
+              <ExpandIcon width={16} height={16} className="h-4 w-4 text-gold-400 flex-shrink-0" />
             </Link>
           </div>
         )
@@ -278,7 +280,7 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
             'You will receive an email and in-app notification when there is a response.',
             'Check back on this page to see the updated status anytime.',
           ].map((t, i) => (
-            <div key={i} className="flex gap-3 text-sm">
+            <div key={i} className="stagger-child flex gap-3 text-sm" style={{ '--i': i } as React.CSSProperties}>
               <span className="h-5 w-5 rounded-full bg-amber-500/20 text-amber-400 text-xs flex items-center justify-center flex-shrink-0 font-bold">{i + 1}</span>
               <span className="text-neutral-400">{t}</span>
             </div>
@@ -288,7 +290,7 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
             'Browse other lawyers or firms on the Discover page who may be a better fit.',
             'If you believe this was an error, contact support for assistance.',
           ].map((t, i) => (
-            <div key={i} className="flex gap-3 text-sm">
+            <div key={i} className="stagger-child flex gap-3 text-sm" style={{ '--i': i } as React.CSSProperties}>
               <span className="h-5 w-5 rounded-full bg-neutral-700/60 text-neutral-400 text-xs flex items-center justify-center flex-shrink-0 font-bold">{i + 1}</span>
               <span className="text-neutral-400">{t}</span>
             </div>
@@ -308,9 +310,9 @@ function ClientBookingDetail({ booking }: { booking: Booking }) {
           return (
             <Link
               href={`/messages?${params.toString()}`}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-portal-accent hover:opacity-90 text-white font-semibold text-sm transition-opacity shadow-portal-glow"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              <ChatIcon width={16} height={16} className="w-4 h-4" />
               Message Lawyer
             </Link>
           )
@@ -378,21 +380,21 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
   }
 
   const statusBanner = status === 'pending'
-    ? { icon: '📋', text: 'Pending your response', sub: 'Review the client\'s request and respond below.', cls: 'border-amber-500/30 bg-amber-500/5 text-amber-400' }
+    ? { Icon: ClipboardIcon, text: 'Pending your response', sub: 'Review the client\'s request and respond below.', cls: 'border-amber-500/30 bg-amber-500/5 text-amber-400' }
     : status === 'accepted'
-    ? { icon: '✅', text: 'You accepted this booking', sub: 'Contact the client to confirm the consultation details.', cls: 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400' }
-    : { icon: '✕', text: 'You declined this booking', sub: meta.decline_reason ? `Reason: ${meta.decline_reason}` : 'This request was declined.', cls: 'border-neutral-600/40 bg-neutral-800/30 text-neutral-400' }
+    ? { Icon: CheckCircleIcon, text: 'You accepted this booking', sub: 'Contact the client to confirm the consultation details.', cls: 'border-emerald-500/30 bg-emerald-500/5 text-emerald-400' }
+    : { Icon: XCircleIcon, text: 'You declined this booking', sub: meta.decline_reason ? `Reason: ${meta.decline_reason}` : 'This request was declined.', cls: 'border-neutral-600/40 bg-neutral-800/30 text-neutral-400' }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <Link href="/lawyer/bookings" className="inline-flex items-center gap-2 text-neutral-400 hover:text-gold-400 text-sm transition-colors">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+        <CollapseIcon width={16} height={16} className="w-4 h-4" />
         Back to Booking Requests
       </Link>
 
       {/* Status Banner */}
       <div className={`rounded-xl border p-5 flex items-start gap-4 ${statusBanner.cls}`}>
-        <span className="text-3xl flex-shrink-0">{statusBanner.icon}</span>
+        <statusBanner.Icon width={28} height={28} className="w-7 h-7 flex-shrink-0" />
         <div>
           <p className="font-heading font-semibold text-base">{statusBanner.text}</p>
           <p className="text-neutral-400 text-sm mt-0.5">{statusBanner.sub}</p>
@@ -418,7 +420,7 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
             meta.client_email ? ['Client email', <a key="em" href={`mailto:${meta.client_email}`} className="text-gold-400 hover:underline">{meta.client_email}</a>] : null,
             ['Submitted', formatDate(booking.created_at)],
           ].filter(Boolean) as Array<[React.ReactNode, React.ReactNode]>).map(([label, value], i, arr) => (
-            <div key={String(label)} className={`flex justify-between py-2 ${i < arr.length - 1 ? 'border-b border-neutral-700/20' : ''}`}>
+            <div key={String(label)} className={`stagger-child flex justify-between py-2 ${i < arr.length - 1 ? 'border-b border-neutral-700/20' : ''}`} style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <span className="text-neutral-400 flex-shrink-0">{label}</span>
               <span className="text-neutral-200 text-right ml-4 max-w-[60%]">{value}</span>
             </div>
@@ -488,11 +490,11 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm transition-colors disabled:opacity-50">
                 {actionLoading === 'accept'
                   ? <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  : '✓'} Accept Booking
+                  : <CheckIcon width={16} height={16} className="w-4 h-4" />} Accept Booking
               </button>
               <button onClick={() => setDeclining(true)} disabled={actionLoading !== null}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-crimson-500/40 text-crimson-300 text-sm hover:bg-crimson-500/10 transition-colors disabled:opacity-50">
-                ✕ Decline
+                <XCircleIcon width={16} height={16} className="w-4 h-4" /> Decline
               </button>
             </div>
           ) : (
@@ -599,9 +601,7 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
                     <p className="text-sm font-semibold text-gold-300">Open Case Manager</p>
                     <p className="text-xs text-neutral-500 mt-0.5">Update status, add notes, track full timeline</p>
                   </div>
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5 text-gold-400 flex-shrink-0">
-                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
+                  <ExpandIcon width={20} height={20} className="h-5 w-5 text-gold-400 flex-shrink-0" />
                 </Link>
               </div>
             )
@@ -612,7 +612,7 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
             meta.preferred_date ? `Client requested ${meta.preferred_date}${meta.preferred_time ? ` at ${meta.preferred_time}` : ''}. Confirm or propose an alternative.` : 'Agree on a meeting time with the client.',
             'After the consultation, open the Case Manager above to advance the case status.',
           ].map((t, i) => (
-            <div key={i} className="flex gap-3 text-sm">
+            <div key={i} className="stagger-child flex gap-3 text-sm" style={{ '--i': i } as React.CSSProperties}>
               <span className="h-5 w-5 rounded-full bg-gold-500/15 text-gold-400 text-xs flex items-center justify-center flex-shrink-0 font-bold">{i + 1}</span>
               <span className="text-neutral-400">{t}</span>
             </div>
@@ -634,9 +634,9 @@ function LawyerBookingDetail({ booking, onUpdate }: { booking: Booking; onUpdate
           return (
             <Link
               href={`/messages?${msgParams.toString()}`}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-portal-accent hover:opacity-90 text-white font-semibold text-sm transition-opacity shadow-portal-glow"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+              <ChatIcon width={16} height={16} className="w-4 h-4" />
               Message Client
             </Link>
           )
@@ -679,8 +679,8 @@ export default function BookingDetailPage() {
 
   if (loading) return (
     <div className="max-w-2xl mx-auto space-y-4">
-      <div className="h-40 rounded-xl skeleton" />
-      <div className="h-64 rounded-xl skeleton" />
+      <SkeletonCard lines={2} />
+      <SkeletonCard lines={5} />
     </div>
   )
 

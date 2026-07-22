@@ -3,12 +3,14 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { getFeed, type FeedItem } from '../../../../lib/networkApi'
+import { SkeletonCard } from '../../../../components/ui/Skeleton'
+import { DocumentIcon, HandshakeIcon, UserIcon, BuildingIcon, NetworkIcon } from '../../../../components/icons/Icons'
 
-const TYPE_META: Record<string, { label: string; dot: string; icon: string }> = {
-  article:           { label: 'Article',          dot: 'bg-gold-400',    icon: '📄' },
-  referral_accepted: { label: 'Referral Accepted', dot: 'bg-emerald-400', icon: '🤝' },
-  follow:            { label: 'New Follower',      dot: 'bg-primary-400', icon: '👤' },
-  partnership:       { label: 'Partnership',       dot: 'bg-amber-400',   icon: '🏛️' },
+const TYPE_META: Record<string, { label: string; dot: string; Icon: React.ComponentType<{ className?: string }> }> = {
+  article:           { label: 'Article',          dot: 'bg-gold-400',    Icon: DocumentIcon },
+  referral_accepted: { label: 'Referral Accepted', dot: 'bg-emerald-400', Icon: HandshakeIcon },
+  follow:            { label: 'New Follower',      dot: 'bg-primary-400', Icon: UserIcon },
+  partnership:       { label: 'Partnership',       dot: 'bg-amber-400',   Icon: BuildingIcon },
 }
 
 function timeAgo(iso: string) {
@@ -38,24 +40,14 @@ export default function NetworkFeedPage() {
 
       {loading && (
         <div className="space-y-3">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="rounded-2xl border border-white/8 bg-primary-800/20 p-5 animate-pulse">
-              <div className="flex gap-3">
-                <div className="w-9 h-9 rounded-full bg-white/8 flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-3 bg-white/8 rounded w-3/4" />
-                  <div className="h-2.5 bg-white/5 rounded w-1/2" />
-                </div>
-              </div>
-            </div>
-          ))}
+          {[1, 2, 3, 4].map(i => <SkeletonCard key={i} lines={2} />)}
         </div>
       )}
 
       {!loading && feed.length === 0 && (
         <div className="rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500/10 text-3xl">
-            🌐
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500/10 text-gold-400">
+            <NetworkIcon width={28} height={28} />
           </div>
           <h3 className="font-semibold text-neutral-200">Your feed is empty</h3>
           <p className="mt-1.5 max-w-xs mx-auto text-sm text-neutral-500 leading-relaxed">
@@ -70,13 +62,14 @@ export default function NetworkFeedPage() {
 
       {!loading && feed.length > 0 && (
         <div className="space-y-3">
-          {feed.map(item => {
-            const meta = TYPE_META[item.item_type] ?? { label: item.item_type, dot: 'bg-neutral-500', icon: '•' }
+          {feed.map((item, i) => {
+            const meta = TYPE_META[item.item_type] ?? { label: item.item_type, dot: 'bg-neutral-500', Icon: NetworkIcon }
+            const { Icon } = meta
             return (
-              <div key={item.id} className="rounded-2xl border border-white/8 bg-primary-800/20 p-5 hover:border-white/12 transition-colors">
+              <div key={item.id} className="rounded-2xl border border-white/8 bg-primary-800/20 p-5 hover:border-white/12 transition-colors stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                 <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary-700/60 border border-white/10 flex items-center justify-center text-base">
-                    {meta.icon}
+                  <div className="flex-shrink-0 w-9 h-9 rounded-full bg-primary-700/60 border border-white/10 flex items-center justify-center text-neutral-300">
+                    <Icon className="w-4 h-4" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">

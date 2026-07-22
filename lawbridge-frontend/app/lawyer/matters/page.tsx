@@ -3,8 +3,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Card } from '../../../components/ui/Card'
+import { Badge } from '../../../components/ui/Badge'
+import { SkeletonTable } from '../../../components/ui/Skeleton'
 import { getMyCases, type CaseItem } from '../../../lib/casesApi'
-import { ChevronUpIcon, ChevronDownIcon, SearchIcon } from '../../../components/icons/Icons'
+import {
+  ChevronUpIcon, ChevronDownIcon, SearchIcon, BalanceIcon, SettingsIcon, ClipboardIcon, ClockIcon, BriefcaseIcon,
+} from '../../../components/icons/Icons'
 
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft', filed: 'Filed', assigned: 'Assigned',
@@ -16,11 +20,11 @@ const STATUS_LABELS: Record<string, string> = {
   dismissed: 'Dismissed', settled: 'Settled', verdict: 'Verdict', archived: 'Archived',
 }
 
-function statusBadgeCls(s: string) {
-  if (s === 'closed' || s === 'dismissed' || s === 'archived') return 'border-neutral-600 text-neutral-400 bg-neutral-800/50'
-  if (s === 'settled' || s === 'verdict') return 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
-  if (s === 'filed' || s === 'assigned') return 'border-primary-400/30 text-primary-100 bg-primary-400/10'
-  return 'border-gold-500/30 text-gold-400 bg-gold-500/10'
+function statusVariant(s: string): 'neutral' | 'success' | 'info' | 'gold' {
+  if (s === 'closed' || s === 'dismissed' || s === 'archived') return 'neutral'
+  if (s === 'settled' || s === 'verdict') return 'success'
+  if (s === 'filed' || s === 'assigned') return 'info'
+  return 'gold'
 }
 
 function formatDate(iso: string) {
@@ -63,7 +67,7 @@ function EmptyState({ message }: { message: string }) {
     <tr>
       <td colSpan={10} className="px-4 py-16 text-center text-neutral-500 text-sm">
         <div className="flex flex-col items-center gap-2">
-          <span className="text-3xl opacity-30">⚖️</span>
+          <BalanceIcon width={28} height={28} className="opacity-30" />
           <span>{message}</span>
         </div>
       </td>
@@ -258,9 +262,7 @@ function LegalTable({ items, search }: { items: CaseItem[]; search: string }) {
               </td>
               <td className="px-4 py-3.5 text-sm text-neutral-400 capitalize">{item.case_type}</td>
               <td className="px-4 py-3.5">
-                <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${statusBadgeCls(item.status)}`}>
-                  {STATUS_LABELS[item.status] ?? item.status}
-                </span>
+                <Badge variant={statusVariant(item.status)} size="md">{STATUS_LABELS[item.status] ?? item.status}</Badge>
               </td>
               <td className="px-4 py-3.5 text-sm text-neutral-500">{formatDate(item.created_at)}</td>
               <td className="px-4 py-3.5 text-sm text-neutral-500">{formatDate(item.updated_at)}</td>
@@ -293,17 +295,17 @@ function MobileCards({ pendingMatters, bookingMatters, legalMatters }: {
         <section className="mt-6">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-amber-500/70 mb-3">Awaiting Your Response</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {pendingMatters.map(item => {
+            {pendingMatters.map((item, i) => {
               const meta = item.booking_metadata ?? {}
               return (
-                <Link key={item.id} href={`/bookings/${item.id}`} className="block group">
+                <Link key={item.id} href={`/bookings/${item.id}`} className="block group stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                   <Card className="h-full cursor-pointer hover:border-amber-500/30 transition-colors border-amber-500/20">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-semibold text-neutral-100 truncate">{item.title}</p>
                         <p className="text-xs text-primary-300 mt-0.5">{item.case_type}</p>
                       </div>
-                      <span className="flex-shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium border-amber-500/30 bg-amber-500/10 text-amber-400">Pending</span>
+                      <Badge variant="warning" className="flex-shrink-0">Pending</Badge>
                     </div>
                     {meta.consultation_type && <p className="mt-2 text-sm text-neutral-400 capitalize">{meta.consultation_type.replace('_', ' ')}</p>}
                     {meta.preferred_date && <p className="mt-1 text-xs text-neutral-500">Requested: {meta.preferred_date}{meta.preferred_time ? ` at ${meta.preferred_time}` : ''}</p>}
@@ -321,17 +323,17 @@ function MobileCards({ pendingMatters, bookingMatters, legalMatters }: {
         <section className="mt-6">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-400 mb-3">Active Consultations</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {bookingMatters.map(item => {
+            {bookingMatters.map((item, i) => {
               const meta = item.booking_metadata ?? {}
               return (
-                <Link key={item.id} href={`/bookings/${item.id}`} className="block group">
+                <Link key={item.id} href={`/bookings/${item.id}`} className="block group stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                   <Card className="h-full cursor-pointer hover:border-gold-500/40 transition-colors">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-semibold text-neutral-100 truncate">{item.title}</p>
                         <p className="text-xs text-primary-300 mt-0.5">{item.case_type}</p>
                       </div>
-                      <span className="flex-shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium border-emerald-500/30 bg-emerald-500/10 text-emerald-400">Accepted</span>
+                      <Badge variant="success" className="flex-shrink-0">Accepted</Badge>
                     </div>
                     {meta.consultation_type && <p className="mt-2 text-sm text-neutral-400 capitalize">{meta.consultation_type.replace('_', ' ')}</p>}
                     {meta.preferred_date && <p className="mt-1 text-xs text-neutral-500">Requested: {meta.preferred_date}{meta.preferred_time ? ` at ${meta.preferred_time}` : ''}</p>}
@@ -349,17 +351,15 @@ function MobileCards({ pendingMatters, bookingMatters, legalMatters }: {
         <section className="mt-6">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-neutral-400 mb-3">Legal Matters</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {legalMatters.map(item => (
-              <Link key={item.id} href={`/cases/${item.id}`} className="block group">
+            {legalMatters.map((item, i) => (
+              <Link key={item.id} href={`/cases/${item.id}`} className="block group stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                 <Card className="h-full cursor-pointer hover:border-gold-500/40 transition-colors">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="font-semibold text-neutral-100 truncate">{item.title}</p>
                       <p className="text-xs text-primary-300 mt-0.5">{item.case_type}</p>
                     </div>
-                    <span className={`flex-shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${statusBadgeCls(item.status)}`}>
-                      {STATUS_LABELS[item.status] ?? item.status}
-                    </span>
+                    <Badge variant={statusVariant(item.status)} className="flex-shrink-0">{STATUS_LABELS[item.status] ?? item.status}</Badge>
                   </div>
                   <p className="mt-2 text-xs text-primary-400">Updated {formatDate(item.updated_at)}</p>
                   <p className="mt-3 text-sm font-medium text-gold-300 group-hover:text-gold-200 transition-colors">Open matter →</p>
@@ -436,7 +436,7 @@ function KanbanView({ items, search }: { items: CaseItem[]; search: string }) {
               <Link key={item.id} href={`/cases/${item.id}`} className="block">
                 <div className="rounded-xl bg-primary-900/60 border border-white/6 p-3 hover:border-white/12 transition-all">
                   <p className="text-xs font-medium text-neutral-200 leading-snug line-clamp-2">{item.title}</p>
-                  <span className={`inline-flex mt-1 text-[10px] px-1.5 py-0.5 rounded-full border ${statusBadgeCls(item.status)}`}>{STATUS_LABELS[item.status] ?? item.status}</span>
+                  <Badge variant={statusVariant(item.status)} className="mt-1">{STATUS_LABELS[item.status] ?? item.status}</Badge>
                 </div>
               </Link>
             ))}
@@ -600,9 +600,7 @@ export default function LawyerMattersPage() {
               : 'border-white/10 bg-white/[0.03] text-neutral-400 hover:border-white/15 hover:text-neutral-200'
           }`}
         >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <ClockIcon width={14} height={14} className="w-3.5 h-3.5" />
           SoL Calculator
         </button>
       </div>
@@ -612,8 +610,8 @@ export default function LawyerMattersPage() {
       {error && <Card className="mt-4 border border-crimson-500/30 text-crimson-200">{error}</Card>}
 
       {loading && (
-        <div className="mt-6 space-y-3">
-          {[1, 2, 3].map(i => <div key={i} className="h-14 rounded-xl skeleton" />)}
+        <div className="mt-6">
+          <SkeletonTable rows={3} />
         </div>
       )}
 
@@ -621,10 +619,7 @@ export default function LawyerMattersPage() {
         <div className="mt-6 rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-14 text-center">
           <div className="flex justify-center mb-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500/10 text-gold-400">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-              </svg>
+              <BriefcaseIcon width={30} height={30} />
             </div>
           </div>
           <h3 className="font-semibold text-neutral-200 text-base">No matters yet</h3>
@@ -633,12 +628,12 @@ export default function LawyerMattersPage() {
           </p>
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-lg mx-auto text-left">
             {[
-              { icon: '⚙️', title: 'Set up your profile', text: 'Complete your specialization, fees, and availability so clients can find you.', href: '/lawyer/settings' },
-              { icon: '📋', title: 'Check Bookings', text: 'New client consultation requests arrive in the Bookings section for your review.', href: '/lawyer/bookings' },
-              { icon: '🔍', title: 'Get discovered', text: 'Clients search for lawyers by practice area and circuit. Make sure your profile is public.', href: '/lawyer/profile' },
-            ].map(({ icon, title, text, href }) => (
+              { Icon: SettingsIcon, title: 'Set up your profile', text: 'Complete your specialization, fees, and availability so clients can find you.', href: '/lawyer/settings' },
+              { Icon: ClipboardIcon, title: 'Check Bookings', text: 'New client consultation requests arrive in the Bookings section for your review.', href: '/lawyer/bookings' },
+              { Icon: SearchIcon, title: 'Get discovered', text: 'Clients search for lawyers by practice area and circuit. Make sure your profile is public.', href: '/lawyer/profile' },
+            ].map(({ Icon, title, text, href }) => (
               <Link key={title} href={href} className="flex flex-col gap-1.5 rounded-xl border border-white/6 bg-primary-900/40 px-4 py-3 hover:border-gold-500/20 hover:bg-primary-900/60 transition-colors">
-                <span className="text-xl">{icon}</span>
+                <Icon width={20} height={20} className="text-gold-400" />
                 <p className="text-xs font-semibold text-neutral-300">{title}</p>
                 <p className="text-[11px] text-neutral-500 leading-relaxed">{text}</p>
               </Link>

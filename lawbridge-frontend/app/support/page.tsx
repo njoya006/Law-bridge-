@@ -2,6 +2,10 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import PublicHeader from '../../components/layout/PublicHeader'
+import {
+  ShieldIcon, BalanceIcon, DocumentIcon, SparklesIcon, UsersIcon, SettingsIcon,
+  MailIcon, ChatIcon, PlusIcon,
+} from '../../components/icons/Icons'
 
 const faqs = [
   {
@@ -48,9 +52,7 @@ function FAQ({ q, a }: { q: string; a: string }) {
       >
         <span className="font-heading font-semibold pub-heading text-base leading-snug">{q}</span>
         <span className={`shrink-0 w-6 h-6 rounded-full border border-[var(--border-default)] flex items-center justify-center transition-transform duration-200 ${open ? 'rotate-45 border-gold-400 text-gold-400' : 'text-[var(--text-tertiary)]'}`}>
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-          </svg>
+          <PlusIcon width={14} height={14} className="w-3.5 h-3.5" />
         </span>
       </button>
       {open && (
@@ -63,12 +65,12 @@ function FAQ({ q, a }: { q: string; a: string }) {
 }
 
 const categories = [
-  { icon: '🔐', title: 'Account & Security', desc: 'Password resets, two-factor auth, access control' },
-  { icon: '⚖', title: 'Cases & Matters', desc: 'Creating cases, assigning lawyers, tracking status' },
-  { icon: '📄', title: 'Documents', desc: 'Uploading, sharing, and organising files' },
-  { icon: '🤖', title: 'AI Assistant', desc: 'Using the AI for research, drafting, and analysis' },
-  { icon: '👥', title: 'Team & Billing', desc: 'Firm accounts, invites, invoicing, payments' },
-  { icon: '🛠', title: 'Technical Issues', desc: 'Bugs, errors, and performance problems' },
+  { Icon: ShieldIcon,   title: 'Account & Security', desc: 'Password resets, two-factor auth, access control' },
+  { Icon: BalanceIcon,  title: 'Cases & Matters', desc: 'Creating cases, assigning lawyers, tracking status' },
+  { Icon: DocumentIcon, title: 'Documents', desc: 'Uploading, sharing, and organising files' },
+  { Icon: SparklesIcon, title: 'AI Assistant', desc: 'Using the AI for research, drafting, and analysis' },
+  { Icon: UsersIcon,    title: 'Team & Billing', desc: 'Firm accounts, invites, invoicing, payments' },
+  { Icon: SettingsIcon, title: 'Technical Issues', desc: 'Bugs, errors, and performance problems' },
 ]
 
 export default function SupportPage() {
@@ -101,12 +103,13 @@ export default function SupportPage() {
         <div className="max-w-5xl mx-auto">
           <h2 className="font-display text-3xl pub-heading font-bold text-center mb-12">Browse by topic</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-            {categories.map(cat => (
+            {categories.map((cat, i) => (
               <div
                 key={cat.title}
-                className="pub-card rounded-2xl p-6 border border-[var(--border-default)] hover:border-gold-400/40 hover:shadow-md transition-all duration-300 cursor-default group"
+                className="stagger-child pub-card rounded-2xl p-6 border border-[var(--border-default)] hover:border-gold-400/40 hover:shadow-md transition-all duration-300 cursor-default group"
+                style={{ '--i': i } as React.CSSProperties}
               >
-                <div className="text-3xl mb-4 group-hover:scale-110 transition-transform duration-200 inline-block">{cat.icon}</div>
+                <div className="mb-4 group-hover:scale-110 transition-transform duration-200 inline-flex w-10 h-10 rounded-xl bg-gold-500/15 text-gold-400 items-center justify-center"><cat.Icon width={20} height={20} /></div>
                 <h3 className="font-heading font-bold pub-heading text-base mb-2">{cat.title}</h3>
                 <p className="pub-muted text-xs leading-relaxed">{cat.desc}</p>
               </div>
@@ -140,7 +143,7 @@ export default function SupportPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
             <div className="pub-card rounded-2xl p-8 border border-[var(--border-default)] text-center hover:border-gold-400/30 hover:shadow-md transition-all duration-300">
-              <div className="text-4xl mb-4">✉️</div>
+              <div className="mb-4 mx-auto w-12 h-12 rounded-2xl bg-gold-500/15 text-gold-400 flex items-center justify-center"><MailIcon width={24} height={24} /></div>
               <h3 className="font-heading font-bold pub-heading text-lg mb-2">Email Us</h3>
               <p className="pub-muted text-sm mb-4">Send us a message any time</p>
               <a
@@ -151,7 +154,7 @@ export default function SupportPage() {
               </a>
             </div>
             <div className="pub-card rounded-2xl p-8 border border-[var(--border-default)] text-center hover:border-gold-400/30 hover:shadow-md transition-all duration-300">
-              <div className="text-4xl mb-4">💬</div>
+              <div className="mb-4 mx-auto w-12 h-12 rounded-2xl bg-gold-500/15 text-gold-400 flex items-center justify-center"><ChatIcon width={24} height={24} /></div>
               <h3 className="font-heading font-bold pub-heading text-lg mb-2">In-App Chat</h3>
               <p className="pub-muted text-sm mb-4">Already a user? Chat with us inside the platform</p>
               <Link href="/auth/login">

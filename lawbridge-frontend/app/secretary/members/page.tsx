@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { Card } from '../../../components/ui/Card'
+import { Badge } from '../../../components/ui/Badge'
+import { PlusIcon } from '../../../components/icons/Icons'
 import { getMyFirmMemberships, getFirmMembers, getFirmLawyers, inviteFirmMember, type FirmMembership, type FirmLawyer } from '../../../lib/firmsApi'
 
 function fmtDate(iso: string) {
@@ -58,24 +60,24 @@ function InviteModal({ onClose, onInvited, firmId }: { onClose: () => void; onIn
           <div>
             <label className="text-xs text-neutral-400 block mb-1">Email address</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="colleague@lawfirm.com" autoFocus
-              className="w-full bg-primary-800/50 border border-neutral-700/40 rounded-lg px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-gold-500/50" />
+              className="w-full bg-primary-800/50 border border-neutral-700/40 rounded-lg px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-portal" />
           </div>
           <div>
             <label className="text-xs text-neutral-400 block mb-1">Role</label>
             <select value={role} onChange={e => setRole(e.target.value)}
-              className="w-full bg-primary-800/50 border border-neutral-700/40 rounded-lg px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-gold-500/50">
+              className="w-full bg-primary-800/50 border border-neutral-700/40 rounded-lg px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-portal">
               {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-neutral-400 block mb-1">Personal note <span className="text-neutral-600">(optional)</span></label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} placeholder="Welcome message…"
-              className="w-full bg-primary-800/50 border border-neutral-700/40 rounded-lg px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-gold-500/50 resize-none" />
+              className="w-full bg-primary-800/50 border border-neutral-700/40 rounded-lg px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-portal resize-none" />
           </div>
-          {err && <p className="text-xs text-red-400">{err}</p>}
+          {err && <p className="text-xs text-crimson-400">{err}</p>}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2 rounded-lg border border-neutral-700/40 text-neutral-400 hover:text-neutral-200 text-sm">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 py-2 rounded-lg bg-gold-500/20 border border-gold-500/30 text-gold-300 hover:bg-gold-500/30 text-sm font-medium disabled:opacity-50">
+            <button type="submit" disabled={saving} className="flex-1 py-2 rounded-lg bg-portal-soft border border-portal-solid text-portal hover:opacity-90 text-sm font-medium disabled:opacity-50">
               {saving ? 'Sending…' : 'Send Invite'}
             </button>
           </div>
@@ -145,15 +147,15 @@ export default function MembersPage() {
           <p className="mt-1 text-sm text-neutral-400">{firmName || (firmId ? `Firm #${firmId}` : '')} · {members.length} member{members.length !== 1 ? 's' : ''}</p>
         </div>
         {firmId && (
-          <button onClick={() => setShowInvite(true)} className="px-4 py-2 rounded-lg bg-gold-500/20 border border-gold-500/30 text-gold-300 text-sm font-medium hover:bg-gold-500/30 transition-colors">
-            + Invite Member
+          <button onClick={() => setShowInvite(true)} className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-portal-soft border border-portal-solid text-portal text-sm font-medium hover:opacity-90 transition-colors">
+            <PlusIcon width={14} height={14} />Invite Member
           </button>
         )}
       </header>
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 text-neutral-400 py-16">
-          <span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />Loading…
+          <span className="animate-spin h-4 w-4 border-2 border-portal-solid border-t-transparent rounded-full" />Loading…
         </div>
       ) : (
         <>
@@ -164,7 +166,7 @@ export default function MembersPage() {
               <p className="text-sm text-neutral-300 mt-0.5 font-medium">Total Members</p>
             </div>
             <div className="bg-primary-900/50 border border-neutral-700/40 rounded-xl p-4">
-              <p className="text-3xl font-bold text-gold-400">{lawyers.length}</p>
+              <p className="text-3xl font-bold text-portal">{lawyers.length}</p>
               <p className="text-sm text-neutral-300 mt-0.5 font-medium">Lawyers</p>
               <p className="text-xs text-neutral-500 mt-0.5">With legal profiles</p>
             </div>
@@ -176,7 +178,7 @@ export default function MembersPage() {
 
           {/* Search */}
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, or role…"
-            className="w-full bg-primary-900/40 border border-neutral-700/40 rounded-xl px-4 py-2.5 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-gold-500/50" />
+            className="w-full bg-primary-900/40 border border-neutral-700/40 rounded-xl px-4 py-2.5 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-portal" />
 
           {/* Members grouped by role */}
           {members.length === 0 ? (
@@ -192,11 +194,11 @@ export default function MembersPage() {
                     <span className="text-xs bg-neutral-800/60 text-neutral-500 px-1.5 py-0.5 rounded-full">{byRole[role].length}</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {byRole[role].map(m => {
+                    {byRole[role].map((m, i) => {
                       const enriched = lawyers.find(l => l.email === m.user_email)
                       const name = m.user_full_name || enriched?.name || m.user_email?.split('@')[0] || 'Unknown'
                       return (
-                        <div key={m.id} className="flex items-center gap-3 p-4 rounded-xl border border-neutral-700/40 bg-primary-900/20 hover:border-neutral-600/50 transition-colors">
+                        <div key={m.id} className="stagger-child flex items-center gap-3 p-4 rounded-xl border border-neutral-700/40 bg-primary-900/20 hover:border-neutral-600/50 transition-colors" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                           <div className="w-10 h-10 rounded-full bg-primary-800 border border-neutral-700/40 flex items-center justify-center text-sm font-bold text-neutral-300 flex-shrink-0">
                             {name[0]?.toUpperCase()}
                           </div>
@@ -225,16 +227,16 @@ export default function MembersPage() {
             <div>
               <h3 className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">Lawyers with Profiles (not yet in membership)</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {lawyers.filter(l => !members.some(m => m.user_email === l.email)).map(l => (
-                  <div key={l.id} className="flex items-center gap-3 p-4 rounded-xl border border-neutral-700/40 bg-primary-900/10">
+                {lawyers.filter(l => !members.some(m => m.user_email === l.email)).map((l, i) => (
+                  <div key={l.id} className="stagger-child flex items-center gap-3 p-4 rounded-xl border border-neutral-700/40 bg-primary-900/10" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                     <div className="w-10 h-10 rounded-full bg-primary-800 border border-neutral-700/40 flex items-center justify-center text-sm font-bold text-neutral-300">{l.name[0]}</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-neutral-100">{l.name}</p>
                       <p className="text-xs text-neutral-500">{l.specialization || 'Lawyer'}</p>
                     </div>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${l.availability_status === 'available' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-neutral-800/30 text-neutral-500 border-neutral-700/30'}`}>
+                    <Badge variant={l.availability_status === 'available' ? 'success' : 'neutral'}>
                       {l.availability_status || 'unknown'}
-                    </span>
+                    </Badge>
                   </div>
                 ))}
               </div>

@@ -6,6 +6,9 @@ import { getMyCases, type CaseItem } from '../../../lib/casesApi'
 import { getIncomingBookings } from '../../../lib/casesApi'
 import { getMyFirmMemberships, getFirmMembers, getFirmLawyers, type FirmMembership, type FirmLawyer } from '../../../lib/firmsApi'
 import { createReportRequest } from '../../../lib/monitoringApi'
+import { ClipboardIcon, PaymentIcon, UserIcon, BalanceIcon, CalendarIcon, LawIcon, ChartBarIcon, PrinterIcon, MailIcon, CheckCircleIcon } from '../../../components/icons/Icons'
+import { EmptyState } from '../../../components/ui/EmptyState'
+import { Badge } from '../../../components/ui/Badge'
 
 function fmtXAF(n: number) { return n > 0 ? `${n.toLocaleString()} XAF` : '0 XAF' }
 function fmtDate(iso: string) {
@@ -18,13 +21,15 @@ function fmtNow() {
 type ReportType = 'general' | 'financial' | 'clients' | 'lawyers' | 'activity' | 'full'
 type Period = 'current_month' | 'last_month' | 'ytd' | 'all_time'
 
-const REPORT_TYPES: { id: ReportType; label: string; icon: string; desc: string }[] = [
-  { id: 'general', label: 'General Report', icon: '📋', desc: 'High-level firm overview: active cases, team, bookings' },
-  { id: 'financial', label: 'Financial Report', icon: '💰', desc: 'Revenue, payment status, fee breakdown per booking' },
-  { id: 'clients', label: 'Clients Report', icon: '👤', desc: 'All clients, their matters, status, and contact info' },
-  { id: 'lawyers', label: 'Lawyers Participation', icon: '⚖️', desc: 'Case assignments, active load, and performance by lawyer' },
-  { id: 'activity', label: 'Activity Report', icon: '📅', desc: 'Timeline of all firm events, status changes, and notes' },
-  { id: 'full', label: 'Full Firm Report', icon: '🏛️', desc: 'Complete report combining all sections above' },
+type ReportIcon = React.ComponentType<{ className?: string; width?: number; height?: number }>
+
+const REPORT_TYPES: { id: ReportType; label: string; Icon: ReportIcon; desc: string }[] = [
+  { id: 'general', label: 'General Report', Icon: ClipboardIcon, desc: 'High-level firm overview: active cases, team, bookings' },
+  { id: 'financial', label: 'Financial Report', Icon: PaymentIcon, desc: 'Revenue, payment status, fee breakdown per booking' },
+  { id: 'clients', label: 'Clients Report', Icon: UserIcon, desc: 'All clients, their matters, status, and contact info' },
+  { id: 'lawyers', label: 'Lawyers Participation', Icon: BalanceIcon, desc: 'Case assignments, active load, and performance by lawyer' },
+  { id: 'activity', label: 'Activity Report', Icon: CalendarIcon, desc: 'Timeline of all firm events, status changes, and notes' },
+  { id: 'full', label: 'Full Firm Report', Icon: LawIcon, desc: 'Complete report combining all sections above' },
 ]
 
 const PERIODS: { id: Period; label: string }[] = [
@@ -151,7 +156,7 @@ function FinancialSection({ data }: { data: ReportData }) {
                 <td className="px-3 py-2 text-neutral-400 text-right">{fmtXAF(r.proc)}</td>
                 <td className="px-3 py-2 text-neutral-500 text-right text-xs">{r.prof > 0 ? fmtXAF(r.prof) : 'TBD'}</td>
                 <td className="px-3 py-2 text-neutral-200 font-semibold text-right">{fmtXAF(r.total)}</td>
-                <td className="px-3 py-2 text-xs capitalize"><span className={`px-1.5 py-0.5 rounded-full border text-[10px] ${r.pay_status === 'verified' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : r.pay_status === 'pending_verification' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-neutral-800/30 text-neutral-500 border-neutral-700/30'}`}>{r.pay_status === 'pending_verification' ? 'Pending' : r.pay_status}</span></td>
+                <td className="px-3 py-2 text-xs capitalize"><Badge variant={r.pay_status === 'verified' ? 'success' : r.pay_status === 'pending_verification' ? 'warning' : 'neutral'}>{r.pay_status === 'pending_verification' ? 'Pending' : r.pay_status}</Badge></td>
                 <td className="px-3 py-2 text-neutral-500 text-xs">{r.method}</td>
                 <td className="px-3 py-2 text-neutral-600 font-mono text-xs">{r.ref}</td>
               </tr>
@@ -228,7 +233,7 @@ function LawyersSection({ data }: { data: ReportData }) {
           return (
             <div key={l.id} className="rounded-xl border border-neutral-700/40 bg-primary-900/20 p-4">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 rounded-full bg-primary-800 border border-neutral-700/40 flex items-center justify-center text-xs font-bold text-gold-400">{l.name[0]}</div>
+                <div className="w-8 h-8 rounded-full bg-primary-800 border border-neutral-700/40 flex items-center justify-center text-xs font-bold text-portal">{l.name[0]}</div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-neutral-100">{l.name}</p>
                   <p className="text-xs text-neutral-500">{l.specialization || l.role || 'Lawyer'}</p>
@@ -424,10 +429,13 @@ function ReportsPageInner() {
         <div>
           <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">Report Type</p>
           <div className="space-y-2">
-            {REPORT_TYPES.map(rt => (
+            {REPORT_TYPES.map((rt, i) => (
               <button key={rt.id} onClick={() => setReportType(rt.id)}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${reportType === rt.id ? 'border-gold-500/50 bg-gold-500/10' : 'border-neutral-700/40 hover:border-neutral-600/50 bg-primary-900/20'}`}>
-                <span className="text-xl flex-shrink-0">{rt.icon}</span>
+                className={`stagger-child w-full flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${reportType === rt.id ? 'border-portal-solid bg-portal-soft' : 'border-neutral-700/40 hover:border-neutral-600/50 bg-primary-900/20'}`}
+                style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                <span className={`flex-shrink-0 ${reportType === rt.id ? 'text-portal' : 'text-neutral-500'}`}>
+                  <rt.Icon width={20} height={20} />
+                </span>
                 <div>
                   <p className="text-sm font-medium text-neutral-100">{rt.label}</p>
                   <p className="text-xs text-neutral-500">{rt.desc}</p>
@@ -443,7 +451,7 @@ function ReportsPageInner() {
             <div className="grid grid-cols-2 gap-2">
               {PERIODS.map(p => (
                 <button key={p.id} onClick={() => setPeriod(p.id)}
-                  className={`p-3 rounded-xl border text-sm transition-colors ${period === p.id ? 'border-gold-500/50 bg-gold-500/10 text-gold-300' : 'border-neutral-700/40 text-neutral-400 hover:border-neutral-600/50 hover:text-neutral-200'}`}>
+                  className={`p-3 rounded-xl border text-sm transition-colors ${period === p.id ? 'border-portal-solid bg-portal-soft text-portal' : 'border-neutral-700/40 text-neutral-400 hover:border-neutral-600/50 hover:text-neutral-200'}`}>
                   {p.label}
                 </button>
               ))}
@@ -451,18 +459,20 @@ function ReportsPageInner() {
           </div>
 
           <button onClick={generate} disabled={loading}
-            className="w-full py-3 rounded-xl bg-gold-500/20 border border-gold-500/30 text-gold-300 hover:bg-gold-500/30 font-semibold text-sm transition-colors disabled:opacity-50">
+            className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-portal-soft border border-portal-solid text-portal hover:opacity-90 font-semibold text-sm transition-colors disabled:opacity-50">
             {loading ? (
-              <span className="flex items-center justify-center gap-2"><span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />Generating…</span>
-            ) : '📊 Generate Report'}
+              <span className="flex items-center justify-center gap-2"><span className="animate-spin h-4 w-4 border-2 border-portal-solid border-t-transparent rounded-full" />Generating…</span>
+            ) : <><ChartBarIcon width={16} height={16} />Generate Report</>}
           </button>
 
           {data && (
             <div className="space-y-2">
-              <button onClick={printReport} className="w-full py-2.5 rounded-xl border border-neutral-700/40 text-neutral-300 hover:text-neutral-100 text-sm font-medium transition-colors">🖨️ Print / Save as PDF</button>
+              <button onClick={printReport} className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-neutral-700/40 text-neutral-300 hover:text-neutral-100 text-sm font-medium transition-colors">
+                <PrinterIcon width={16} height={16} />Print / Save as PDF
+              </button>
               <button onClick={shipToOwners} disabled={shipping || shipped}
-                className={`w-full py-2.5 rounded-xl border text-sm font-medium transition-colors ${shipped ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-blue-500/30 text-blue-300 hover:bg-blue-500/10'} disabled:opacity-50`}>
-                {shipped ? '✅ Shipped to owners' : shipping ? 'Sending…' : '📨 Ship to Firm Owners'}
+                className={`flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border text-sm font-medium transition-colors ${shipped ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-blue-500/30 text-blue-300 hover:bg-blue-500/10'} disabled:opacity-50`}>
+                {shipped ? <><CheckCircleIcon width={16} height={16} />Shipped to owners</> : shipping ? 'Sending…' : <><MailIcon width={16} height={16} />Ship to Firm Owners</>}
               </button>
             </div>
           )}
@@ -487,8 +497,8 @@ function ReportsPageInner() {
           <div className="border-b border-neutral-700/40 pb-4 mb-6">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <p className="text-xs text-gold-400 uppercase tracking-widest font-semibold">Confidential — Internal Report</p>
-                <h1 className="text-2xl font-bold text-neutral-50 mt-1">{REPORT_TYPES.find(r => r.id === reportType)?.label}</h1>
+                <p className="text-xs text-portal uppercase tracking-widest font-semibold">Confidential — Internal Report</p>
+                <h1 className="font-display text-2xl font-bold text-neutral-50 mt-1">{REPORT_TYPES.find(r => r.id === reportType)?.label}</h1>
                 <p className="text-sm text-neutral-400 mt-0.5">{data.firmName} · {PERIODS.find(p => p.id === period)?.label}</p>
               </div>
               <div className="text-right text-xs text-neutral-500">
@@ -502,11 +512,11 @@ function ReportsPageInner() {
       )}
 
       {!data && !loading && (
-        <div className="rounded-2xl border border-neutral-700/40 bg-primary-900/20 p-12 text-center">
-          <p className="text-4xl mb-3">📊</p>
-          <p className="text-neutral-300 font-medium">Select a report type and period, then click Generate</p>
-          <p className="text-neutral-500 text-sm mt-1">Reports are generated live from your firm's data.</p>
-        </div>
+        <EmptyState
+          icon={<ChartBarIcon width={24} height={24} />}
+          title="Select a report type and period, then click Generate"
+          body="Reports are generated live from your firm's data."
+        />
       )}
     </div>
   )

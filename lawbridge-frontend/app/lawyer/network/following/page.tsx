@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import { getFollowing, unfollowLawyer, type Follow } from '../../../../lib/networkApi'
+import { SkeletonCard } from '../../../../components/ui/Skeleton'
+import { TeamIcon } from '../../../../components/icons/Icons'
 
 export default function FollowingPage() {
   const [following, setFollowing] = useState<Follow[]>([])
@@ -29,13 +31,15 @@ export default function FollowingPage() {
 
       {loading && (
         <div className="space-y-3">
-          {[1,2,3].map(i => <div key={i} className="h-16 rounded-2xl border border-white/8 bg-primary-800/20 animate-pulse"/>)}
+          {[1,2,3].map(i => <SkeletonCard key={i} lines={1} />)}
         </div>
       )}
 
       {!loading && following.length === 0 && (
         <div className="rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-700/40 text-3xl">👥</div>
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-700/40 text-neutral-300">
+            <TeamIcon width={28} height={28} />
+          </div>
           <h3 className="font-semibold text-neutral-200">Not following anyone yet</h3>
           <p className="mt-1.5 text-sm text-neutral-500">Discover lawyers and follow them to stay updated with their work.</p>
           <a href="/discover"
@@ -47,8 +51,8 @@ export default function FollowingPage() {
 
       {!loading && following.length > 0 && (
         <div className="space-y-2">
-          {following.map(f => (
-            <div key={f.id} className="flex items-center gap-4 rounded-2xl border border-white/8 bg-primary-800/20 p-4 hover:border-white/12 transition-colors">
+          {following.map((f, i) => (
+            <div key={f.id} className="flex items-center gap-4 rounded-2xl border border-white/8 bg-primary-800/20 p-4 hover:border-white/12 transition-colors stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-600 to-primary-700 border border-gold-500/20 flex items-center justify-center text-gold-300 font-bold text-sm flex-shrink-0">
                 {f.following_id.slice(0, 1).toUpperCase()}
               </div>

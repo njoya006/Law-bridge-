@@ -53,12 +53,12 @@ export default function PilotPartnersPage() {
       {pilots.length === 0 ? (
         <div className="rounded-2xl border border-white/8 bg-primary-800/20 py-20 text-center">
           <p className="text-neutral-500 text-sm">No pilot partners yet.</p>
-          <p className="text-neutral-600 text-xs mt-2">Set a firm&apos;s status to &quot;Pilot Partner&quot; in the <Link href="/admin/outreach/firms" className="text-gold-400 hover:text-gold-300">Firms CRM</Link>.</p>
+          <p className="text-neutral-600 text-xs mt-2">Set a firm&apos;s status to &quot;Pilot Partner&quot; in the <Link href="/admin/outreach/firms" className="text-portal hover:opacity-80">Firms CRM</Link>.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {pilots.map(({ firm, featuresCount, completedInterviews, avgInterest, primaryContact }) => (
-            <Link key={firm.id} href={`/admin/outreach/firms/${firm.id}`} className="block rounded-2xl border border-white/8 bg-primary-800/30 p-5 hover:border-teal-500/20 hover:bg-primary-800/50 transition-all group">
+          {pilots.map(({ firm, featuresCount, completedInterviews, avgInterest, primaryContact }, i) => (
+            <Link key={firm.id} href={`/admin/outreach/firms/${firm.id}`} className="block rounded-2xl border border-white/8 bg-primary-800/30 p-5 hover:border-teal-500/20 hover:bg-primary-800/50 transition-all group stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <p className="font-semibold text-neutral-100 group-hover:text-teal-400 transition-colors">{firm.firmName}</p>

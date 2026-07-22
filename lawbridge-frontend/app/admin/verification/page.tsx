@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { Badge } from '../../../components/ui/Badge'
+import { SkeletonCard } from '../../../components/ui/Skeleton'
 import {
   getVerificationQueue,
   approveVerification,
@@ -44,13 +46,7 @@ function LawyerCard({
           <div className="flex items-center gap-2">
             <p className="font-semibold text-white text-[15px]">{req.lawyer_name}</p>
             {req.status !== 'pending' && (
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                req.status === 'approved'
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                  : 'bg-red-500/10 text-red-400 border border-red-500/20'
-              }`}>
-                {req.status.toUpperCase()}
-              </span>
+              <Badge variant={req.status === 'approved' ? 'success' : 'danger'}>{req.status.toUpperCase()}</Badge>
             )}
           </div>
           <p className="text-xs text-white/40 mt-0.5">
@@ -73,8 +69,8 @@ function LawyerCard({
       )}
 
       {req.rejection_reason && (
-        <div className="mb-3 rounded-lg bg-red-500/5 border border-red-500/15 px-3 py-2">
-          <p className="text-[11px] text-red-400/70">Rejection reason: {req.rejection_reason}</p>
+        <div className="mb-3 rounded-lg bg-crimson-500/5 border border-crimson-500/15 px-3 py-2">
+          <p className="text-[11px] text-crimson-400/70">Rejection reason: {req.rejection_reason}</p>
         </div>
       )}
 
@@ -86,11 +82,11 @@ function LawyerCard({
               onChange={e => setReason(e.target.value)}
               placeholder="Reason for rejection (shown to the lawyer)…"
               rows={2}
-              className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-red-500/30 resize-none"
+              className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-crimson-500/30 resize-none"
             />
             <div className="flex gap-2">
               <button onClick={handleReject} disabled={acting || !reason.trim()}
-                className="flex-1 rounded-lg bg-red-500/15 border border-red-500/25 text-xs font-semibold text-red-400 py-2 hover:bg-red-500/25 disabled:opacity-50 transition-colors">
+                className="flex-1 rounded-lg bg-crimson-500/15 border border-crimson-500/25 text-xs font-semibold text-crimson-400 py-2 hover:bg-crimson-500/25 disabled:opacity-50 transition-colors">
                 {acting ? 'Rejecting…' : 'Confirm Rejection'}
               </button>
               <button onClick={() => setShowReject(false)}
@@ -146,13 +142,7 @@ function FirmCard({
           <div className="flex items-center gap-2">
             <p className="font-semibold text-white text-[15px]">{req.firm_name}</p>
             {req.status !== 'pending' && (
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                req.status === 'approved'
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                  : 'bg-red-500/10 text-red-400 border border-red-500/20'
-              }`}>
-                {req.status.toUpperCase()}
-              </span>
+              <Badge variant={req.status === 'approved' ? 'success' : 'danger'}>{req.status.toUpperCase()}</Badge>
             )}
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
@@ -182,8 +172,8 @@ function FirmCard({
       )}
 
       {req.rejection_reason && (
-        <div className="mb-3 rounded-lg bg-red-500/5 border border-red-500/15 px-3 py-2">
-          <p className="text-[11px] text-red-400/70">Rejection reason: {req.rejection_reason}</p>
+        <div className="mb-3 rounded-lg bg-crimson-500/5 border border-crimson-500/15 px-3 py-2">
+          <p className="text-[11px] text-crimson-400/70">Rejection reason: {req.rejection_reason}</p>
         </div>
       )}
 
@@ -195,11 +185,11 @@ function FirmCard({
               onChange={e => setReason(e.target.value)}
               placeholder="Reason for rejection (shown to the firm administrator)…"
               rows={2}
-              className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-red-500/30 resize-none"
+              className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder:text-white/20 focus:outline-none focus:border-crimson-500/30 resize-none"
             />
             <div className="flex gap-2">
               <button onClick={handleReject} disabled={acting || !reason.trim()}
-                className="flex-1 rounded-lg bg-red-500/15 border border-red-500/25 text-xs font-semibold text-red-400 py-2 hover:bg-red-500/25 disabled:opacity-50 transition-colors">
+                className="flex-1 rounded-lg bg-crimson-500/15 border border-crimson-500/25 text-xs font-semibold text-crimson-400 py-2 hover:bg-crimson-500/25 disabled:opacity-50 transition-colors">
                 {acting ? 'Rejecting…' : 'Confirm Rejection'}
               </button>
               <button onClick={() => setShowReject(false)}
@@ -230,12 +220,7 @@ function FirmCard({
 function SkeletonCards() {
   return (
     <div className="space-y-3">
-      {[...Array(3)].map((_, i) => (
-        <div key={i} className="rounded-xl border border-white/8 p-5 skeleton">
-          <div className="h-4 bg-white/8 rounded w-1/2 mb-2" />
-          <div className="h-3 bg-white/5 rounded w-2/3" />
-        </div>
-      ))}
+      {[...Array(3)].map((_, i) => <SkeletonCard key={i} lines={2} />)}
     </div>
   )
 }
@@ -246,7 +231,7 @@ type EntityTab = 'lawyers' | 'firms'
 const STATUS_TABS: { key: VerificationStatus; label: string; color: string }[] = [
   { key: 'pending',  label: 'Pending',  color: 'text-amber-400' },
   { key: 'approved', label: 'Approved', color: 'text-emerald-400' },
-  { key: 'rejected', label: 'Rejected', color: 'text-red-400' },
+  { key: 'rejected', label: 'Rejected', color: 'text-crimson-400' },
 ]
 
 export default function AdminVerificationPage() {
@@ -334,7 +319,7 @@ export default function AdminVerificationPage() {
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         {error && (
-          <div className="mb-5 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">{error}</div>
+          <div className="mb-5 rounded-xl bg-crimson-500/10 border border-crimson-500/20 px-4 py-3 text-sm text-crimson-400">{error}</div>
         )}
 
         {/* Entity tabs — Lawyers / Firms */}
@@ -385,24 +370,26 @@ export default function AdminVerificationPage() {
           </div>
         ) : entityTab === 'lawyers' ? (
           <div className="space-y-3">
-            {lawyerRequests.map(req => (
-              <LawyerCard
-                key={req.id}
-                req={req}
-                onApprove={handleLawyerApprove}
-                onReject={handleLawyerReject}
-              />
+            {lawyerRequests.map((req, i) => (
+              <div key={req.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                <LawyerCard
+                  req={req}
+                  onApprove={handleLawyerApprove}
+                  onReject={handleLawyerReject}
+                />
+              </div>
             ))}
           </div>
         ) : (
           <div className="space-y-3">
-            {firmRequests.map(req => (
-              <FirmCard
-                key={req.id}
-                req={req}
-                onApprove={handleFirmApprove}
-                onReject={handleFirmReject}
-              />
+            {firmRequests.map((req, i) => (
+              <div key={req.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                <FirmCard
+                  req={req}
+                  onApprove={handleFirmApprove}
+                  onReject={handleFirmReject}
+                />
+              </div>
             ))}
           </div>
         )}

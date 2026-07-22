@@ -7,6 +7,7 @@ import {
   getFirms, saveFirm, deleteFirm, generateId, syncFirmsFromApi,
   OutreachFirm, RelationshipStatus, STATUS_LABELS, STATUS_COLORS,
 } from '../../../../lib/outreachStore'
+import { PlusIcon, SearchIcon, PencilIcon } from '../../../../components/icons/Icons'
 
 const PRACTICE_AREAS = ['Corporate', 'OHADA', 'Criminal', 'Civil', 'Family', 'Property', 'Commercial', 'Maritime', 'Administrative', 'Tax', 'Common Law', 'Arbitration', 'Labour']
 const STATUSES: RelationshipStatus[] = ['not_contacted', 'contacted', 'meeting_requested', 'meeting_scheduled', 'interview_completed', 'interested', 'follow_up_needed', 'joined_founding_network', 'founding_council_member', 'pilot_partner', 'active_partner']
@@ -161,7 +162,7 @@ function FirmModal({ onClose, onSave, initial }: ModalProps) {
                   onClick={() => togglePa(area)}
                   className={`rounded-lg px-3 py-1 text-xs font-medium border transition-colors ${
                     pa.includes(area)
-                      ? 'bg-gold-500/15 border-gold-500/30 text-gold-300'
+                      ? 'bg-portal-soft border-portal-solid text-portal'
                       : 'bg-primary-900/40 border-white/8 text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
@@ -184,7 +185,7 @@ function FirmModal({ onClose, onSave, initial }: ModalProps) {
 
         <div className="flex justify-end gap-3 pt-2">
           <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-          <button type="submit" className="rounded-xl bg-gold-500 px-5 py-2 text-sm font-semibold text-primary-900 hover:bg-gold-400">
+          <button type="submit" className="rounded-xl bg-portal-accent px-5 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">
             {initial ? 'Save Changes' : 'Add Firm'}
           </button>
         </div>
@@ -248,9 +249,9 @@ export default function FirmsPage() {
         </div>
         <button
           onClick={() => { setEditing(undefined); setShowModal(true) }}
-          className="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors"
+          className="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-portal-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
         >
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          <PlusIcon width={14} height={14} />
           Add Firm
         </button>
       </div>
@@ -260,7 +261,7 @@ export default function FirmsPage() {
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-sm">
             <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-500">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+              <SearchIcon width={16} height={16} />
             </span>
             <input
               type="text"
@@ -285,7 +286,7 @@ export default function FirmsPage() {
               onClick={() => setStatusFilter(s)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium border transition-all ${
                 statusFilter === s
-                  ? 'bg-gold-500/15 border-gold-500/30 text-gold-300'
+                  ? 'bg-portal-soft border-portal-solid text-portal'
                   : 'bg-primary-800/40 border-white/8 text-neutral-400 hover:text-neutral-200'
               }`}
             >
@@ -313,10 +314,11 @@ export default function FirmsPage() {
             <tbody className="divide-y divide-white/5">
               {filtered.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-16 text-center text-neutral-500 text-sm">No firms found</td></tr>
-              ) : filtered.map(f => (
+              ) : filtered.map((f, i) => (
                 <tr
                   key={f.id}
-                  className="hover:bg-white/3 transition-colors cursor-pointer"
+                  className="hover:bg-white/3 transition-colors cursor-pointer stagger-child"
+                  style={{ '--i': Math.min(i, 8) } as React.CSSProperties}
                   onClick={() => router.push(`/admin/outreach/firms/${f.id}`)}
                 >
                   <td className="px-4 py-3">
@@ -346,9 +348,9 @@ export default function FirmsPage() {
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5 justify-end">
                       <button onClick={() => { setEditing(f); setShowModal(true) }} className="rounded-lg p-1.5 text-neutral-500 hover:text-neutral-200 hover:bg-white/5 transition-colors" title="Edit">
-                        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        <PencilIcon width={14} height={14} />
                       </button>
-                      <button onClick={() => setDeleteId(f.id)} className="rounded-lg p-1.5 text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Delete">
+                      <button onClick={() => setDeleteId(f.id)} className="rounded-lg p-1.5 text-neutral-500 hover:text-crimson-400 hover:bg-crimson-500/10 transition-colors" title="Delete">
                         <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                       </button>
                     </div>

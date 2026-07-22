@@ -8,7 +8,7 @@ import {
   type Thread, type Message, type CreateThreadPayload,
   THREAD_TYPE_LABELS, THREAD_TYPE_COLORS,
 } from '../../lib/messagesApi'
-import { ChatIcon } from '../../components/icons/Icons'
+import { ChatIcon, SendIcon, PlusIcon, MailIcon, SparklesIcon, CollapseIcon } from '../../components/icons/Icons'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -136,7 +136,7 @@ function NewThreadModal({
             />
           </div>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && <p className="text-crimson-400 text-sm">{error}</p>}
 
           <button
             onClick={handleCreate}
@@ -208,10 +208,9 @@ function ThreadItem({
           </div>
 
           <div className="flex items-center justify-between">
-            <p className="text-xs text-neutral-500 truncate">
-              {thread.last_message
-                ? (thread.last_message.is_ai ? '🤖 ' : '') + thread.last_message.content
-                : 'No messages yet'}
+            <p className="text-xs text-neutral-500 truncate flex items-center gap-1">
+              {thread.last_message?.is_ai && <SparklesIcon width={11} height={11} className="flex-shrink-0 text-emerald-400/70" />}
+              <span className="truncate">{thread.last_message ? thread.last_message.content : 'No messages yet'}</span>
             </p>
             {thread.unread_count > 0 && (
               <span className="flex-shrink-0 ml-2 h-5 min-w-5 px-1 rounded-full bg-gold-400 text-primary-900 text-[10px] font-bold flex items-center justify-center">
@@ -261,7 +260,7 @@ function MessageBubble({
         <div className={`flex-shrink-0 h-7 w-7 rounded-lg flex items-center justify-center text-xs font-semibold ${
           msg.is_ai ? 'bg-emerald-500/20 text-emerald-300' : 'bg-gold-500/15 text-gold-300'
         }`}>
-          {msg.is_ai ? '🤖' : msg.sender_name.charAt(0).toUpperCase()}
+          {msg.is_ai ? <SparklesIcon width={14} height={14} /> : msg.sender_name.charAt(0).toUpperCase()}
         </div>
       )}
 
@@ -557,7 +556,7 @@ function MessageView({
           aria-label="Back to conversations"
           className="lg:hidden text-neutral-400 hover:text-neutral-100 mr-1"
         >
-          ←
+          <CollapseIcon width={18} height={18} />
         </button>
         <div className="h-10 w-10 rounded-xl flex items-center justify-center text-base font-semibold bg-gold-500/15 text-gold-300 flex-shrink-0">
           {headerName.charAt(0).toUpperCase()}
@@ -603,7 +602,7 @@ function MessageView({
                 : 'bg-white/5 border-white/10 text-neutral-500 hover:border-white/20 hover:text-neutral-300'
             }`}
           >
-            <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/></svg>
+            <SparklesIcon width={12} height={12} />
             {thread.is_ai_support ? 'AI on' : 'AI off'}
           </button>
         )}
@@ -655,10 +654,7 @@ function MessageView({
             aria-label="Send message"
             className="h-11 w-11 flex items-center justify-center rounded-2xl bg-gold-500 hover:bg-gold-400 text-primary-900 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
           >
-            <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
+            <SendIcon width={16} height={16} />
           </button>
         </div>
       </div>
@@ -673,10 +669,7 @@ function ContactPreferenceGate({ preference }: { preference: string }) {
     <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
       <div className="h-16 w-16 rounded-2xl bg-gold-500/10 flex items-center justify-center mb-4">
         {preference === 'email' ? (
-          <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gold-300">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-            <polyline points="22,6 12,13 2,6" />
-          </svg>
+          <MailIcon width={32} height={32} className="text-gold-300" />
         ) : (
           <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gold-300">
             <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.68A2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.29 6.29l1.28-1.28a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
@@ -858,7 +851,7 @@ function MessagesPageInner() {
             onClick={() => setShowNewThread(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold-500/10 border border-gold-400/20 text-gold-300 text-sm font-medium hover:bg-gold-500/20 transition-all"
           >
-            <span className="text-lg leading-none">+</span>
+            <PlusIcon width={16} height={16} />
             <span>New</span>
           </button>
         </div>
@@ -895,14 +888,15 @@ function MessagesPageInner() {
                 </div>
               )}
 
-              {threads.map(t => (
-                <ThreadItem
-                  key={t.id}
-                  thread={t}
-                  isActive={selectedThread?.id === t.id}
-                  onClick={() => handleSelectThread(t)}
-                  currentUserId={currentUserId}
-                />
+              {threads.map((t, i) => (
+                <div key={t.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                  <ThreadItem
+                    thread={t}
+                    isActive={selectedThread?.id === t.id}
+                    onClick={() => handleSelectThread(t)}
+                    currentUserId={currentUserId}
+                  />
+                </div>
               ))}
             </div>
           </div>

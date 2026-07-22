@@ -2,6 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import { api } from '../../../../lib/api'
+import { Badge } from '../../../../components/ui/Badge'
+import { EmptyState } from '../../../../components/ui/EmptyState'
+import { SkeletonCard } from '../../../../components/ui/Skeleton'
+import { SearchIcon, BalanceIcon } from '../../../../components/icons/Icons'
 
 type Judgment = {
   id: string
@@ -39,9 +43,7 @@ export default function JudgmentsPage() {
       </header>
 
       <div className="relative">
-        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-        </svg>
+        <SearchIcon width={16} height={16} className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500 pointer-events-none" />
         <input
           value={query} onChange={e => setQuery(e.target.value)}
           placeholder="Search judgments…"
@@ -51,31 +53,27 @@ export default function JudgmentsPage() {
 
       {loading && (
         <div className="space-y-3">
-          {[1,2,3,4].map(i => <div key={i} className="h-24 rounded-2xl border border-white/8 bg-primary-800/20 animate-pulse"/>)}
+          {[1,2,3,4].map(i => <SkeletonCard key={i} lines={2} />)}
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
-        <div className="rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-700/40 text-3xl">⚖️</div>
-          <h3 className="font-semibold text-neutral-200">{query ? 'No results found' : 'No judgments available'}</h3>
-          <p className="mt-1.5 text-sm text-neutral-500">
-            {query ? 'Try a different search term.' : 'Legal judgments published to the library will appear here.'}
-          </p>
-        </div>
+        <EmptyState
+          icon={<BalanceIcon width={24} height={24} />}
+          title={query ? 'No results found' : 'No judgments available'}
+          body={query ? 'Try a different search term.' : 'Legal judgments published to the library will appear here.'}
+        />
       )}
 
       {!loading && filtered.length > 0 && (
         <div className="space-y-3">
-          {filtered.map(j => (
-            <div key={j.id} className="rounded-2xl border border-white/8 bg-primary-800/20 p-5 hover:border-white/12 transition-colors">
+          {filtered.map((j, i) => (
+            <div key={j.id} className="rounded-2xl border border-white/8 bg-primary-800/20 p-5 hover:border-white/12 transition-colors stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1.5">
                     {j.category && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full border border-gold-400/20 text-gold-400 bg-gold-500/8 uppercase tracking-wide font-semibold">
-                        {j.category}
-                      </span>
+                      <Badge variant="gold">{j.category}</Badge>
                     )}
                     <span className="text-[10px] text-neutral-600">{new Date(j.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                   </div>

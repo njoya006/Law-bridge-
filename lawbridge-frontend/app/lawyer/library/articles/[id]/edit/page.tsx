@@ -12,6 +12,7 @@ import {
   type BookTier,
   type BookCategory,
 } from '../../../../../../lib/libraryApi'
+import { CheckIcon } from '../../../../../../components/icons/Icons'
 
 async function extractText(file: File): Promise<string> {
   const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
@@ -215,9 +216,7 @@ export default function EditArticlePage() {
               </div>
               {importSuccess && (
                 <div className="mt-2 pt-2 border-t border-white/6 flex items-center gap-2">
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" className="text-emerald-400 flex-shrink-0">
-                    <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  <CheckIcon width={11} height={11} className="text-emerald-400 flex-shrink-0" />
                   <p className="text-[11px] text-emerald-400/80">{importSuccess}</p>
                 </div>
               )}

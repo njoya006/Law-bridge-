@@ -1,6 +1,10 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
+import { Badge } from '../../../components/ui/Badge'
+import { SkeletonStat, SkeletonTable } from '../../../components/ui/Skeleton'
+import { EmptyState } from '../../../components/ui/EmptyState'
+import { SparklesIcon, ChartBarIcon } from '../../../components/icons/Icons'
 
 type StalledCase = { case_id: string; title: string; status: string; days_stale: number }
 type LawyerLoad = {
@@ -29,7 +33,7 @@ const STATUS_COLORS: Record<string, string> = {
   evidence_collection: 'bg-amber-500',
   awaiting_court_date: 'bg-orange-400',
   hearing_scheduled: 'bg-orange-500',
-  hearing_adjourned: 'bg-red-400',
+  hearing_adjourned: 'bg-crimson-400',
   mediation: 'bg-purple-500',
   appeal_filed: 'bg-pink-500',
   appeal_in_progress: 'bg-pink-400',
@@ -114,7 +118,7 @@ function StalledCasesTable({ cases }: { cases: StalledCase[] }) {
                   <span className="text-[11px] text-neutral-500 capitalize">{c.status.replace(/_/g, ' ')}</span>
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <span className={`text-xs font-semibold ${c.days_stale > 30 ? 'text-red-400' : c.days_stale > 21 ? 'text-amber-400' : 'text-neutral-400'}`}>
+                  <span className={`text-xs font-semibold ${c.days_stale > 30 ? 'text-crimson-400' : c.days_stale > 21 ? 'text-amber-400' : 'text-neutral-400'}`}>
                     {c.days_stale}d
                   </span>
                 </td>
@@ -154,9 +158,7 @@ function LawyerWorkloadTable({ loads }: { loads: LawyerLoad[] }) {
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono text-neutral-400">{l.lawyer_id.slice(0, 8)}…</span>
-                    {l.active_cases > 10 && (
-                      <span className="rounded-full bg-amber-500/15 border border-amber-500/25 px-1.5 py-px text-[9px] font-bold text-amber-400">OVERLOADED</span>
-                    )}
+                    {l.active_cases > 10 && <Badge variant="warning">Overloaded</Badge>}
                   </div>
                   <div className="mt-1 h-1 w-24 rounded-full bg-primary-700">
                     <div className="h-1 rounded-full bg-gold-500/50" style={{ width: `${(l.active_cases / maxActive) * 100}%` }} />
@@ -232,40 +234,30 @@ export default function IntelligencePage() {
         <div className="space-y-4">
           <Skeleton className="h-40" />
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24" />)}
+            {[1, 2, 3, 4].map(i => <SkeletonStat key={i} />)}
           </div>
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <Skeleton className="h-64" />
-            <Skeleton className="h-64" />
+            <SkeletonTable rows={5} />
+            <SkeletonTable rows={5} />
           </div>
-          <Skeleton className="h-56" />
+          <SkeletonTable rows={4} />
         </div>
       ) : !data ? (
-        <div className="rounded-2xl border border-white/8 bg-primary-800/20 py-24 text-center">
-          <svg className="w-10 h-10 text-neutral-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-            <path d="M9 17v-2m3 2v-4m3 4v-6M5 20h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v11a2 2 0 002 2z" />
-          </svg>
-          <p className="text-neutral-400 text-sm font-medium">No intelligence data yet</p>
-          <p className="text-neutral-600 text-xs mt-1 max-w-xs mx-auto">
-            Intelligence populates as lawyers manage cases on the platform. Check back once cases are active.
-          </p>
-          <button
-            onClick={() => void load(true)}
-            className="mt-5 rounded-xl border border-white/10 bg-primary-800/40 px-4 py-2 text-sm text-neutral-300 hover:border-white/20 hover:text-neutral-100 transition-all"
-          >
-            Try again
-          </button>
+        <div className="rounded-2xl border border-white/8 bg-primary-800/20">
+          <EmptyState
+            icon={<ChartBarIcon width={24} height={24} className="text-neutral-600" />}
+            title="No intelligence data yet"
+            body="Intelligence populates as lawyers manage cases on the platform. Check back once cases are active."
+            action={{ label: 'Try again', onClick: () => void load(true) }}
+          />
         </div>
       ) : data ? (
         <>
           {/* Morning Briefing */}
-          <div className="rounded-2xl border border-gold-400/20 bg-gradient-to-br from-gold-500/5 to-transparent p-6">
+          <div className="rounded-2xl border border-portal bg-gradient-to-br from-portal-soft to-transparent p-6">
             <div className="flex items-center gap-2 mb-4">
-              <svg className="w-4 h-4 text-gold-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z" />
-                <path d="M19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75L19 14z" />
-              </svg>
-              <span className="text-xs font-semibold text-gold-400 uppercase tracking-wider">AI Platform Briefing</span>
+              <SparklesIcon width={16} height={16} className="text-portal" />
+              <span className="text-xs font-semibold text-portal uppercase tracking-wider">AI Platform Briefing</span>
               {lastFetched && (
                 <span className="ml-auto text-xs text-neutral-600">
                   {lastFetched.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -282,7 +274,7 @@ export default function IntelligencePage() {
                 {narrative.length > NARRATIVE_LIMIT && (
                   <button
                     onClick={() => setShowFullNarrative(v => !v)}
-                    className="mt-2 text-xs text-gold-400/60 hover:text-gold-400 transition-colors"
+                    className="mt-2 text-xs text-portal/60 hover:text-portal transition-colors"
                   >
                     {showFullNarrative ? 'Show less' : 'Show more'}
                   </button>
@@ -296,7 +288,7 @@ export default function IntelligencePage() {
             {data.ai_bullet_insights?.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-4">
                 {data.ai_bullet_insights.slice(0, 6).map((b, i) => (
-                  <span key={i} className="rounded-full border border-gold-500/20 bg-gold-500/8 px-3 py-1 text-xs text-gold-300">
+                  <span key={i} className="rounded-full border border-portal bg-portal-soft px-3 py-1 text-xs text-portal stagger-child" style={{ '--i': i } as React.CSSProperties}>
                     {b}
                   </span>
                 ))}

@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useCallback } from 'react'
+import { Badge } from '../../../components/ui/Badge'
 
 type RiskItem = {
   case_id: string
@@ -13,10 +14,10 @@ type RiskItem = {
 type RiskCounts = { critical: number; watch: number; healthy: number }
 type RiskFilter = 'all' | 'critical' | 'watch' | 'healthy'
 
-const RISK_CONFIG = {
-  critical: { label: 'Critical', text: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20', bar: 'bg-red-400', accent: 'border-l-red-400' },
-  watch:    { label: 'Watch',    text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', bar: 'bg-amber-400', accent: 'border-l-amber-400' },
-  healthy:  { label: 'Healthy',  text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', bar: 'bg-emerald-400', accent: 'border-l-emerald-400' },
+const RISK_CONFIG: Record<'critical' | 'watch' | 'healthy', { label: string; text: string; bg: string; border: string; bar: string; accent: string; badge: 'danger' | 'warning' | 'success' }> = {
+  critical: { label: 'Critical', text: 'text-crimson-400', bg: 'bg-crimson-500/10', border: 'border-crimson-500/20', bar: 'bg-crimson-400', accent: 'border-l-crimson-400', badge: 'danger' },
+  watch:    { label: 'Watch',    text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', bar: 'bg-amber-400', accent: 'border-l-amber-400', badge: 'warning' },
+  healthy:  { label: 'Healthy',  text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', bar: 'bg-emerald-400', accent: 'border-l-emerald-400', badge: 'success' },
 }
 
 function Skeleton({ className = '' }: { className?: string }) {
@@ -37,9 +38,7 @@ function RiskCaseCard({ item }: { item: RiskItem }) {
           </span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cfg.text} ${cfg.bg} ${cfg.border}`}>
-            {cfg.label}
-          </span>
+          <Badge variant={cfg.badge} size="md">{cfg.label}</Badge>
           <span className={`text-2xl font-display font-bold ${cfg.text}`}>{item.risk_score}</span>
         </div>
       </div>
@@ -158,13 +157,13 @@ export default function RisksPage() {
 
       {/* Alert banner */}
       {!loading && totalProblematic > 0 && filter === 'all' && (
-        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/6 px-4 py-3">
-          <svg className="w-4 h-4 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+        <div className="flex items-center gap-3 rounded-xl border border-crimson-500/20 bg-crimson-500/6 px-4 py-3">
+          <svg className="w-4 h-4 text-crimson-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <circle cx="12" cy="16" r="0.5" fill="currentColor" />
           </svg>
-          <p className="text-sm text-red-400">
+          <p className="text-sm text-crimson-400">
             <span className="font-semibold">{totalProblematic} case{totalProblematic !== 1 ? 's' : ''}</span> require attention
             {counts.critical > 0 && <span className="ml-1">({counts.critical} critical)</span>}
           </p>
@@ -187,7 +186,11 @@ export default function RisksPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-          {filtered.map(c => <RiskCaseCard key={c.case_id} item={c} />)}
+          {filtered.map((c, i) => (
+            <div key={c.case_id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+              <RiskCaseCard item={c} />
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { getCaseDetail, verifyPayment, STATUS_LABELS, type CaseItem } from '../../../../lib/casesApi'
 import { toastError, toastSuccess } from '../../../../lib/toast'
+import { Badge } from '../../../../components/ui/Badge'
+import { CollapseIcon, ExpandIcon, CheckIcon, XCircleIcon } from '../../../../components/icons/Icons'
 
 function formatDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) }
@@ -19,38 +21,24 @@ function paymentMethodLabel(v?: string) {
 }
 
 function BookingStatusBadge({ status }: { status: string }) {
-  const cfg: Record<string, string> = {
-    pending:  'text-amber-400 border-amber-500/30 bg-amber-500/10',
-    accepted: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
-    declined: 'text-red-400 border-red-500/30 bg-red-500/10',
-  }
+  const variant = status === 'pending' ? 'warning' : status === 'accepted' ? 'success' : status === 'declined' ? 'danger' : 'neutral'
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-semibold capitalize ${cfg[status] ?? 'text-neutral-400 border-neutral-700 bg-neutral-800/30'}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${status === 'pending' ? 'bg-amber-400 animate-pulse' : status === 'accepted' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+    <Badge variant={variant} size="md" className="capitalize">
+      <span className={`h-1.5 w-1.5 rounded-full ${status === 'pending' ? 'bg-amber-400 animate-pulse' : status === 'accepted' ? 'bg-emerald-400' : 'bg-crimson-400'}`} />
       {status}
-    </span>
+    </Badge>
   )
 }
 
 function PaymentStatusBadge({ status }: { status?: string }) {
-  if (!status || status === 'none') return (
-    <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-semibold border-neutral-700 text-neutral-500 bg-neutral-800/30">No payment</span>
-  )
-  const cfg: Record<string, string> = {
-    pending_verification: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
-    verified:  'text-emerald-400 border-emerald-500/30 bg-emerald-500/10',
-    rejected:  'text-red-400 border-red-500/30 bg-red-500/10',
+  if (!status || status === 'none') return <Badge variant="neutral" size="md">No payment</Badge>
+  const cfg: Record<string, { label: string; variant: 'warning' | 'success' | 'danger' }> = {
+    pending_verification: { label: 'Pending verification', variant: 'warning' },
+    verified: { label: 'Payment verified', variant: 'success' },
+    rejected: { label: 'Payment rejected', variant: 'danger' },
   }
-  const labels: Record<string, string> = {
-    pending_verification: 'Pending verification',
-    verified: 'Payment verified',
-    rejected: 'Payment rejected',
-  }
-  return (
-    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-semibold ${cfg[status] ?? 'text-neutral-400 border-neutral-700'}`}>
-      {labels[status] ?? status}
-    </span>
-  )
+  const c = cfg[status]
+  return <Badge variant={c?.variant ?? 'neutral'} size="md">{c?.label ?? status}</Badge>
 }
 
 function InfoRow({ label, value, mono = false }: { label: string; value?: string | null; mono?: boolean }) {
@@ -130,11 +118,11 @@ export default function SecretaryBookingDetailPage() {
   if (error) return (
     <div className="space-y-6">
       <Link href="/secretary/bookings" className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-neutral-100 transition-colors">
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        <CollapseIcon width={14} height={14} />
         All Bookings
       </Link>
-      <div className="rounded-2xl border border-red-500/30 bg-red-500/8 px-5 py-5">
-        <p className="text-red-300 text-sm">{error}</p>
+      <div className="rounded-2xl border border-crimson-500/30 bg-crimson-500/8 px-5 py-5">
+        <p className="text-crimson-300 text-sm">{error}</p>
       </div>
     </div>
   )
@@ -154,12 +142,10 @@ export default function SecretaryBookingDetailPage() {
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
         <Link href="/secretary/bookings" className="text-neutral-500 hover:text-neutral-200 transition-colors flex items-center gap-1.5">
-          <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+          <CollapseIcon width={13} height={13} />
           Bookings
         </Link>
-        <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-neutral-700">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
+        <ExpandIcon width={12} height={12} className="text-neutral-700" />
         <span className="text-neutral-400 truncate max-w-xs">{booking.title}</span>
       </div>
 
@@ -183,16 +169,16 @@ export default function SecretaryBookingDetailPage() {
             <button
               onClick={() => void handlePaymentAction('reject')}
               disabled={actioning !== null}
-              className="px-4 py-2 rounded-xl border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-crimson-500/30 text-crimson-400 text-sm font-semibold hover:bg-crimson-500/10 disabled:opacity-50 transition-colors"
             >
-              {actioning === 'reject' ? 'Rejecting…' : '✕ Reject Payment'}
+              {actioning === 'reject' ? 'Rejecting…' : <><XCircleIcon width={14} height={14} />Reject Payment</>}
             </button>
             <button
               onClick={() => void handlePaymentAction('verify')}
               disabled={actioning !== null}
-              className="px-4 py-2 rounded-xl bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50 transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50 transition-colors"
             >
-              {actioning === 'verify' ? 'Verifying…' : '✓ Verify Payment'}
+              {actioning === 'verify' ? 'Verifying…' : <><CheckIcon width={14} height={14} />Verify Payment</>}
             </button>
           </div>
         )}
@@ -236,36 +222,32 @@ export default function SecretaryBookingDetailPage() {
               <button
                 onClick={() => void handlePaymentAction('reject')}
                 disabled={actioning !== null}
-                className="flex-1 py-2.5 rounded-xl border border-red-500/30 text-red-400 text-sm font-semibold hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-crimson-500/30 text-crimson-400 text-sm font-semibold hover:bg-crimson-500/10 disabled:opacity-50 transition-colors"
               >
-                {actioning === 'reject' ? 'Rejecting…' : '✕ Reject'}
+                {actioning === 'reject' ? 'Rejecting…' : <><XCircleIcon width={14} height={14} />Reject</>}
               </button>
               <button
                 onClick={() => void handlePaymentAction('verify')}
                 disabled={actioning !== null}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50 transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400 disabled:opacity-50 transition-colors"
               >
-                {actioning === 'verify' ? 'Verifying…' : '✓ Verify'}
+                {actioning === 'verify' ? 'Verifying…' : <><CheckIcon width={14} height={14} />Verify</>}
               </button>
             </div>
           )}
           {payStatus === 'verified' && (
             <div className="py-3">
               <div className="flex items-center gap-2 rounded-xl bg-emerald-500/8 border border-emerald-500/20 px-4 py-3">
-                <svg className="text-emerald-400 flex-shrink-0" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
+                <CheckIcon width={14} height={14} className="text-emerald-400 flex-shrink-0" />
                 <p className="text-sm text-emerald-300 font-medium">Payment has been verified</p>
               </div>
             </div>
           )}
           {payStatus === 'rejected' && (
             <div className="py-3">
-              <div className="flex items-center gap-2 rounded-xl bg-red-500/8 border border-red-500/20 px-4 py-3">
-                <svg className="text-red-400 flex-shrink-0" width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-                <p className="text-sm text-red-300 font-medium">Payment was rejected</p>
+              <div className="flex items-center gap-2 rounded-xl bg-crimson-500/8 border border-crimson-500/20 px-4 py-3">
+                <XCircleIcon width={14} height={14} className="text-crimson-400 flex-shrink-0" />
+                <p className="text-sm text-crimson-300 font-medium">Payment was rejected</p>
               </div>
             </div>
           )}

@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import Card from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
+import { SkeletonCard } from '../../components/ui/Skeleton'
 import AvatarUploader from '../../components/ui/AvatarUploader'
 import { api } from '../../lib/api'
 import { getLang, setLang, t, type Lang } from '../../lib/i18n'
@@ -196,12 +197,7 @@ export default function ClientSettingsPage() {
         {/* Tab content */}
         <div className="flex-1 min-w-0">
           {loading ? (
-            <Card className="p-8">
-              <div className="flex items-center gap-2 text-neutral-400">
-                <span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />
-                Loading settings…
-              </div>
-            </Card>
+            <SkeletonCard lines={4} />
           ) : (
             <>
               {/* ── ACCOUNT ── */}

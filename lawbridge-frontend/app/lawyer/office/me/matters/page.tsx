@@ -107,13 +107,13 @@ export default function MyOfficeMattersPage() {
 
       {!loading && !error && activeItems.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {activeItems.map(item => {
+          {activeItems.map((item, ii) => {
             const isBooking = Boolean(item.booking_status)
             const href = isBooking ? `/bookings/${item.id}` : `/cases/${item.id}`
             const meta = item.booking_metadata ?? {}
             const isPending = item.booking_status === 'pending'
             return (
-              <Card key={item.id} className={`p-5 flex flex-col gap-3 transition-colors ${isPending ? 'hover:border-amber-400/30 border-amber-500/20' : 'hover:border-gold-400/20'}`}>
+              <Card key={item.id} className={`p-5 flex flex-col gap-3 transition-colors stagger-child ${isPending ? 'hover:border-amber-400/30 border-amber-500/20' : 'hover:border-gold-400/20'}`} style={{ '--i': Math.min(ii, 8) } as React.CSSProperties}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-semibold text-neutral-50 truncate">{item.title}</p>

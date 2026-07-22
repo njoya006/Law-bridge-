@@ -9,6 +9,7 @@ import { listEventsForCases, type CalendarEvent } from '../../../../lib/calendar
 import { getMyFirmMemberships, type FirmMembership } from '../../../../lib/firmsApi'
 import { createReportRequest, listReportRequests, updateReportRequestStatus, REPORT_TYPE_LABELS, PERIOD_LABELS, type ReportRequest } from '../../../../lib/reportRequestsApi'
 import { ChartBarIcon, SendIcon, AlertTriangleIcon, MapPinIcon, UsersIcon, CalendarIcon, DocumentIcon, SettingsIcon } from '../../../../components/icons/Icons'
+import { Badge } from '../../../../components/ui/Badge'
 
 function formatRelative(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
@@ -19,21 +20,21 @@ function formatRelative(iso: string) {
   return `${Math.floor(h / 24)}d ago`
 }
 
-function statusColor(status: string) {
-  if (['in_progress', 'hearing_scheduled'].includes(status)) return 'bg-primary-400/20 text-primary-100 border-primary-400/30'
-  if (['awaiting_court_date', 'hearing_adjourned'].includes(status)) return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-  if (['closed', 'dismissed', 'archived'].includes(status)) return 'bg-neutral-700/40 text-neutral-400 border-neutral-600/30'
-  if (['verdict', 'settled'].includes(status)) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-  return 'bg-gold-500/15 text-gold-300 border-gold-500/25'
+function statusVariant(status: string): 'info' | 'warning' | 'neutral' | 'success' | 'gold' {
+  if (['in_progress', 'hearing_scheduled'].includes(status)) return 'info'
+  if (['awaiting_court_date', 'hearing_adjourned'].includes(status)) return 'warning'
+  if (['closed', 'dismissed', 'archived'].includes(status)) return 'neutral'
+  if (['verdict', 'settled'].includes(status)) return 'success'
+  return 'gold'
 }
 
-function reportStatusCls(status: string) {
+function reportStatusVariant(status: string): 'warning' | 'info' | 'gold' | 'success' | 'neutral' {
   switch (status) {
-    case 'pending': return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-    case 'acknowledged': return 'bg-primary-400/20 text-primary-100 border-primary-400/30'
-    case 'generated': return 'bg-gold-500/20 text-gold-300 border-gold-500/30'
-    case 'delivered': return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-    default: return 'bg-neutral-700/30 text-neutral-400 border-neutral-600/30'
+    case 'pending': return 'warning'
+    case 'acknowledged': return 'info'
+    case 'generated': return 'gold'
+    case 'delivered': return 'success'
+    default: return 'neutral'
   }
 }
 
@@ -107,7 +108,7 @@ function ReportRequestModal({
               className={`${cls} resize-none`}
             />
           </div>
-          {error && <p className="text-red-300 text-sm">{error}</p>}
+          {error && <p className="text-crimson-300 text-sm">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-lg border border-neutral-700 text-neutral-300 hover:text-neutral-100 text-sm transition-colors">Cancel</button>
             <button type="submit" disabled={saving} className="flex-1 py-2.5 rounded-lg bg-gold-500 hover:bg-gold-400 disabled:opacity-50 text-black font-semibold text-sm transition-colors">
@@ -198,7 +199,7 @@ export default function MyOfficePage() {
   const todayEvents = useMemo(() => events.filter(e => e.date === todayStr), [events, todayStr])
   const urgentCases = useMemo(() => openCases.filter(c => ['awaiting_court_date', 'hearing_adjourned', 'hearing_scheduled'].includes(c.status)), [openCases])
 
-  if (!loading && error) return <Card className="border border-red-500/30 p-4"><p className="text-red-300 text-sm">{error}</p></Card>
+  if (!loading && error) return <Card className="border border-crimson-500/30 p-4"><p className="text-crimson-300 text-sm">{error}</p></Card>
 
   return (
     <div className="space-y-6">
@@ -238,8 +239,8 @@ export default function MyOfficePage() {
               { label: 'Active Clients', value: new Set(openCases.map(c => c.client_id)).size, sub: 'unique clients', accent: 'text-primary-400' },
               { label: 'Upcoming Events', value: events.length, sub: `${todayEvents.length} today`, accent: todayEvents.length > 0 ? 'text-amber-400' : 'text-neutral-400' },
               { label: 'Closed (Total)', value: lawyerStats?.closed_cases_count ?? cases.filter(c => ['closed', 'settled', 'verdict'].includes(c.status)).length, sub: lawyerStats ? `avg ${Math.round(lawyerStats.avg_resolution_days)}d resolution` : 'completed', accent: 'text-emerald-400' },
-            ].map(({ label, value, sub, accent }) => (
-              <div key={label} className="bg-primary-900/50 border border-neutral-700/40 rounded-xl p-4">
+            ].map(({ label, value, sub, accent }, i) => (
+              <div key={label} className="bg-primary-900/50 border border-neutral-700/40 rounded-xl p-4 stagger-child" style={{ '--i': i } as React.CSSProperties}>
                 <p className={`text-3xl font-bold ${accent}`}>{value}</p>
                 <p className="text-sm text-neutral-300 mt-0.5 font-medium">{label}</p>
                 <p className="text-xs text-neutral-500 mt-0.5">{sub}</p>
@@ -253,13 +254,13 @@ export default function MyOfficePage() {
               <div className="flex items-center gap-2 mb-2">
                 <AlertTriangleIcon width={16} height={16} className="text-amber-400 flex-shrink-0" />
                 <h4 className="text-sm font-semibold text-amber-300">Matters Needing Attention</h4>
-                <span className="ml-auto text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">{urgentCases.length}</span>
+                <Badge variant="warning" className="ml-auto">{urgentCases.length}</Badge>
               </div>
               <div className="space-y-1.5">
                 {urgentCases.slice(0, 3).map(c => (
                   <Link key={c.id} href={`/cases/${c.id}`} className="flex items-center gap-3 py-1.5 border-t border-amber-500/10 group">
                     <span className="flex-1 text-sm text-neutral-300 group-hover:text-neutral-100 truncate">{c.title}</span>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full border capitalize ${statusColor(c.status)}`}>{c.status.replace(/_/g, ' ')}</span>
+                    <Badge variant={statusVariant(c.status)} className="capitalize">{c.status.replace(/_/g, ' ')}</Badge>
                   </Link>
                 ))}
               </div>
@@ -277,10 +278,10 @@ export default function MyOfficePage() {
                 <Card className="p-6 text-center"><p className="text-neutral-400 text-sm">No active matters.</p></Card>
               ) : (
                 <div className="space-y-2">
-                  {openCases.slice(0, 6).map(c => {
+                  {openCases.slice(0, 6).map((c, i) => {
                     const client = clientProfiles.get(c.client_id)
                     return (
-                      <Link key={c.id} href={`/cases/${c.id}`} className="block">
+                      <Link key={c.id} href={`/cases/${c.id}`} className="block stagger-child" style={{ '--i': i } as React.CSSProperties}>
                         <div className="flex items-center gap-3 p-3.5 rounded-xl border border-neutral-700/40 bg-primary-900/30 hover:border-neutral-600/50 transition-colors">
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-neutral-100 truncate">{c.title}</p>
@@ -290,9 +291,9 @@ export default function MyOfficePage() {
                               <span className="text-[10px] text-neutral-600">{formatRelative(c.updated_at)}</span>
                             </div>
                           </div>
-                          <span className={`flex-shrink-0 text-[11px] px-2 py-0.5 rounded-full border capitalize ${statusColor(c.status)}`}>
+                          <Badge variant={statusVariant(c.status)} className="flex-shrink-0 capitalize">
                             {c.status.replace(/_/g, ' ')}
-                          </span>
+                          </Badge>
                         </div>
                       </Link>
                     )
@@ -449,7 +450,7 @@ export default function MyOfficePage() {
                         <td className="px-4 py-3 text-neutral-400">{PERIOD_LABELS[rr.period] ?? rr.period}</td>
                         <td className="px-4 py-3 text-neutral-400">{rr.requester_name || '—'}</td>
                         <td className="px-4 py-3">
-                          <span className={`text-[11px] px-2 py-0.5 rounded-full border capitalize ${reportStatusCls(rr.status)}`}>{rr.status}</span>
+                          <Badge variant={reportStatusVariant(rr.status)} className="capitalize">{rr.status}</Badge>
                         </td>
                         <td className="px-4 py-3 text-neutral-500 text-xs">{new Date(rr.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'short' })}</td>
                       </tr>

@@ -6,6 +6,8 @@ import Button from '../../components/ui/Button'
 import Input from '../../components/ui/Input'
 import Card from '../../components/ui/Card'
 import { LogoutIcon } from '../../components/icons/Icons'
+import { Badge } from '../../components/ui/Badge'
+import { SkeletonCard } from '../../components/ui/Skeleton'
 import AvatarUploader from '../../components/ui/AvatarUploader'
 import { api } from '../../lib/api'
 import { clearSession } from '../../lib/authSession'
@@ -208,12 +210,10 @@ export default function ProfilePage() {
   return (
     <main className="space-y-8 max-w-4xl w-full">
       {loading && (
-        <Card className="p-6">
-          <div className="flex items-center gap-2 text-neutral-400">
-            <span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />
-            Loading your profile...
-          </div>
-        </Card>
+        <div className="space-y-4">
+          <SkeletonCard lines={3} />
+          <SkeletonCard lines={2} />
+        </div>
       )}
 
       {!loading && error && (
@@ -404,25 +404,25 @@ export default function ProfilePage() {
       {/* Stats Grid */}
       {!loading && !error && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Link href="/cases" className="block group">
+          <Link href="/cases" className="block group stagger-child" style={{ '--i': 0 } as React.CSSProperties}>
             <Card className="p-6 text-center transition-colors group-hover:border-gold-400/40">
-              <div className="font-display text-display-sm text-gold-400 mb-2">
+              <div className="font-display stat-num text-display-sm text-gold-400 mb-2">
                 {openMatters === null ? '—' : openMatters}
               </div>
               <p className="text-neutral-400 group-hover:text-neutral-300 transition-colors">Open Matters</p>
             </Card>
           </Link>
-          <Link href="/documents" className="block group">
+          <Link href="/documents" className="block group stagger-child" style={{ '--i': 1 } as React.CSSProperties}>
             <Card className="p-6 text-center transition-colors group-hover:border-emerald-500/40">
-              <div className="font-display text-display-sm text-emerald-500 mb-2">
+              <div className="font-display stat-num text-display-sm text-emerald-500 mb-2">
                 {sharedFiles === null ? '—' : sharedFiles}
               </div>
               <p className="text-neutral-400 group-hover:text-neutral-300 transition-colors">Shared Files</p>
             </Card>
           </Link>
-          <Link href="/analyses" className="block group">
+          <Link href="/analyses" className="block group stagger-child" style={{ '--i': 2 } as React.CSSProperties}>
             <Card className="p-6 text-center transition-colors group-hover:border-primary-400/40">
-              <div className="font-display text-display-sm text-primary-400 mb-2">
+              <div className="font-display stat-num text-display-sm text-primary-400 mb-2">
                 {unreadUpdates === null ? '—' : unreadUpdates}
               </div>
               <p className="text-neutral-400 group-hover:text-neutral-300 transition-colors">Unread Updates</p>
@@ -448,13 +448,9 @@ export default function ProfilePage() {
                 {eligibility.score === null ? (
                   <p className="text-neutral-400 text-sm">Not yet computed</p>
                 ) : eligibility.qualifies ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-medium text-emerald-300">
-                    Qualifies for Legal Aid
-                  </span>
+                  <Badge variant="success" size="md">Qualifies for Legal Aid</Badge>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-700/50 px-3 py-1 text-sm font-medium text-neutral-300">
-                    Does Not Qualify
-                  </span>
+                  <Badge variant="neutral" size="md">Does Not Qualify</Badge>
                 )}
               </div>
             </div>

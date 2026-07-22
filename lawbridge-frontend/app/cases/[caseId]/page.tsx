@@ -18,6 +18,9 @@ import { ClientCard, LawyerCard } from '../../../components/IdentityCards'
 import { useCaseWebSocket } from '../../../lib/useCaseWebSocket'
 import { SERVICE_URLS } from '../../../lib/serviceUrls'
 import { getOrCreateCaseThread } from '../../../lib/messagesApi'
+import { AlertTriangleIcon, CheckIcon, SparklesIcon, ChatIcon, ExpandIcon, ArrowRightIcon, CheckCircleIcon, BellIcon, ClipboardIcon, SendIcon } from '../../../components/icons/Icons'
+import { SkeletonCard } from '../../../components/ui/Skeleton'
+import { Badge } from '../../../components/ui/Badge'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -49,7 +52,7 @@ const STATUS_COLORS: Record<string, string> = {
   mediation:           'bg-teal-500/15 text-teal-300 border-teal-400/25',
   verdict:             'bg-emerald-500/15 text-emerald-300 border-emerald-400/25',
   settled:             'bg-emerald-500/15 text-emerald-300 border-emerald-400/25',
-  appeal_filed:        'bg-red-500/15 text-red-300 border-red-400/25',
+  appeal_filed:        'bg-crimson-500/15 text-crimson-300 border-crimson-400/25',
   appeal_in_progress:  'bg-crimson-500/15 text-crimson-300 border-crimson-400/25',
   closed:              'bg-neutral-600/30 text-neutral-400 border-neutral-500/30',
   dismissed:           'bg-neutral-600/30 text-neutral-400 border-neutral-500/30',
@@ -148,9 +151,7 @@ function CaseProgressCard({ caseItem }: { caseItem: CaseItem }) {
                     ${!done && !active ? 'bg-primary-900/80 border-neutral-700/40 text-neutral-600' : ''}
                   `}>
                     {done ? (
-                      <svg viewBox="0 0 12 12" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
+                      <CheckIcon width={14} height={14} className="h-3.5 w-3.5" />
                     ) : active ? (
                       <div className="h-2 w-2 rounded-full bg-gold-400 animate-pulse" />
                     ) : (
@@ -187,9 +188,7 @@ function CaseProgressCard({ caseItem }: { caseItem: CaseItem }) {
                 ${!done && !active ? 'bg-primary-900 border-neutral-700/40 text-neutral-600' : ''}
               `}>
                 {done ? (
-                  <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  <CheckIcon width={10} height={10} className="h-2.5 w-2.5" />
                 ) : idx + 1}
               </div>
               <span className={`text-xs font-medium flex-1
@@ -324,9 +323,7 @@ function StatusUpdatePanel({ caseItem, onUpdated }: { caseItem: CaseItem; onUpda
               {saving && chosenStatus === nextStatus ? (
                 <span className="h-4 w-4 rounded-full border-2 border-black/20 border-t-black animate-spin flex-shrink-0" />
               ) : (
-                <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 flex-shrink-0 opacity-70">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" />
-                </svg>
+                <ArrowRightIcon width={16} height={16} className="h-4 w-4 flex-shrink-0 opacity-70" />
               )}
               Move to: {STATUS_LABELS[nextStatus] ?? nextStatus}
             </span>
@@ -341,12 +338,7 @@ function StatusUpdatePanel({ caseItem, onUpdated }: { caseItem: CaseItem; onUpda
           onClick={() => setShowAdvanced(v => !v)}
           className="text-xs text-neutral-500 hover:text-neutral-300 transition-colors flex items-center gap-1"
         >
-          <svg
-            viewBox="0 0 20 20" fill="currentColor"
-            className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? 'rotate-90' : ''}`}
-          >
-            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-          </svg>
+          <ExpandIcon width={14} height={14} className={`h-3.5 w-3.5 transition-transform ${showAdvanced ? 'rotate-90' : ''}`} />
           {nextStatus ? 'Choose a different outcome' : 'Select status to apply'}
         </button>
 
@@ -370,9 +362,7 @@ function StatusUpdatePanel({ caseItem, onUpdated }: { caseItem: CaseItem; onUpda
             {preview && chosenStatus !== caseItem.status && (
               <div className="rounded-xl border border-neutral-700/40 bg-primary-900/40 p-3.5 space-y-1.5">
                 <p className="text-[10px] uppercase tracking-wide text-neutral-500 font-semibold flex items-center gap-1.5">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3 text-gold-400">
-                    <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-2.83-2h5.66A3 3 0 0110 18z" />
-                  </svg>
+                  <BellIcon width={12} height={12} className="h-3 w-3 text-gold-400" />
                   Client will receive
                 </p>
                 <p className="text-xs font-semibold text-neutral-200">{preview.headline}</p>
@@ -431,9 +421,7 @@ function StatusUpdatePanel({ caseItem, onUpdated }: { caseItem: CaseItem; onUpda
       {/* Success confirmation */}
       {success && (
         <div className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 bg-emerald-900/20 px-4 py-3">
-          <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-emerald-400 flex-shrink-0">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
+          <CheckCircleIcon width={16} height={16} className="h-4 w-4 text-emerald-400 flex-shrink-0" />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-emerald-300">Updated to: {success}</p>
             <p className="text-xs text-emerald-500">Client notified in-app and by email.</p>
@@ -520,9 +508,7 @@ function MeetingNotesPanel({ caseId, caseType, clientName, onNoteSaved }: {
         onClick={() => setOpen(true)}
         className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gold-500/30 bg-gold-500/10 text-gold-400 text-sm font-medium hover:bg-gold-500/15 hover:border-gold-500/50 transition-colors"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-        </svg>
+        <ClipboardIcon width={16} height={16} className="w-4 h-4" />
         Summarize Meeting
       </button>
 
@@ -1203,9 +1189,7 @@ function ReassignmentWizard({ caseItem, onComplete }: { caseItem: CaseItem; onCo
             {/* Header */}
             <div className="relative flex items-center gap-3 px-6 pt-5 pb-4 border-b border-neutral-800/50 flex-shrink-0">
               <div className="h-9 w-9 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center flex-shrink-0">
-                <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 text-amber-400">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
+                <AlertTriangleIcon width={16} height={16} className="h-4 w-4 text-amber-400" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-heading text-sm font-semibold text-neutral-50 leading-tight">Request Lawyer Change</p>
@@ -1487,9 +1471,7 @@ function ReassignmentWizard({ caseItem, onComplete }: { caseItem: CaseItem; onCo
                             caseItem.circuit === 'anglophone' ? 'Anglophone' : 'Francophone',
                             caseItem.language === 'en' ? 'English' : 'Français',
                           ].map(tag => (
-                            <span key={tag} className="inline-flex items-center rounded-full border border-gold-400/30 bg-gold-500/10 px-2.5 py-1 text-xs font-medium text-gold-300">
-                              {tag}
-                            </span>
+                            <Badge key={tag} variant="gold" size="md">{tag}</Badge>
                           ))}
                         </div>
                         <p className="text-xs text-neutral-500">
@@ -1523,9 +1505,7 @@ function ReassignmentWizard({ caseItem, onComplete }: { caseItem: CaseItem; onCo
                           {['Full timeline & status history', 'All public case notes', 'Jurisdiction settings'].map(item => (
                             <div key={item} className="flex items-center gap-2">
                               <div className="h-4 w-4 rounded-full bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
-                                <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-2.5 w-2.5 text-emerald-400">
-                                  <path d="M2 6l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
+                                <CheckIcon width={10} height={10} className="h-2.5 w-2.5 text-emerald-400" />
                               </div>
                               <span className="text-xs text-neutral-400">{item}</span>
                             </div>
@@ -1591,9 +1571,7 @@ function ReassignmentWizard({ caseItem, onComplete }: { caseItem: CaseItem; onCo
                         <div className="relative h-20 w-20">
                           <div className="absolute inset-0 rounded-full bg-emerald-500/10 animate-ping" style={{ animationDuration: '2s' }} />
                           <div className="relative h-20 w-20 rounded-full border-2 border-emerald-500/40 bg-emerald-900/20 flex items-center justify-center">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-9 w-9 text-emerald-400">
-                              <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            <CheckIcon width={36} height={36} className="h-9 w-9 text-emerald-400" />
                           </div>
                         </div>
                         <div className="text-center">
@@ -1653,7 +1631,7 @@ type AIAnalysis = {
 // ── Case documents section ─────────────────────────────────────────────────────
 
 function DocFileIcon({ mime }: { mime: string }) {
-  if (mime?.includes('pdf'))   return <span className="text-red-400 text-[10px] font-bold border border-red-400/30 rounded px-1">PDF</span>
+  if (mime?.includes('pdf'))   return <span className="text-crimson-400 text-[10px] font-bold border border-crimson-400/30 rounded px-1">PDF</span>
   if (mime?.includes('image')) return <span className="text-emerald-400 text-[10px] font-bold border border-emerald-400/30 rounded px-1">IMG</span>
   if (mime?.includes('word') || mime?.includes('document')) return <span className="text-blue-400 text-[10px] font-bold border border-blue-400/30 rounded px-1">DOC</span>
   return <span className="text-gold-400 text-[10px] font-bold border border-gold-400/30 rounded px-1">FILE</span>
@@ -1743,14 +1721,15 @@ function CaseDocumentsSection({ caseId, isLawyer }: { caseId: string; isLawyer: 
           </div>
         ) : (
           <div className="space-y-1.5">
-            {visible.map(doc => {
+            {visible.map((doc, i) => {
               const isSigned = (doc.signatures ?? []).length > 0
               return (
                 <button
                   key={doc.id}
                   onClick={() => void openDoc(doc)}
                   disabled={opening === doc.id}
-                  className="w-full flex items-center gap-3 rounded-xl border border-neutral-700/20 bg-primary-900/20 px-4 py-3 hover:border-gold-500/20 hover:bg-primary-900/50 transition-all text-left group disabled:opacity-60"
+                  className="stagger-child w-full flex items-center gap-3 rounded-xl border border-neutral-700/20 bg-primary-900/20 px-4 py-3 hover:border-gold-500/20 hover:bg-primary-900/50 transition-all text-left group disabled:opacity-60"
+                  style={{ '--i': Math.min(i, 8) } as React.CSSProperties}
                 >
                   <DocFileIcon mime={doc.mime_type} />
                   <div className="flex-1 min-w-0">
@@ -1766,7 +1745,7 @@ function CaseDocumentsSection({ caseId, isLawyer }: { caseId: string; isLawyer: 
                       )}
                       {isSigned && (
                         <span className="inline-flex items-center gap-0.5 text-[9px] text-emerald-400 font-semibold">
-                          <svg width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                          <CheckIcon width={9} height={9} />
                           Signed
                         </span>
                       )}
@@ -1816,7 +1795,7 @@ function CaseDocumentsSection({ caseId, isLawyer }: { caseId: string; isLawyer: 
                 placeholder="Document password"
                 className="w-full rounded-xl bg-primary-900/50 border border-white/10 px-4 py-3 text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-amber-500/40"
               />
-              {docPwErr && <p className="mt-2 text-xs text-red-400">{docPwErr}</p>}
+              {docPwErr && <p className="mt-2 text-xs text-crimson-400">{docPwErr}</p>}
             </div>
             <div className="flex gap-3 px-6 pb-6">
               <button onClick={() => { setPasswordDoc(null); setDocPw(''); setDocPwErr('') }} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-neutral-400 hover:text-neutral-100 transition-colors">Cancel</button>
@@ -1931,7 +1910,7 @@ function AICaseIntelligenceCard({ caseItem }: { caseItem: CaseItem }) {
     <div className="rounded-2xl border border-purple-500/20 bg-gradient-to-b from-purple-950/20 to-transparent p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-purple-400 text-base">✦</span>
+          <SparklesIcon width={16} height={16} className="text-purple-400 w-4 h-4" />
           <p className="font-heading text-sm font-semibold text-purple-300">AI Case Intelligence</p>
           <span className="text-[9px] px-1.5 py-0.5 rounded-full border border-purple-500/30 text-purple-500 font-medium">Beta</span>
         </div>
@@ -1971,13 +1950,13 @@ function AICaseIntelligenceCard({ caseItem }: { caseItem: CaseItem }) {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-xs text-neutral-400 font-medium">Case Strength</p>
-              <p className={`text-sm font-bold tabular-nums ${analysis.strength_score >= 70 ? 'text-emerald-400' : analysis.strength_score >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
+              <p className={`text-sm font-bold tabular-nums ${analysis.strength_score >= 70 ? 'text-emerald-400' : analysis.strength_score >= 40 ? 'text-amber-400' : 'text-crimson-400'}`}>
                 {analysis.strength_score}/100
               </p>
             </div>
             <div className="h-2 rounded-full bg-neutral-800/60 overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-700 ${analysis.strength_score >= 70 ? 'bg-emerald-500/70' : analysis.strength_score >= 40 ? 'bg-amber-500/70' : 'bg-red-500/70'}`}
+                className={`h-full rounded-full transition-all duration-700 ${analysis.strength_score >= 70 ? 'bg-emerald-500/70' : analysis.strength_score >= 40 ? 'bg-amber-500/70' : 'bg-crimson-500/70'}`}
                 style={{ width: `${analysis.strength_score}%` }}
               />
             </div>
@@ -1991,10 +1970,10 @@ function AICaseIntelligenceCard({ caseItem }: { caseItem: CaseItem }) {
           {/* Risk flags */}
           {analysis.risk_flags.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[10px] uppercase tracking-wide text-red-400 font-semibold">Risk Flags</p>
+              <p className="text-[10px] uppercase tracking-wide text-crimson-400 font-semibold">Risk Flags</p>
               {analysis.risk_flags.map((f, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span className="text-red-400 mt-0.5 flex-shrink-0 text-xs">▲</span>
+                <div key={i} className="stagger-child flex items-start gap-2" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                  <AlertTriangleIcon width={12} height={12} className="text-crimson-400 mt-0.5 flex-shrink-0 w-3 h-3" />
                   <p className="text-xs text-neutral-400">{f}</p>
                 </div>
               ))}
@@ -2006,8 +1985,8 @@ function AICaseIntelligenceCard({ caseItem }: { caseItem: CaseItem }) {
             <div className="space-y-1.5">
               <p className="text-[10px] uppercase tracking-wide text-emerald-400 font-semibold">Recommended Next Steps</p>
               {analysis.recommended_next_steps.map((s, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <span className="text-emerald-400 mt-0.5 flex-shrink-0 text-xs">✓</span>
+                <div key={i} className="stagger-child flex items-start gap-2" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                  <CheckIcon width={12} height={12} className="text-emerald-400 mt-0.5 flex-shrink-0 w-3 h-3" />
                   <p className="text-xs text-neutral-400">{s}</p>
                 </div>
               ))}
@@ -2075,9 +2054,7 @@ function ClientCaseBot({ caseId, caseTitle }: { caseId: string; caseTitle: strin
         className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-gradient-to-r from-gold-500 to-gold-400 text-primary-900 font-bold text-sm shadow-xl shadow-gold-900/30 hover:scale-105 active:scale-95 transition-all"
         title="Ask AI about this case"
       >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
+        <SparklesIcon width={16} height={16} className="w-4 h-4" />
         Ask AI
       </button>
 
@@ -2102,9 +2079,10 @@ function ClientCaseBot({ caseId, caseTitle }: { caseId: string; caseTitle: strin
                   "What's the current status?",
                   "What happens next?",
                   "How long will this take?",
-                ].map(q => (
+                ].map((q, i) => (
                   <button key={q} onClick={() => { setInput(q); setTimeout(() => send(), 0) }}
-                    className="block w-full text-left text-xs text-gold-400 bg-gold-500/5 border border-gold-500/15 rounded-lg px-3 py-2 hover:bg-gold-500/10 transition-colors">
+                    className="stagger-child block w-full text-left text-xs text-gold-400 bg-gold-500/5 border border-gold-500/15 rounded-lg px-3 py-2 hover:bg-gold-500/10 transition-colors"
+                    style={{ '--i': i } as React.CSSProperties}>
                     {q}
                   </button>
                 ))}
@@ -2143,9 +2121,7 @@ function ClientCaseBot({ caseId, caseTitle }: { caseId: string; caseTitle: strin
               disabled={streaming || !input.trim()}
               className="flex-shrink-0 h-9 w-9 rounded-xl bg-gold-500/20 border border-gold-400/30 text-gold-300 hover:bg-gold-500/30 disabled:opacity-40 flex items-center justify-center transition-all"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
+              <SendIcon width={14} height={14} className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -2224,7 +2200,7 @@ export default function CaseDetailPage() {
   if (loading) {
     return (
       <div className="max-w-3xl space-y-4">
-        {[1,2,3].map(i => <div key={i} className="h-32 rounded-2xl skeleton" />)}
+        {[1,2,3].map(i => <SkeletonCard key={i} lines={3} />)}
       </div>
     )
   }
@@ -2280,15 +2256,13 @@ export default function CaseDetailPage() {
         const bannerCls = isPending  ? 'border-amber-500/30 bg-amber-500/5' :
                           isAccepted ? 'border-emerald-500/30 bg-emerald-500/5' :
                                        'border-crimson-500/30 bg-crimson-500/5'
-        const badgeCls  = isPending  ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
-                          isAccepted ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' :
-                                       'border-crimson-500/30 bg-crimson-500/10 text-crimson-400'
+        const badgeVariant: 'warning' | 'success' | 'danger' = isPending ? 'warning' : isAccepted ? 'success' : 'danger'
         const badgeText = isPending ? 'Awaiting Response' : isAccepted ? 'Accepted' : 'Declined'
         return (
           <div className={`rounded-xl border p-5 space-y-4 ${bannerCls}`}>
             <div className="flex items-center justify-between">
               <p className="font-heading text-sm font-semibold text-neutral-100">Booking Request</p>
-              <span className={`text-xs px-2.5 py-1 rounded-full border font-semibold ${badgeCls}`}>{badgeText}</span>
+              <Badge variant={badgeVariant} size="md">{badgeText}</Badge>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               {meta.target_name && (
@@ -2378,7 +2352,7 @@ export default function CaseDetailPage() {
               {msgLoading ? (
                 <span className="h-4 w-4 rounded-full border-2 border-gold-400/40 border-t-gold-400 animate-spin" />
               ) : (
-                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+                <ChatIcon width={15} height={15} />
               )}
               Message Client
             </button>
@@ -2395,7 +2369,7 @@ export default function CaseDetailPage() {
               {msgLoading ? (
                 <span className="h-4 w-4 rounded-full border-2 border-gold-400/40 border-t-gold-400 animate-spin" />
               ) : (
-                <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+                <ChatIcon width={15} height={15} />
               )}
               Message Lawyer
             </button>
@@ -2425,7 +2399,9 @@ export default function CaseDetailPage() {
         {chronological.length > 0 ? (
           <div>
             {chronological.map((entry, i) => (
-              <TimelineEntry key={`${entry.timestamp}-${i}`} entry={entry} index={i} total={chronological.length} />
+              <div key={`${entry.timestamp}-${i}`} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                <TimelineEntry entry={entry} index={i} total={chronological.length} />
+              </div>
             ))}
           </div>
         ) : (
@@ -2456,13 +2432,14 @@ export default function CaseDetailPage() {
 
         {(item.notes ?? []).length > 0 ? (
           <div className="space-y-3">
-            {(item.notes ?? []).map(note => (
+            {(item.notes ?? []).map((note, i) => (
               <div
                 key={note.id}
-                className={`rounded-xl border p-4 ${note.is_private
+                className={`stagger-child rounded-xl border p-4 ${note.is_private
                   ? 'border-purple-500/20 bg-purple-500/5'
                   : 'border-neutral-700/30 bg-primary-900/30'
                 }`}
+                style={{ '--i': Math.min(i, 8) } as React.CSSProperties}
               >
                 <div className="flex items-center gap-2 mb-2">
                   {note.is_private && (

@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Card } from '../../../components/ui/Card'
+import { SkeletonCard } from '../../../components/ui/Skeleton'
+import { PencilIcon } from '../../../components/icons/Icons'
 import { getMyCases, getUserById, type CaseItem, type UserProfile } from '../../../lib/casesApi'
 import { SERVICE_URLS } from '../../../lib/serviceUrls'
 
@@ -78,9 +80,7 @@ function ClientNotes({ clientId }: { clientId: string }) {
           onClick={() => setOpen(true)}
           className="flex items-center gap-1.5 text-[11px] text-neutral-600 hover:text-gold-400 transition-colors"
         >
-          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
+          <PencilIcon className="w-3 h-3" />
           {note ? <span className="truncate max-w-[160px]">{note}</span> : 'Add private note'}
         </button>
       )}
@@ -171,7 +171,7 @@ export default function LawyerClientsPage() {
 
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => <div key={i} className="h-40 rounded-xl skeleton" />)}
+          {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
         </div>
       )}
 

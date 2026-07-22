@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { getIntakeForm, submitIntakeForm, type IntakeField, type IntakeForm } from '../../../lib/casesApi'
+import { AlertTriangleIcon, CheckCircleIcon } from '../../../components/icons/Icons'
 
 function FieldInput({
   field,
@@ -123,12 +124,10 @@ export default function ClientIntakePage({ params }: { params: Promise<{ token: 
     return (
       <div className="min-h-screen bg-primary-950 flex items-center justify-center p-4">
         <div className="max-w-sm text-center space-y-3">
-          <div className="mx-auto w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-            <svg className="h-6 w-6 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
-            </svg>
+          <div className="mx-auto w-12 h-12 rounded-2xl bg-crimson-500/10 border border-crimson-500/20 flex items-center justify-center">
+            <AlertTriangleIcon className="h-6 w-6 text-crimson-400" width={24} height={24} />
           </div>
-          <h1 className="text-lg font-semibold text-neutral-100">Form not found</h1>
+          <h1 className="font-display text-lg font-semibold text-neutral-100">Form not found</h1>
           <p className="text-sm text-neutral-400">This intake form link is invalid or has expired. Please contact your law firm for a new link.</p>
         </div>
       </div>
@@ -141,11 +140,9 @@ export default function ClientIntakePage({ params }: { params: Promise<{ token: 
       <div className="min-h-screen bg-primary-950 flex items-center justify-center p-4">
         <div className="max-w-sm text-center space-y-4">
           <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-            <svg className="h-7 w-7 text-emerald-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-            </svg>
+            <CheckCircleIcon className="h-7 w-7 text-emerald-400" width={28} height={28} />
           </div>
-          <h1 className="text-xl font-semibold text-neutral-100">Thank you!</h1>
+          <h1 className="font-display text-xl font-semibold text-neutral-100">Thank you!</h1>
           <p className="text-sm text-neutral-400">
             Your information has been submitted successfully. A member of our team will review your intake and be in touch shortly.
           </p>
@@ -166,7 +163,7 @@ export default function ClientIntakePage({ params }: { params: Promise<{ token: 
         <div className="mx-auto max-w-2xl flex items-center justify-between">
           <div>
             <p className="text-xs text-gold-400 font-semibold tracking-wider uppercase">LawBridge</p>
-            <h1 className="text-base font-semibold text-neutral-100 mt-0.5">Client Intake — {form.case_type}</h1>
+            <h1 className="font-display text-base font-semibold text-neutral-100 mt-0.5">Client Intake — {form.case_type}</h1>
           </div>
           {form.circuit && (
             <span className="rounded-full border border-neutral-700 px-3 py-1 text-xs text-neutral-400">
@@ -186,15 +183,15 @@ export default function ClientIntakePage({ params }: { params: Promise<{ token: 
 
       <div className="mx-auto max-w-2xl px-4 py-8 pb-16">
         <p className="mb-6 text-sm text-neutral-400">
-          Please answer all questions as completely as possible. Fields marked <span className="text-red-400">*</span> are required.
+          Please answer all questions as completely as possible. Fields marked <span className="text-crimson-400">*</span> are required.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {form.form_fields.map((field, i) => (
-            <div key={i} className="space-y-2">
+            <div key={i} className="stagger-child space-y-2" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
               <label className="block text-sm font-medium text-neutral-200">
                 {field.label}
-                {field.required && <span className="ml-1 text-red-400">*</span>}
+                {field.required && <span className="ml-1 text-crimson-400">*</span>}
               </label>
               <FieldInput
                 field={field}
@@ -205,7 +202,7 @@ export default function ClientIntakePage({ params }: { params: Promise<{ token: 
           ))}
 
           {error && (
-            <div className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-3 text-sm text-red-400">
+            <div className="rounded-xl border border-crimson-500/30 bg-crimson-500/5 px-4 py-3 text-sm text-crimson-400">
               {error}
             </div>
           )}

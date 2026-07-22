@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { getFeatureRequests, saveFeatureRequest, getFirms, generateId, syncFeatureRequestsFromApi, syncFirmsFromApi, FeatureRequest, OutreachFirm } from '../../../../lib/outreachStore'
+import { PlusIcon, SearchIcon } from '../../../../components/icons/Icons'
 
 const STATUS_PIPELINE: FeatureRequest['status'][] = ['under_review', 'approved', 'planned', 'in_development', 'released', 'declined']
 const STATUS_LABELS: Record<FeatureRequest['status'], string> = {
@@ -19,7 +20,7 @@ const STATUS_COLORS: Record<FeatureRequest['status'], string> = {
   planned: 'border-sky-500/40 bg-sky-500/10 text-sky-400',
   in_development: 'border-amber-500/40 bg-amber-500/10 text-amber-400',
   released: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400',
-  declined: 'border-red-500/40 bg-red-500/10 text-red-400',
+  declined: 'border-crimson-500/40 bg-crimson-500/10 text-crimson-400',
 }
 
 function fmtDate(iso?: string) {
@@ -96,7 +97,7 @@ function AddFRModal({ firms, onClose, onSave }: { firms: OutreachFirm[]; onClose
         </div>
         <div className="flex justify-end gap-3">
           <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-neutral-300 hover:bg-white/5">Cancel</button>
-          <button type="submit" className="rounded-xl bg-gold-500 px-5 py-2 text-sm font-semibold text-primary-900 hover:bg-gold-400">Save Request</button>
+          <button type="submit" className="rounded-xl bg-portal-accent px-5 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">Save Request</button>
         </div>
       </form>
     </div>
@@ -157,8 +158,8 @@ export default function FeatureRequestsPage() {
           <h1 className="font-display text-2xl font-bold text-neutral-50">Feature Requests</h1>
           <p className="text-sm text-neutral-500 mt-1">{frs.length} requests tracked from interviews</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400">
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button onClick={() => setShowModal(true)} className="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-portal-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity">
+          <PlusIcon width={14} height={14} />
           Log Request
         </button>
       </div>
@@ -169,7 +170,7 @@ export default function FeatureRequestsPage() {
           <button
             key={item.key}
             onClick={() => setStatusFilter(item.key)}
-            className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all ${statusFilter === item.key ? 'bg-gold-500/15 border-gold-500/30 text-gold-300' : 'bg-primary-800/40 border-white/8 text-neutral-400 hover:text-neutral-200'}`}
+            className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium border transition-all ${statusFilter === item.key ? 'bg-portal-soft border-portal-solid text-portal' : 'bg-primary-800/40 border-white/8 text-neutral-400 hover:text-neutral-200'}`}
           >
             {item.label}
           </button>
@@ -178,12 +179,12 @@ export default function FeatureRequestsPage() {
 
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
-          <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-500"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+          <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-500"><SearchIcon width={16} height={16} /></span>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search features, firms, requesters…" className="w-full rounded-xl border border-white/10 bg-primary-900/60 py-2 pl-9 pr-3 text-sm text-neutral-200 placeholder-neutral-500 outline-none focus:border-gold-500/40" />
         </div>
         <div className="flex gap-1.5">
           {(['all', 'high', 'medium', 'low'] as const).map(p => (
-            <button key={p} onClick={() => setPriorityFilter(p)} className={`rounded-lg px-3 py-1.5 text-xs font-medium border capitalize transition-all ${priorityFilter === p ? 'bg-gold-500/15 border-gold-500/30 text-gold-300' : 'bg-primary-800/40 border-white/8 text-neutral-400 hover:text-neutral-200'}`}>{p}</button>
+            <button key={p} onClick={() => setPriorityFilter(p)} className={`rounded-lg px-3 py-1.5 text-xs font-medium border capitalize transition-all ${priorityFilter === p ? 'bg-portal-soft border-portal-solid text-portal' : 'bg-primary-800/40 border-white/8 text-neutral-400 hover:text-neutral-200'}`}>{p}</button>
           ))}
         </div>
       </div>
@@ -203,8 +204,8 @@ export default function FeatureRequestsPage() {
             <tbody className="divide-y divide-white/5">
               {filtered.length === 0 ? (
                 <tr><td colSpan={5} className="px-4 py-16 text-center text-neutral-500 text-sm">No feature requests found</td></tr>
-              ) : filtered.map(fr => (
-                <tr key={fr.id} className="hover:bg-white/3 transition-colors group">
+              ) : filtered.map((fr, i) => (
+                <tr key={fr.id} className="hover:bg-white/3 transition-colors group stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                   <td className="px-4 py-3">
                     <p className="text-sm font-medium text-neutral-200">{fr.title}</p>
                     {fr.description && <p className="text-xs text-neutral-500 mt-0.5 line-clamp-1">{fr.description}</p>}
@@ -212,7 +213,7 @@ export default function FeatureRequestsPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-neutral-400 hidden sm:table-cell">{fr.requestedBy ?? '—'}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex h-2 w-2 rounded-full ${fr.priority === 'high' ? 'bg-red-500' : fr.priority === 'medium' ? 'bg-amber-500' : 'bg-neutral-600'}`} />
+                    <span className={`inline-flex h-2 w-2 rounded-full ${fr.priority === 'high' ? 'bg-crimson-500' : fr.priority === 'medium' ? 'bg-amber-500' : 'bg-neutral-600'}`} />
                     <span className="ml-1.5 text-xs text-neutral-500 capitalize">{fr.priority}</span>
                   </td>
                   <td className="px-4 py-3">

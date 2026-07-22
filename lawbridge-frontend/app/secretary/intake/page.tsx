@@ -3,6 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { generateIntakeForm, type IntakeField } from '../../../lib/aiApi'
 import { saveIntakeForm, getMyIntakeForms, getIntakeFormDetail, type IntakeFormSummary, type IntakeForm } from '../../../lib/casesApi'
+import { Badge } from '../../../components/ui/Badge'
+import { EmptyState } from '../../../components/ui/EmptyState'
+import { ClockIcon, CheckCircleIcon, DocumentIcon } from '../../../components/icons/Icons'
 
 const CASE_TYPES = [
   'Criminal Defence',
@@ -57,9 +60,9 @@ function ResponseDrawer({ summary, onClose, accessToken }: ResponseDrawerProps) 
             <p className="text-xs text-neutral-500 mt-0.5">{summary.circuit} Circuit · {new Date(summary.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${summary.completed ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'}`}>
+            <Badge variant={summary.completed ? 'success' : 'warning'} size="md">
               {summary.completed ? 'Submitted' : 'Awaiting client'}
-            </span>
+            </Badge>
             <button onClick={onClose} className="rounded-lg p-1.5 text-neutral-400 hover:bg-white/5 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -73,7 +76,7 @@ function ResponseDrawer({ summary, onClose, accessToken }: ResponseDrawerProps) 
           <div className="rounded-xl border border-neutral-700/40 bg-primary-800/30 p-4">
             <p className="text-xs font-semibold text-neutral-400 mb-2">Client link</p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 min-w-0 text-xs text-gold-300 truncate font-mono">{link}</code>
+              <code className="flex-1 min-w-0 text-xs text-portal truncate font-mono">{link}</code>
               <button
                 onClick={() => navigator.clipboard.writeText(link).catch(() => undefined)}
                 className="flex-shrink-0 rounded-lg border border-neutral-700 px-3 py-1.5 text-xs text-neutral-300 hover:bg-white/5 transition-colors"
@@ -97,9 +100,7 @@ function ResponseDrawer({ summary, onClose, accessToken }: ResponseDrawerProps) 
           ) : !summary.completed ? (
             <div className="rounded-xl border border-amber-500/20 bg-amber-900/10 p-5 text-center space-y-2">
               <div className="mx-auto w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+                <ClockIcon width={20} height={20} className="text-amber-400" />
               </div>
               <p className="text-sm font-medium text-amber-300">Awaiting client submission</p>
               <p className="text-xs text-neutral-500">Share the link above — the client has not yet submitted their responses.</p>
@@ -113,7 +114,7 @@ function ResponseDrawer({ summary, onClose, accessToken }: ResponseDrawerProps) 
               </div>
               {(detail.form_fields ?? []).map((field, i) => (
                 <div key={i} className="rounded-xl border border-neutral-700/30 bg-primary-800/20 p-4">
-                  <p className="text-xs font-semibold text-neutral-400 mb-1.5">{field.label}{field.required && <span className="text-red-400 ml-1">*</span>}</p>
+                  <p className="text-xs font-semibold text-neutral-400 mb-1.5">{field.label}{field.required && <span className="text-crimson-400 ml-1">*</span>}</p>
                   <p className="text-sm text-neutral-100 leading-relaxed">
                     {(detail.responses ?? {})[field.label] || <span className="text-neutral-600 italic">No response</span>}
                   </p>
@@ -145,7 +146,7 @@ function FieldPreviewCard({ field, index }: { field: IntakeField; index: number 
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono text-neutral-500">{index + 1}.</span>
             <p className="text-sm font-medium text-neutral-100">{field.label}</p>
-            {field.required && <span className="text-xs text-red-400">*</span>}
+            {field.required && <span className="text-xs text-crimson-400">*</span>}
           </div>
           {field.placeholder && <p className="mt-1 text-xs text-neutral-500 italic">{field.placeholder}</p>}
           {field.options && field.options.length > 0 && (
@@ -181,7 +182,7 @@ function IntakeCard({ form, onOpen }: { form: IntakeFormSummary; onOpen: () => v
   return (
     <div
       onClick={onOpen}
-      className="group relative rounded-2xl border border-neutral-700/40 bg-primary-800/20 hover:bg-primary-800/40 hover:border-gold-500/20 transition-all cursor-pointer p-5"
+      className="group relative rounded-2xl border border-neutral-700/40 bg-primary-800/20 hover:bg-primary-800/40 hover:border-portal transition-all cursor-pointer p-5"
     >
       {/* Status strip */}
       <div className={`absolute top-0 left-0 w-1 h-full rounded-l-2xl ${form.completed ? 'bg-emerald-500' : 'bg-amber-500'}`} />
@@ -189,13 +190,13 @@ function IntakeCard({ form, onOpen }: { form: IntakeFormSummary; onOpen: () => v
       <div className="pl-2">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-neutral-100 text-sm group-hover:text-gold-300 transition-colors truncate">{form.case_type}</p>
+            <p className="font-semibold text-neutral-100 text-sm group-hover:text-portal transition-colors truncate">{form.case_type}</p>
             <p className="text-xs text-neutral-500 mt-0.5">{form.circuit} Circuit</p>
           </div>
           <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-            <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${form.completed ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
+            <Badge variant={form.completed ? 'success' : 'warning'}>
               {form.completed ? 'Submitted' : 'Pending'}
-            </span>
+            </Badge>
             <span className="text-xs text-neutral-600">{relativeTime()}</span>
           </div>
         </div>
@@ -321,13 +322,13 @@ export default function SecretaryIntakePage() {
       <div className="flex gap-1 p-1 rounded-xl bg-primary-800/40 border border-neutral-700/40 mb-6 w-fit">
         <button
           onClick={() => setTab('new')}
-          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'new' ? 'bg-gold-500 text-black shadow-sm' : 'text-neutral-400 hover:text-neutral-100'}`}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${tab === 'new' ? 'bg-portal-accent text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-100'}`}
         >
           New Form
         </button>
         <button
           onClick={() => setTab('history')}
-          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'history' ? 'bg-gold-500 text-black shadow-sm' : 'text-neutral-400 hover:text-neutral-100'}`}
+          className={`px-5 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${tab === 'history' ? 'bg-portal-accent text-white shadow-sm' : 'text-neutral-400 hover:text-neutral-100'}`}
         >
           Past Intakes
           {pendingCount > 0 && tab !== 'history' && (
@@ -348,7 +349,7 @@ export default function SecretaryIntakePage() {
                 <select
                   value={caseType}
                   onChange={e => setCaseType(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-700 bg-primary-900/50 px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-gold-500/50"
+                  className="w-full rounded-lg border border-neutral-700 bg-primary-900/50 px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-portal"
                 >
                   <option value="">— Select case type —</option>
                   {CASE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -360,7 +361,7 @@ export default function SecretaryIntakePage() {
                     value={customType}
                     onChange={e => setCustomType(e.target.value)}
                     placeholder="e.g. Insurance Dispute"
-                    className="mt-2 w-full rounded-lg border border-neutral-700 bg-primary-900/50 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-gold-500/50"
+                    className="mt-2 w-full rounded-lg border border-neutral-700 bg-primary-900/50 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-600 focus:outline-none focus:border-portal"
                   />
                 )}
               </div>
@@ -370,7 +371,7 @@ export default function SecretaryIntakePage() {
                 <select
                   value={circuit}
                   onChange={e => setCircuit(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-700 bg-primary-900/50 px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-gold-500/50"
+                  className="w-full rounded-lg border border-neutral-700 bg-primary-900/50 px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-portal"
                 >
                   {CIRCUITS.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -381,7 +382,7 @@ export default function SecretaryIntakePage() {
                 <select
                   value={language}
                   onChange={e => setLanguage(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-700 bg-primary-900/50 px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-gold-500/50"
+                  className="w-full rounded-lg border border-neutral-700 bg-primary-900/50 px-3 py-2 text-sm text-neutral-100 focus:outline-none focus:border-portal"
                 >
                   {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
                 </select>
@@ -391,7 +392,7 @@ export default function SecretaryIntakePage() {
             <button
               onClick={generate}
               disabled={generating || !effectiveCaseType}
-              className="flex items-center gap-2 rounded-xl bg-gold-500 px-5 py-2.5 text-sm font-semibold text-black disabled:opacity-50 hover:bg-gold-400 transition-colors"
+              className="flex items-center gap-2 rounded-xl bg-portal-accent px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50 hover:opacity-90 transition-colors"
             >
               {generating ? (
                 <>
@@ -411,7 +412,7 @@ export default function SecretaryIntakePage() {
               )}
             </button>
 
-            {error && <p className="text-xs text-red-400">{error}</p>}
+            {error && <p className="text-xs text-crimson-400">{error}</p>}
           </div>
 
           {/* Field preview */}
@@ -440,9 +441,7 @@ export default function SecretaryIntakePage() {
               {shareLink && (
                 <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5 space-y-3">
                   <div className="flex items-center gap-2">
-                    <svg className="h-5 w-5 text-emerald-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
-                    </svg>
+                    <CheckCircleIcon width={20} height={20} className="text-emerald-400 flex-shrink-0" />
                     <p className="text-sm font-semibold text-emerald-300">Form saved — share this link with your client</p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -497,7 +496,7 @@ export default function SecretaryIntakePage() {
               <button
                 key={f}
                 onClick={() => setHistoryFilter(f)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${historyFilter === f ? 'bg-gold-500/20 text-gold-300 border border-gold-500/30' : 'border border-neutral-700/60 text-neutral-500 hover:text-neutral-300'}`}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${historyFilter === f ? 'bg-portal-soft text-portal border border-portal' : 'border border-neutral-700/60 text-neutral-500 hover:text-neutral-300'}`}
               >
                 {f === 'all' ? 'All' : f === 'pending' ? 'Awaiting client' : 'Submitted'}
               </button>
@@ -523,23 +522,18 @@ export default function SecretaryIntakePage() {
               Loading…
             </div>
           ) : filteredIntakes.length === 0 ? (
-            <div className="rounded-2xl border border-neutral-700/30 bg-primary-800/10 p-12 text-center space-y-3">
-              <div className="mx-auto w-12 h-12 rounded-2xl bg-neutral-800/60 border border-neutral-700/40 flex items-center justify-center">
-                <svg className="w-6 h-6 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <p className="text-sm text-neutral-500">{historyFilter === 'all' ? 'No intake forms yet. Create one from the New Form tab.' : `No ${historyFilter} intakes.`}</p>
-              {historyFilter === 'all' && (
-                <button onClick={() => setTab('new')} className="rounded-xl bg-gold-500/10 border border-gold-500/20 px-4 py-2 text-xs text-gold-400 hover:bg-gold-500/20 transition-colors">
-                  Create your first intake form →
-                </button>
-              )}
-            </div>
+            <EmptyState
+              icon={<DocumentIcon width={24} height={24} />}
+              title={historyFilter === 'all' ? 'No intake forms yet' : `No ${historyFilter} intakes`}
+              body={historyFilter === 'all' ? 'Create one from the New Form tab.' : undefined}
+              action={historyFilter === 'all' ? { label: 'Create your first intake form →', onClick: () => setTab('new') } : undefined}
+            />
           ) : (
             <div className="space-y-3">
-              {filteredIntakes.map(form => (
-                <IntakeCard key={form.id} form={form} onOpen={() => setOpenDrawer(form)} />
+              {filteredIntakes.map((form, i) => (
+                <div key={form.id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                  <IntakeCard form={form} onOpen={() => setOpenDrawer(form)} />
+                </div>
               ))}
             </div>
           )}

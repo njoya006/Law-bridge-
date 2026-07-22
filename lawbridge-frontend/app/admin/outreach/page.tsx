@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { getFirms, getInterviews, getFeatureRequests, getTasks, syncAllFromApi, OutreachFirm, Interview, FeatureRequest, Task, STATUS_LABELS } from '../../../lib/outreachStore'
+import { PlusIcon } from '../../../components/icons/Icons'
 
 function KpiTile({ label, value, sub, color }: { label: string; value: number | string; sub?: string; color: string }) {
   return (
@@ -159,9 +160,9 @@ export default function OutreachDashboardPage() {
         </div>
         <Link
           href="/admin/outreach/firms"
-          className="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-gold-500 px-4 py-2.5 text-sm font-semibold text-primary-900 hover:bg-gold-400 transition-colors"
+          className="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-portal-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
         >
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          <PlusIcon width={14} height={14} />
           Add Firm
         </Link>
       </div>
@@ -225,14 +226,14 @@ export default function OutreachDashboardPage() {
         <div className="lg:col-span-1 rounded-2xl border border-white/8 bg-primary-800/30 overflow-hidden">
           <div className="p-4 border-b border-white/8 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-neutral-200">Recent Interviews</h3>
-            <Link href="/admin/outreach/interviews" className="text-xs text-gold-400 hover:text-gold-300">View all →</Link>
+            <Link href="/admin/outreach/interviews" className="text-xs text-portal hover:opacity-80">View all →</Link>
           </div>
           {recentInterviews.length === 0 ? (
             <p className="px-4 py-8 text-center text-xs text-neutral-600">No interviews yet</p>
           ) : (
             <div className="divide-y divide-white/5">
-              {recentInterviews.map(iv => (
-                <Link key={iv.id} href={`/admin/outreach/interviews/${iv.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-white/3 transition-colors">
+              {recentInterviews.map((iv, i) => (
+                <Link key={iv.id} href={`/admin/outreach/interviews/${iv.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-white/3 transition-colors stagger-child" style={{ '--i': i } as React.CSSProperties}>
                   <div className={`h-2 w-2 rounded-full flex-shrink-0 ${iv.status === 'completed' ? 'bg-emerald-500' : iv.status === 'scheduled' ? 'bg-amber-500' : 'bg-neutral-600'}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-neutral-200 truncate">{iv.firmName}</p>
@@ -251,7 +252,7 @@ export default function OutreachDashboardPage() {
         <div className="rounded-2xl border border-white/8 bg-primary-800/30 p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-neutral-200">Top Requested Features</h3>
-            <Link href="/admin/outreach/feature-requests" className="text-xs text-gold-400 hover:text-gold-300">View all →</Link>
+            <Link href="/admin/outreach/feature-requests" className="text-xs text-portal hover:opacity-80">View all →</Link>
           </div>
           <HBarChart items={topFeatures} />
         </div>
@@ -260,15 +261,15 @@ export default function OutreachDashboardPage() {
         <div className="rounded-2xl border border-white/8 bg-primary-800/30 overflow-hidden">
           <div className="p-4 border-b border-white/8 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-neutral-200">Pending Tasks</h3>
-            <Link href="/admin/outreach/tasks" className="text-xs text-gold-400 hover:text-gold-300">View all →</Link>
+            <Link href="/admin/outreach/tasks" className="text-xs text-portal hover:opacity-80">View all →</Link>
           </div>
           {pendingTasks.length === 0 ? (
             <p className="px-4 py-8 text-center text-xs text-neutral-600">All tasks done!</p>
           ) : (
             <div className="divide-y divide-white/5">
-              {pendingTasks.map(task => (
-                <div key={task.id} className="flex items-start gap-3 px-4 py-3">
-                  <span className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${task.priority === 'high' ? 'bg-red-500' : task.priority === 'medium' ? 'bg-amber-500' : 'bg-neutral-600'}`} />
+              {pendingTasks.map((task, i) => (
+                <div key={task.id} className="flex items-start gap-3 px-4 py-3 stagger-child" style={{ '--i': i } as React.CSSProperties}>
+                  <span className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${task.priority === 'high' ? 'bg-crimson-500' : task.priority === 'medium' ? 'bg-amber-500' : 'bg-neutral-600'}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-neutral-200 truncate">{task.title}</p>
                     <p className="text-xs text-neutral-500">{task.assignedTo ?? '—'}{task.dueDate ? ` · Due ${fmtDate(task.dueDate)}` : ''}</p>

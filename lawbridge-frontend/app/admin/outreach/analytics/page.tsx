@@ -146,7 +146,7 @@ export default function OutreachAnalyticsPage() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-neutral-200">Top Feature Requests</h3>
             <div className="flex gap-2 text-xs">
-              <span className="text-red-400">High: {byPriority.high}</span>
+              <span className="text-crimson-400">High: {byPriority.high}</span>
               <span className="text-neutral-600">·</span>
               <span className="text-amber-400">Med: {byPriority.medium}</span>
               <span className="text-neutral-600">·</span>
@@ -172,8 +172,8 @@ export default function OutreachAnalyticsPage() {
             { label: 'Completed', value: stats.completed },
             { label: 'Scheduled', value: interviews.filter(i => i.status === 'scheduled').length },
             { label: 'Cancelled', value: interviews.filter(i => i.status === 'cancelled').length },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-primary-900/40 rounded-xl p-3 text-center">
+          ].map(({ label, value }, i) => (
+            <div key={label} className="bg-primary-900/40 rounded-xl p-3 text-center stagger-child" style={{ '--i': i } as React.CSSProperties}>
               <p className="font-bold text-lg text-neutral-100">{value}</p>
               <p className="text-[11px] text-neutral-500">{label}</p>
             </div>

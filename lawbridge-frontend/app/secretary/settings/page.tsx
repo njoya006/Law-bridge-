@@ -13,7 +13,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gold-500/50 ${checked ? 'bg-gold-500' : 'bg-neutral-700'}`}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-portal ${checked ? 'bg-portal-accent' : 'bg-neutral-700'}`}
     >
       <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
     </button>
@@ -129,7 +129,7 @@ export default function SecretarySettingsPage() {
               <li key={t.id}>
                 <button
                   onClick={() => setTab(t.id)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${tab === t.id ? 'bg-gold-500/15 text-gold-400' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${tab === t.id ? 'bg-portal-soft text-portal' : 'text-neutral-400 hover:text-neutral-200 hover:bg-white/5'}`}
                 >
                   {t.label}
                 </button>
@@ -145,12 +145,12 @@ export default function SecretarySettingsPage() {
               <p className="text-xs text-neutral-500 mb-6">Update your display name and contact details.</p>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Full Name <span className="text-red-400">*</span></label>
+                  <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Full Name <span className="text-crimson-400">*</span></label>
                   <input
                     value={name}
                     onChange={e => setName(e.target.value)}
                     placeholder="Your full name"
-                    className="w-full rounded-xl px-4 py-2.5 bg-primary-900/60 border border-white/10 text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-500/40 transition-all"
+                    className="w-full rounded-xl px-4 py-2.5 bg-primary-900/60 border border-white/10 text-neutral-100 text-sm focus:outline-none focus:ring-portal focus:border-portal transition-all"
                   />
                 </div>
                 <div>
@@ -167,13 +167,13 @@ export default function SecretarySettingsPage() {
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
                     placeholder="+237 6 xx xxx xxx"
-                    className="w-full rounded-xl px-4 py-2.5 bg-primary-900/60 border border-white/10 text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500/40 focus:border-gold-500/40 transition-all"
+                    className="w-full rounded-xl px-4 py-2.5 bg-primary-900/60 border border-white/10 text-neutral-100 text-sm focus:outline-none focus:ring-portal focus:border-portal transition-all"
                   />
                 </div>
                 <button
                   onClick={saveAccount}
                   disabled={savingAccount}
-                  className="px-5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-portal-accent hover:opacity-90 text-white text-sm font-semibold transition-colors disabled:opacity-50"
                 >
                   {savingAccount ? 'Saving…' : 'Save Profile'}
                 </button>
@@ -201,7 +201,7 @@ export default function SecretarySettingsPage() {
                 <Toggle checked={notifs.notify_reminders} onChange={v => setNotifs(p => ({ ...p, notify_reminders: v }))} />
               </Row>
               <div className="mt-6">
-                <button onClick={saveNotifs} className="px-5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors">
+                <button onClick={saveNotifs} className="px-5 py-2.5 rounded-xl bg-portal-accent hover:opacity-90 text-white text-sm font-semibold transition-colors">
                   Save Preferences
                 </button>
               </div>
@@ -219,17 +219,17 @@ export default function SecretarySettingsPage() {
                   { key: 'confirm' as const, label: 'Confirm New Password' },
                 ].map(({ key, label }) => (
                   <div key={key}>
-                    <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">{label} <span className="text-red-400">*</span></label>
+                    <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">{label} <span className="text-crimson-400">*</span></label>
                     <input
                       type="password"
                       value={pw[key]}
                       onChange={e => setPw(prev => ({ ...prev, [key]: e.target.value }))}
-                      className="w-full rounded-xl px-4 py-2.5 bg-primary-900/60 border border-white/10 text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500/40 transition-all"
+                      className="w-full rounded-xl px-4 py-2.5 bg-primary-900/60 border border-white/10 text-neutral-100 text-sm focus:outline-none focus:ring-portal transition-all"
                     />
                   </div>
                 ))}
                 {pwError && (
-                  <div className="flex items-start gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+                  <div className="flex items-start gap-2 text-crimson-400 text-sm bg-crimson-500/10 border border-crimson-500/20 rounded-xl px-4 py-3">
                     <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                     {pwError}
                   </div>
@@ -237,7 +237,7 @@ export default function SecretarySettingsPage() {
                 <button
                   onClick={changePassword}
                   disabled={savingPw || !pw.current || !pw.next || !pw.confirm}
-                  className="px-5 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 rounded-xl bg-portal-accent hover:opacity-90 text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {savingPw ? 'Changing…' : 'Change Password'}
                 </button>

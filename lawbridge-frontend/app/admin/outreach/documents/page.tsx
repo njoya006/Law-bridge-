@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { EmptyState } from '../../../../components/ui/EmptyState'
+import { PlusIcon, SearchIcon } from '../../../../components/icons/Icons'
 
 type DocCategory = 'pitch_deck' | 'proposal' | 'agreement' | 'template' | 'report' | 'other'
 
@@ -178,11 +180,9 @@ export default function DocumentsPage() {
           </div>
           <button
             onClick={openModal}
-            className="flex items-center gap-2 rounded-xl bg-gold-500 hover:bg-gold-400 px-4 py-2.5 text-sm font-semibold text-black transition-colors shrink-0"
+            className="flex items-center gap-2 rounded-xl bg-portal-accent hover:opacity-90 px-4 py-2.5 text-sm font-semibold text-white transition-opacity shrink-0"
           >
-            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
+            <PlusIcon width={16} height={16} />
             Add Document
           </button>
         </div>
@@ -196,7 +196,7 @@ export default function DocumentsPage() {
             <button
               key={cat}
               onClick={() => setCatFilter(cat)}
-              className={`rounded-xl border p-3 text-left transition-colors ${catFilter === cat ? 'border-gold-500/40 bg-gold-500/10' : 'border-white/8 bg-primary-800/20 hover:border-white/15'}`}
+              className={`rounded-xl border p-3 text-left transition-colors ${catFilter === cat ? 'border-portal-solid bg-portal-soft' : 'border-white/8 bg-primary-800/20 hover:border-white/15'}`}
             >
               <div className="text-xl font-bold text-neutral-100">{count}</div>
               <div className="text-[11px] text-neutral-500 mt-0.5">{cat === 'all' ? 'Total' : CATEGORY_LABELS[cat]}</div>
@@ -207,9 +207,7 @@ export default function DocumentsPage() {
 
       {/* Search */}
       <div className="relative">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
+        <SearchIcon width={16} height={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
@@ -220,19 +218,17 @@ export default function DocumentsPage() {
 
       {/* Document list */}
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-white/8 bg-primary-800/10 py-20 text-center">
-          <svg className="mx-auto mb-3 text-neutral-700 w-10 h-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2}>
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-          </svg>
-          <p className="text-neutral-500 text-sm">
-            {search || catFilter !== 'all' ? 'No documents match your search.' : 'No documents yet. Click "Add Document" to get started.'}
-          </p>
+        <div className="rounded-2xl border border-white/8 bg-primary-800/10">
+          <EmptyState
+            title={search || catFilter !== 'all' ? 'No documents match your search' : 'No documents yet'}
+            body={search || catFilter !== 'all' ? undefined : 'Click "Add Document" to get started.'}
+          />
         </div>
       ) : (
         <div className="rounded-2xl border border-white/8 bg-primary-800/20 overflow-hidden">
           <div className="divide-y divide-white/5">
-            {filtered.map(doc => (
-              <div key={doc.id} className="flex items-center gap-4 px-5 py-4 hover:bg-white/3 transition-colors group">
+            {filtered.map((doc, i) => (
+              <div key={doc.id} className="flex items-center gap-4 px-5 py-4 hover:bg-white/3 transition-colors group stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                 <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${CATEGORY_COLORS[doc.category]}`}>
                   <FileIcon category={doc.category} />
                 </div>
@@ -240,7 +236,7 @@ export default function DocumentsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     {doc.url ? (
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="font-medium text-sm text-neutral-100 hover:text-gold-300 transition-colors truncate">
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="font-medium text-sm text-neutral-100 hover:text-portal transition-colors truncate">
                         {doc.name}
                       </a>
                     ) : (
@@ -301,20 +297,20 @@ export default function DocumentsPage() {
             <form onSubmit={addDoc} className="px-6 py-5 space-y-4">
               <div>
                 <label className="block text-xs uppercase tracking-wider text-neutral-400 font-semibold mb-1.5">
-                  File <span className="text-red-400">*</span>
+                  File <span className="text-crimson-400">*</span>
                 </label>
                 <input
                   ref={fileRef}
                   type="file"
                   onChange={handleFileChange}
-                  className="w-full rounded-lg border border-dashed border-neutral-700 bg-primary-800/30 px-3 py-3 text-sm text-neutral-400 file:mr-3 file:rounded-lg file:border-0 file:bg-gold-500/10 file:text-gold-400 file:text-xs file:font-semibold file:px-3 file:py-1.5 hover:border-neutral-600 transition-colors cursor-pointer"
+                  className="w-full rounded-lg border border-dashed border-neutral-700 bg-primary-800/30 px-3 py-3 text-sm text-neutral-400 file:mr-3 file:rounded-lg file:border-0 file:bg-portal-soft file:text-portal file:text-xs file:font-semibold file:px-3 file:py-1.5 hover:border-neutral-600 transition-colors cursor-pointer"
                 />
                 <p className="mt-1 text-[10px] text-neutral-600">File is stored locally on your device. Cloud upload requires MinIO connection.</p>
               </div>
 
               <div>
                 <label className="block text-xs uppercase tracking-wider text-neutral-400 font-semibold mb-1.5">
-                  Document Name <span className="text-red-400">*</span>
+                  Document Name <span className="text-crimson-400">*</span>
                 </label>
                 <input
                   value={form.name}
@@ -378,7 +374,7 @@ export default function DocumentsPage() {
                 <button
                   type="submit"
                   disabled={saving || !form.name.trim()}
-                  className="px-5 py-2 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-5 py-2 rounded-xl bg-portal-accent hover:opacity-90 text-white text-sm font-semibold transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {saving ? 'Adding…' : 'Add Document'}
                 </button>

@@ -15,6 +15,9 @@ import {
 import { toastError, toastSuccess } from '../../../lib/toast'
 import { bakeSignatureIntoDocument } from '../../../lib/signatureUtils'
 import { SERVICE_URLS } from '../../../lib/serviceUrls'
+import { Badge } from '../../../components/ui/Badge'
+import { SkeletonCard } from '../../../components/ui/Skeleton'
+import { CheckIcon, EyeIcon } from '../../../components/icons/Icons'
 
 type DocFilter = 'all' | 'evidence' | 'photo' | 'contract' | 'motion' | 'other'
 type SigTab = 'draw' | 'typed' | 'stamp'
@@ -365,16 +368,12 @@ function SignatureManageModal({ chain, caseId, onClose, onReload, onAddSignature
               <p className="text-[10px] uppercase tracking-widest text-neutral-600 mb-2">Version Chain</p>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {[...chain.history].reverse().map(h => (
-                  <span key={h.id} className="rounded-full bg-white/5 border border-white/8 px-2.5 py-0.5 text-[10px] text-neutral-500">
-                    v{h.version}
-                  </span>
+                  <Badge key={h.id} variant="neutral">v{h.version}</Badge>
                 ))}
                 <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-neutral-600 mx-0.5">
                   <polyline points="9 18 15 12 9 6"/>
                 </svg>
-                <span className="rounded-full bg-gold-500/15 border border-gold-500/30 px-2.5 py-0.5 text-[10px] font-bold text-gold-400">
-                  v{tip.version} (current)
-                </span>
+                <Badge variant="gold">v{tip.version} (current)</Badge>
               </div>
               <p className="mt-2 text-[11px] text-neutral-600">
                 Reverting permanently deletes v{tip.version} and restores v{tip.version - 1} as active.
@@ -740,19 +739,19 @@ function FileIcon({ mime }: { mime: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   if (status === 'stored') return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
+    <Badge variant="success">
       <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />Stored
-    </span>
+    </Badge>
   )
   if (status === 'pending_scan') return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
+    <Badge variant="warning">
       <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />Scanning
-    </span>
+    </Badge>
   )
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-neutral-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
+    <Badge variant="neutral">
       <span className="h-1.5 w-1.5 rounded-full bg-neutral-500" />{status}
-    </span>
+    </Badge>
   )
 }
 
@@ -1004,30 +1003,17 @@ export default function LawyerDocumentsPage() {
       </div>
 
       {error && (
-        <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/8 px-4 py-4">
-          <svg className="mt-0.5 flex-shrink-0 text-red-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <div className="flex items-start gap-3 rounded-2xl border border-crimson-500/30 bg-crimson-500/8 px-4 py-4">
+          <svg className="mt-0.5 flex-shrink-0 text-crimson-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
-          <p className="text-sm text-red-300">{error}</p>
+          <p className="text-sm text-crimson-300">{error}</p>
         </div>
       )}
 
       {loading && (
         <div className="space-y-4">
-          {[1,2].map(i => (
-            <div key={i} className="rounded-2xl border border-white/6 bg-primary-800/30 p-5">
-              <div className="h-4 w-40 rounded bg-white/8 animate-pulse mb-4" />
-              {[1,2].map(j => (
-                <div key={j} className="flex items-center gap-3 py-3">
-                  <div className="h-9 w-9 rounded-xl bg-white/6 animate-pulse" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 w-48 rounded bg-white/6 animate-pulse" />
-                    <div className="h-2.5 w-32 rounded bg-white/5 animate-pulse" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
+          {[1,2].map(i => <SkeletonCard key={i} lines={2} />)}
         </div>
       )}
 
@@ -1045,9 +1031,9 @@ export default function LawyerDocumentsPage() {
             <div>
               <p className="text-[11px] uppercase tracking-widest text-neutral-600 mb-3">{photoItems.length} image{photoItems.length !== 1 ? 's' : ''}</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {photoItems.map(doc => (
+                {photoItems.map((doc, pi) => (
                   <button key={doc.id} onClick={() => void handleOpen(doc)}
-                    className="group relative aspect-square rounded-xl overflow-hidden border border-white/8 bg-primary-800/40 hover:border-gold-500/30 transition-all">
+                    className="group relative aspect-square rounded-xl overflow-hidden border border-white/8 bg-primary-800/40 hover:border-gold-500/30 transition-all stagger-child" style={{ '--i': Math.min(pi, 8) } as React.CSSProperties}>
                     <div className="absolute inset-0 flex flex-col items-center justify-center p-3 gap-1">
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-neutral-600">
                         <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
@@ -1055,7 +1041,9 @@ export default function LawyerDocumentsPage() {
                       <p className="text-[10px] text-neutral-600 text-center leading-tight truncate w-full">{doc.filename}</p>
                     </div>
                     {(doc.signatures?.length ?? 0) > 0 && (
-                      <span className="absolute top-1.5 right-1.5 rounded-full bg-emerald-500/90 px-1.5 py-0.5 text-[9px] font-bold text-white">✓ Signed</span>
+                      <span className="absolute top-1.5 right-1.5 inline-flex items-center gap-0.5 rounded-full bg-emerald-500/90 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                        <CheckIcon width={9} height={9} /> Signed
+                      </span>
                     )}
                     {doc.version > 1 && (
                       <span className="absolute top-1.5 left-1.5 rounded-full bg-gold-500/90 px-1.5 py-0.5 text-[9px] font-bold text-black">v{doc.version}</span>
@@ -1069,13 +1057,13 @@ export default function LawyerDocumentsPage() {
       )}
 
       {/* Document list — version-chain aware */}
-      {!loading && !error && filter !== 'photo' && filteredGroups.map(group => (
-        <div key={group.caseId} className="rounded-2xl border border-white/8 bg-primary-800/30">
+      {!loading && !error && filter !== 'photo' && filteredGroups.map((group, gi) => (
+        <div key={group.caseId} className="rounded-2xl border border-white/8 bg-primary-800/30 stagger-child" style={{ '--i': Math.min(gi, 8) } as React.CSSProperties}>
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/6">
             <p className="font-semibold text-neutral-100 truncate flex-1 min-w-0">{group.title}</p>
-            <span className="ml-3 flex-shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[10px] uppercase tracking-wider text-neutral-500">
+            <Badge variant="neutral" className="ml-3 flex-shrink-0">
               {group.chains.length} {group.chains.length === 1 ? 'file' : 'files'}
-            </span>
+            </Badge>
           </div>
           <div className="divide-y divide-white/5">
             {group.chains.length === 0
@@ -1093,18 +1081,18 @@ export default function LawyerDocumentsPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <p className="truncate text-sm font-medium text-neutral-100">{tip.filename}</p>
                             {tip.version > 1 && (
-                              <span className="flex-shrink-0 rounded-full bg-gold-500/15 px-2 py-0.5 text-[10px] font-bold text-gold-400">v{tip.version}</span>
+                              <Badge variant="gold">v{tip.version}</Badge>
                             )}
                             {isSigned && (
-                              <span className="flex-shrink-0 rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold text-emerald-400">✓ Signed</span>
+                              <Badge variant="success"><CheckIcon width={10} height={10} /> Signed</Badge>
                             )}
                             {tip.is_password_protected && (
-                              <span className="flex flex-shrink-0 items-center gap-1 rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
+                              <Badge variant="warning">
                                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                   <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                                 </svg>
                                 Protected
-                              </span>
+                              </Badge>
                             )}
                             {history.length > 0 && (
                               <button onClick={() => toggleHistory(tip.id)}
@@ -1127,9 +1115,7 @@ export default function LawyerDocumentsPage() {
                         <div className="flex flex-shrink-0 items-center gap-1.5 flex-wrap justify-end">
                           <button onClick={() => void handleOpen(tip)}
                             className="min-h-[34px] inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-neutral-300 hover:bg-white/10 hover:text-neutral-100 transition-colors">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                            </svg>
+                            <EyeIcon width={12} height={12} />
                             Open
                           </button>
                           <button onClick={() => handleSignClick(chain, group.caseId)}
@@ -1173,8 +1159,8 @@ export default function LawyerDocumentsPage() {
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
                                   <p className="text-xs text-neutral-500 truncate">{h.filename}</p>
-                                  <span className="flex-shrink-0 rounded-full bg-white/5 border border-white/8 px-1.5 py-0.5 text-[9px] text-neutral-600">v{h.version}</span>
-                                  {(h.signatures?.length ?? 0) > 0 && <span className="text-[9px] text-emerald-600">✓</span>}
+                                  <Badge variant="neutral">v{h.version}</Badge>
+                                  {(h.signatures?.length ?? 0) > 0 && <CheckIcon width={9} height={9} className="text-emerald-600" />}
                                   {h.is_password_protected && (
                                     <svg className="text-amber-600" width={9} height={9} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                       <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>

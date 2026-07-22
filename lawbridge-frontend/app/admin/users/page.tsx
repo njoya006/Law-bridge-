@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toastSuccess, toastError } from '../../../lib/toast'
+import { SkeletonTable } from '../../../components/ui/Skeleton'
+import { PlusIcon, SearchIcon, CheckIcon, ShieldIcon, ChatIcon } from '../../../components/icons/Icons'
 
 type User = {
   id: string
@@ -18,7 +20,7 @@ const ROLE_COLORS: Record<string, string> = {
   firm_admin: 'border-purple-500/25 bg-purple-500/10 text-purple-400',
   secretary:  'border-emerald-500/25 bg-emerald-500/10 text-emerald-400',
   support:    'border-amber-500/25 bg-amber-500/10 text-amber-400',
-  admin:      'border-red-500/25 bg-red-500/10 text-red-400',
+  admin:      'border-crimson-500/25 bg-crimson-500/10 text-crimson-400',
 }
 
 function formatDate(iso?: string) {
@@ -31,7 +33,7 @@ function Initials({ name, role }: { name: string; role: string }) {
   const parts = (name || '?').trim().split(' ')
   const init = (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')
   const colors: Record<string, string> = {
-    admin: 'from-red-600 to-red-700',
+    admin: 'from-crimson-600 to-crimson-700',
     support: 'from-amber-600 to-amber-700',
     lawyer: 'from-gold-500 to-gold-600',
     firm_admin: 'from-purple-600 to-purple-700',
@@ -208,22 +210,23 @@ function CreateStaffModal({ onClose, onCreated }: {
         <form onSubmit={submit} className="space-y-4">
           {/* Role selection */}
           <div>
-            <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-2">Role <span className="text-red-400">*</span></label>
+            <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-2">Role <span className="text-crimson-400">*</span></label>
             <div className="grid grid-cols-2 gap-2">
               {(['support', 'admin'] as const).map(r => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => setForm(p => ({ ...p, role: r }))}
-                  className={`py-2.5 px-4 rounded-xl border text-sm font-medium transition-all capitalize ${
+                  className={`inline-flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl border text-sm font-medium transition-all capitalize ${
                     form.role === r
                       ? r === 'admin'
-                        ? 'border-red-500/50 bg-red-500/15 text-red-300'
+                        ? 'border-crimson-500/50 bg-crimson-500/15 text-crimson-300'
                         : 'border-amber-500/50 bg-amber-500/15 text-amber-300'
                       : 'border-white/8 bg-white/3 text-neutral-400 hover:border-white/15 hover:text-neutral-200'
                   }`}
                 >
-                  {r === 'admin' ? '👑 Admin' : '🎧 Support'}
+                  {r === 'admin' ? <ShieldIcon width={14} height={14} /> : <ChatIcon width={14} height={14} />}
+                  {r === 'admin' ? 'Admin' : 'Support'}
                 </button>
               ))}
             </div>
@@ -234,7 +237,7 @@ function CreateStaffModal({ onClose, onCreated }: {
 
           {/* Full Name */}
           <div>
-            <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Full Name <span className="text-red-400">*</span></label>
+            <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Full Name <span className="text-crimson-400">*</span></label>
             <input
               value={form.full_name}
               onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))}
@@ -245,7 +248,7 @@ function CreateStaffModal({ onClose, onCreated }: {
 
           {/* Email */}
           <div>
-            <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Email Address <span className="text-red-400">*</span></label>
+            <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Email Address <span className="text-crimson-400">*</span></label>
             <input
               type="email"
               value={form.email}
@@ -257,7 +260,7 @@ function CreateStaffModal({ onClose, onCreated }: {
 
           {/* Password */}
           <div>
-            <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Password <span className="text-red-400">*</span></label>
+            <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Password <span className="text-crimson-400">*</span></label>
             <div className="relative">
               <input
                 type={showPw ? 'text' : 'password'}
@@ -282,7 +285,7 @@ function CreateStaffModal({ onClose, onCreated }: {
                     <div key={i} className={`flex-1 rounded-full transition-all ${i <= pwStrength ? (pwStrength >= 4 ? 'bg-emerald-400' : pwStrength >= 3 ? 'bg-gold-400' : 'bg-amber-500') : 'bg-white/10'}`} />
                   ))}
                 </div>
-                <p className={`text-[10px] ${pwStrength >= 4 ? 'text-emerald-400' : pwStrength >= 3 ? 'text-gold-400' : pwStrength >= 2 ? 'text-amber-400' : 'text-red-400'}`}>
+                <p className={`text-[10px] ${pwStrength >= 4 ? 'text-emerald-400' : pwStrength >= 3 ? 'text-gold-400' : pwStrength >= 2 ? 'text-amber-400' : 'text-crimson-400'}`}>
                   {pwStrength >= 4 ? 'Strong password' : pwStrength >= 3 ? 'Good password' : pwStrength >= 2 ? 'Fair — add symbols or uppercase' : 'Weak — add length and variety'}
                 </p>
               </div>
@@ -291,23 +294,23 @@ function CreateStaffModal({ onClose, onCreated }: {
 
           {/* Confirm */}
           <div>
-            <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Confirm Password <span className="text-red-400">*</span></label>
+            <label className="block text-xs uppercase tracking-wide text-neutral-400 font-semibold mb-1.5">Confirm Password <span className="text-crimson-400">*</span></label>
             <input
               type="password"
               value={form.confirm}
               onChange={e => setForm(p => ({ ...p, confirm: e.target.value }))}
               placeholder="Repeat password"
               className={`w-full rounded-xl px-4 py-2.5 bg-primary-900/60 border text-neutral-100 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500/40 transition-all placeholder-neutral-600 ${
-                form.confirm && !confirmOk ? 'border-red-500/40 focus:border-red-500/40' : 'border-white/10 focus:border-gold-500/40'
+                form.confirm && !confirmOk ? 'border-crimson-500/40 focus:border-crimson-500/40' : 'border-white/10 focus:border-gold-500/40'
               }`}
             />
             {form.confirm && !confirmOk && (
-              <p className="text-[10px] text-red-400 mt-1">Passwords do not match</p>
+              <p className="text-[10px] text-crimson-400 mt-1">Passwords do not match</p>
             )}
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+            <div className="flex items-start gap-2 text-crimson-400 text-sm bg-crimson-500/10 border border-crimson-500/20 rounded-xl px-4 py-3">
               <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
               {error}
             </div>
@@ -324,7 +327,7 @@ function CreateStaffModal({ onClose, onCreated }: {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="flex-1 py-2.5 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex-1 py-2.5 rounded-xl bg-portal-accent hover:opacity-90 text-white text-sm font-semibold transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -401,7 +404,7 @@ export default function AdminUsersPage() {
       {/* Success toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-3 text-sm text-emerald-300 shadow-xl animate-fade-up">
-          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+          <CheckIcon width={16} height={16} className="flex-shrink-0" />
           {toast}
         </div>
       )}
@@ -416,9 +419,9 @@ export default function AdminUsersPage() {
         {myRole === 'admin' && (
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-portal-accent hover:opacity-90 text-white text-sm font-semibold transition-opacity"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+            <PlusIcon width={16} height={16} />
             Create Staff Account
           </button>
         )}
@@ -428,7 +431,7 @@ export default function AdminUsersPage() {
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <span className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-neutral-500">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+            <SearchIcon width={16} height={16} />
           </span>
           <input
             type="text"
@@ -445,7 +448,7 @@ export default function AdminUsersPage() {
               onClick={() => setRoleFilter(r)}
               className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
                 roleFilter === r
-                  ? 'bg-gold-500/15 border border-gold-500/30 text-gold-300'
+                  ? 'bg-portal-soft border border-portal-solid text-portal'
                   : 'bg-primary-800/40 border border-white/8 text-neutral-400 hover:text-neutral-200'
               }`}
             >
@@ -457,18 +460,14 @@ export default function AdminUsersPage() {
       </div>
 
       {error && (
-        <div className="flex items-start gap-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+        <div className="flex items-start gap-3 text-sm text-crimson-400 bg-crimson-500/10 border border-crimson-500/20 rounded-xl px-4 py-3">
           <svg className="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="space-y-2">
-          {[1,2,3,4,5,6].map(i => (
-            <div key={i} className="h-14 rounded-xl bg-primary-800/40 border border-white/5 animate-pulse" />
-          ))}
-        </div>
+        <SkeletonTable rows={6} />
       ) : (
         <div className="rounded-2xl border border-white/8 overflow-hidden">
           <table className="w-full">
@@ -484,8 +483,8 @@ export default function AdminUsersPage() {
             <tbody className="divide-y divide-white/5">
               {filtered.length === 0 ? (
                 <tr><td colSpan={5} className="px-4 py-12 text-center text-neutral-500 text-sm">No users found</td></tr>
-              ) : filtered.map(u => (
-                <tr key={u.id} className="hover:bg-white/[0.02] transition-colors">
+              ) : filtered.map((u, i) => (
+                <tr key={u.id} className="hover:bg-white/[0.02] transition-colors stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Initials name={u.full_name || u.email} role={u.role} />

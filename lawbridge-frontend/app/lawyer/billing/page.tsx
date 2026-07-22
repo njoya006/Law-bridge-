@@ -2,6 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import { Card } from '../../../components/ui/Card'
+import { Badge } from '../../../components/ui/Badge'
+import { EmptyState } from '../../../components/ui/EmptyState'
+import { SkeletonTable } from '../../../components/ui/Skeleton'
+import { PaymentIcon } from '../../../components/icons/Icons'
 import { SERVICE_URLS } from '../../../lib/serviceUrls'
 
 type Invoice = {
@@ -12,11 +16,11 @@ type Invoice = {
   description?: string
 }
 
-function statusColor(status?: string) {
+function statusVariant(status?: string): 'success' | 'danger' | 'gold' {
   switch ((status || '').toLowerCase()) {
-    case 'paid': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
-    case 'overdue': return 'text-crimson-400 bg-crimson-500/10 border-crimson-500/30'
-    default: return 'text-gold-400 bg-gold-500/10 border-gold-500/30'
+    case 'paid': return 'success'
+    case 'overdue': return 'danger'
+    default: return 'gold'
   }
 }
 
@@ -84,12 +88,7 @@ export default function LawyerBillingPage() {
       <Card className="p-6">
         <h3 className="font-heading text-body-lg text-neutral-50 mb-4">Invoices</h3>
 
-        {loading && (
-          <div className="flex items-center gap-2 text-neutral-400 py-8 justify-center">
-            <span className="animate-spin h-4 w-4 border-2 border-gold-400 border-t-transparent rounded-full" />
-            Loading invoices…
-          </div>
-        )}
+        {loading && <SkeletonTable rows={4} />}
 
         {!loading && error && (
           <div className="rounded-xl border border-crimson-500/30 bg-crimson-500/10 px-4 py-4 text-sm text-crimson-200">
@@ -100,20 +99,11 @@ export default function LawyerBillingPage() {
         )}
 
         {!loading && !error && invoices.length === 0 && (
-          <div className="py-10 text-center">
-            <div className="flex justify-center mb-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gold-500/10 text-gold-400">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-                  <rect x="2" y="5" width="20" height="14" rx="2"/>
-                  <line x1="2" y1="10" x2="22" y2="10"/>
-                </svg>
-              </div>
-            </div>
-            <p className="text-sm font-medium text-neutral-300">No invoices yet</p>
-            <p className="text-xs text-neutral-500 mt-1 max-w-xs mx-auto leading-relaxed">
-              Invoices are generated automatically when clients pay their booking fees. Accept a booking and receive payment to see records here.
-            </p>
-          </div>
+          <EmptyState
+            icon={<PaymentIcon width={24} height={24} />}
+            title="No invoices yet"
+            body="Invoices are generated automatically when clients pay their booking fees. Accept a booking and receive payment to see records here."
+          />
         )}
 
         {!loading && !error && invoices.length > 0 && (
@@ -138,9 +128,7 @@ export default function LawyerBillingPage() {
                       {inv.amount?.toLocaleString('en-CM', { style: 'currency', currency: 'XAF', maximumFractionDigits: 0 })}
                     </td>
                     <td className="py-3 text-right">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border ${statusColor(inv.status)}`}>
-                        {inv.status || 'pending'}
-                      </span>
+                      <Badge variant={statusVariant(inv.status)}>{inv.status || 'pending'}</Badge>
                     </td>
                   </tr>
                 ))}

@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import FileUpload from '../../components/ui/FileUpload'
 import { getMyCases, type CaseItem } from '../../lib/casesApi'
 import { uploadDocument } from '../../lib/documentsApi'
+import { CheckIcon, ChevronDownIcon, AlertTriangleIcon, UploadIcon } from '../../components/icons/Icons'
 
 type UploadStatus =
   | { type: 'idle' }
@@ -131,9 +132,7 @@ export default function UploadPage() {
         <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/8 p-6">
           <div className="flex items-start gap-4">
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
+              <CheckIcon width={20} height={20} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-emerald-300">Document uploaded successfully</p>
@@ -174,9 +173,7 @@ export default function UploadPage() {
                     <option key={item.id} value={item.id}>{item.title}</option>
                   ))}
                 </select>
-                <svg className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
+                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500" width={16} height={16} />
               </div>
             )}
           </div>
@@ -234,12 +231,7 @@ export default function UploadPage() {
                   Optional
                 </span>
               </div>
-              <svg
-                className={`transition-transform duration-200 ${showPassword ? 'rotate-180' : ''}`}
-                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              >
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
+              <ChevronDownIcon className={`transition-transform duration-200 ${showPassword ? 'rotate-180' : ''}`} width={16} height={16} />
             </button>
             {showPassword && (
               <div className="mt-4">
@@ -259,13 +251,9 @@ export default function UploadPage() {
 
           {/* Error */}
           {statusState.type === 'error' && (
-            <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/8 px-4 py-4">
-              <svg className="mt-0.5 flex-shrink-0 text-red-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              <p className="text-sm text-red-300">{statusState.text}</p>
+            <div className="flex items-start gap-3 rounded-2xl border border-crimson-500/30 bg-crimson-500/8 px-4 py-4">
+              <AlertTriangleIcon className="mt-0.5 flex-shrink-0 text-crimson-400" width={16} height={16} />
+              <p className="text-sm text-crimson-300">{statusState.text}</p>
             </div>
           )}
 
@@ -288,11 +276,7 @@ export default function UploadPage() {
               </>
             ) : (
               <>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="16 16 12 12 8 16"/>
-                  <line x1="12" y1="12" x2="12" y2="21"/>
-                  <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
-                </svg>
+                <UploadIcon width={16} height={16} />
                 Upload Document
               </>
             )}

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createBook, submitBook, listCategories, type BookTier, type BookCategory } from '../../../../lib/libraryApi'
+import { EyeIcon, CheckIcon } from '../../../../components/icons/Icons'
 
 // ── File import helpers ────────────────────────────────────────────────────────
 
@@ -154,10 +155,7 @@ export default function NewBookPage() {
               preview ? 'bg-gold-500/15 text-gold-400 border border-gold-500/25' : 'bg-white/5 text-white/40 border border-white/8 hover:text-white/60'
             }`}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="1.5"/>
-              <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/>
-            </svg>
+            <EyeIcon width={13} height={13} />
             {preview ? 'Edit' : 'Preview'}
           </button>
         </div>
@@ -264,9 +262,7 @@ export default function NewBookPage() {
               </div>
               {importSuccess && (
                 <div className="mt-3 pt-3 border-t border-white/6 flex items-start gap-2">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="text-emerald-400 flex-shrink-0 mt-0.5">
-                    <path d="M20 6 9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  <CheckIcon width={13} height={13} className="text-emerald-400 flex-shrink-0 mt-0.5" />
                   <p className="text-[11px] text-emerald-400/80 leading-relaxed">{importSuccess}</p>
                 </div>
               )}

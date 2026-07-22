@@ -60,18 +60,22 @@ export default function LoginPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                <BalanceIcon className="mb-3 h-5 w-5 text-gold-300" />
-                <p className="text-sm text-neutral-300">Case updates and progress snapshots</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                <CheckIcon className="mb-3 h-5 w-5 text-emerald-400" />
-                <p className="text-sm text-neutral-300">Documents and receipts in one place</p>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
-                <ArrowRightIcon className="mb-3 h-5 w-5 text-sky-300" />
-                <p className="text-sm text-neutral-300">Direct access to your team when needed</p>
-              </div>
+              {[
+                { Icon: BalanceIcon, color: 'from-gold-500/25 to-gold-600/10 text-gold-300', text: 'Case updates and progress snapshots' },
+                { Icon: CheckIcon, color: 'from-emerald-500/25 to-emerald-600/10 text-emerald-300', text: 'Documents and receipts in one place' },
+                { Icon: ArrowRightIcon, color: 'from-sky-500/25 to-sky-600/10 text-sky-300', text: 'Direct access to your team when needed' },
+              ].map((f, i) => (
+                <div
+                  key={f.text}
+                  className="stagger-child rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur transition-colors hover:border-white/20"
+                  style={{ '--i': i } as React.CSSProperties}
+                >
+                  <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br ${f.color}`}>
+                    <f.Icon width={16} height={16} />
+                  </div>
+                  <p className="text-sm text-neutral-300">{f.text}</p>
+                </div>
+              ))}
             </div>
           </div>
 

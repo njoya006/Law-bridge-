@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react'
 import LawyerShell from '../../../components/layout/LawyerShell'
 import { triageCase, type TriagedLawyer, type LawyerForTriage } from '../../../lib/aiApi'
 import { getFirmLawyers, getMyFirmMemberships } from '../../../lib/firmsApi'
+import { Badge } from '../../../components/ui/Badge'
+import { SparklesIcon } from '../../../components/icons/Icons'
 
 const CASE_TYPES = [
   'Civil / Contract Dispute', 'Criminal Defence', 'Family Law', 'Property / Land',
@@ -30,7 +32,9 @@ function LawyerMatchCard({ item, rank }: { item: TriagedLawyer; rank: number }) 
   return (
     <div className={`relative rounded-xl border p-4 transition-all hover:border-gold-400/30 ${rank === 1 ? 'border-gold-400/30 bg-gold-500/5' : 'border-neutral-700/30 bg-white/5'}`}>
       {rank === 1 && (
-        <span className="absolute -top-2 -right-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-gold-500 text-black border border-gold-400">Best Match</span>
+        <span className="absolute -top-2 -right-2">
+          <Badge variant="gold" className="bg-gold-500 text-black border-gold-400">Best Match</Badge>
+        </span>
       )}
       <div className="flex items-start gap-3">
         <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-gold-400/20 to-gold-600/20 flex items-center justify-center text-gold-300 font-bold text-sm flex-shrink-0">
@@ -107,9 +111,9 @@ export default function CaseTriagePage() {
         {/* Header */}
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <span className="text-2xl">⚡</span>
+            <SparklesIcon width={22} height={22} className="text-gold-400" />
             <h1 className="text-2xl font-display font-bold text-neutral-50">Smart Case Triage</h1>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-gold-500/15 text-gold-300 border border-gold-400/25 font-semibold">AI-Powered</span>
+            <Badge variant="gold" size="md">AI-Powered</Badge>
           </div>
           <p className="text-sm text-neutral-400 ml-9">
             Describe a new case and AI will rank your firm&apos;s lawyers by fit — specialization, circuit, workload, and availability.
@@ -163,7 +167,7 @@ export default function CaseTriagePage() {
                     AI is ranking your lawyers…
                   </>
                 ) : (
-                  <>⚡ Run AI Triage</>
+                  <><SparklesIcon width={16} height={16} /> Run AI Triage</>
                 )}
               </button>
             </div>
@@ -219,7 +223,9 @@ export default function CaseTriagePage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {results.map((item, i) => (
-                <LawyerMatchCard key={item.lawyer_id} item={item} rank={i + 1} />
+                <div key={item.lawyer_id} className="stagger-child" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+                  <LawyerMatchCard item={item} rank={i + 1} />
+                </div>
               ))}
             </div>
           </div>
