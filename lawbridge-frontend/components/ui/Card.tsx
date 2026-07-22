@@ -21,13 +21,15 @@ export function Card({
   children,
   className = '',
   variant = 'default',
+  style,
 }: {
   children: React.ReactNode
   className?: string
   variant?: CardVariant
+  style?: React.CSSProperties
 }) {
   return (
-    <div className={cn(VARIANTS[variant], className)}>
+    <div className={cn(VARIANTS[variant], className)} style={style}>
       {children}
     </div>
   )
