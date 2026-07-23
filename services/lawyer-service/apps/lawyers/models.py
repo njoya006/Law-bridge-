@@ -83,6 +83,12 @@ class LawyerProfile(models.Model):
     bar_admissions = models.TextField(blank=True, help_text='Comma-separated list of bar admissions beyond home circuit')
     international_experience = models.BooleanField(default=False)
 
+    # Mentorship opt-in — seniors offer, juniors seek
+    open_to_mentoring = models.BooleanField(default=False, db_index=True)
+    seeking_mentor = models.BooleanField(default=False, db_index=True)
+    mentorship_note = models.TextField(blank=True, default='',
+        help_text='What you offer as a mentor, or what you seek as a mentee')
+
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -98,6 +104,32 @@ class LawyerProfile(models.Model):
 
     def __str__(self):
         return f"Lawyer({self.user_id}) - {self.specialization}"
+
+
+class MentorshipRequest(models.Model):
+    """A junior lawyer's request to be mentored by a senior. Matching is driven by
+    the reputation engine + specialization + circuit; this records the connection."""
+
+    STATUS = [
+        ('pending',  'Pending'),
+        ('accepted', 'Accepted'),
+        ('declined', 'Declined'),
+        ('ended',    'Ended'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    mentee_id = models.UUIDField(db_index=True)   # auth UUID of the requesting junior
+    mentor_id = models.UUIDField(db_index=True)   # auth UUID of the senior
+    message = models.TextField(blank=True, default='')
+    focus_area = models.CharField(max_length=255, blank=True, default='')
+    status = models.CharField(max_length=16, choices=STATUS, default='pending', db_index=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ('mentee_id', 'mentor_id')
 
 
 class LawyerAvailability(models.Model):

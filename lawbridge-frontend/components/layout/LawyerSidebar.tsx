@@ -49,6 +49,7 @@ const NAV_SECTIONS: NavSection[] = [
     heading: 'Network ★',
     items: [
       { label: 'Feed',          href: '/lawyer/network/feed',         icon: ActivityIcon },
+      { label: 'Mentorship',    href: '/lawyer/network/mentorship',   icon: TeamIcon },
       { label: 'Partnerships',  href: '/lawyer/network/partnerships', icon: HandshakeIcon },
       { label: 'Referrals',     href: '/lawyer/network/referrals',    icon: ReferralIcon },
       { label: 'Following',     href: '/lawyer/network/following',    icon: UserPlusIcon },

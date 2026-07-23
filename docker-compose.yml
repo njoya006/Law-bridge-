@@ -110,6 +110,7 @@ services:
       DB_PORT: "5432"
       DB_NAME: lawyer_db
       REDIS_URL: redis://redis:6379/0
+      MONITORING_SERVICE_URL: http://monitoring-service:8009
 
   # Recomputes every lawyer's reputation_score daily from platform signals
   reputation-worker:
