@@ -17,6 +17,9 @@ urlpatterns = [
     path('my-articles/', views.MyArticlesView.as_view()),
     # Engagement & discovery
     path('books/<uuid:pk>/view/', views.BookIncrementViewView.as_view()),
+    path('books/<uuid:pk>/complete/', views.BookCompleteView.as_view()),
     path('books/firm/<uuid:firm_id>/', views.FirmBooksView.as_view()),
     path('books/featured/', views.FeaturedBooksView.as_view()),
+    # CLE — Continuing Legal Education
+    path('cle/summary/', views.CLESummaryView.as_view()),
 ]

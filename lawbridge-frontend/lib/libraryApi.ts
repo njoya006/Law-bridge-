@@ -231,3 +231,22 @@ export function listFirmContent(firmId: string, token: string | null) {
 export function listFeaturedBooks(token: string | null) {
   return api.get<BookItem[]>('library', '/books/featured/', token)
 }
+
+// ── CLE (Continuing Legal Education) ─────────────────────────────────────────
+
+export interface CLESummary {
+  total_credits: number
+  this_year_credits: number
+  annual_target: number
+  by_category: { category: string; label: string; credits: number }[]
+  completed_book_ids: string[]
+  history: { id: string; category: string; label: string; credits: number; title: string; earned_at: string }[]
+}
+
+export function getCLESummary(token: string) {
+  return api.get<CLESummary>('library', '/cle/summary/', token)
+}
+
+export function completeBook(id: string, token: string) {
+  return api.post<{ completed: boolean; newly: boolean; credits: number }>('library', `/books/${id}/complete/`, {}, token)
+}

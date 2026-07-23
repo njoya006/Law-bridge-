@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 
-from .models import Book, BookVersion, Category, Article
+from .models import Book, BookVersion, Category, Article, CLECredit, BookCompletion
 from .serializers import (
     BookListSerializer, BookDetailSerializer, BookVersionSerializer, CategorySerializer,
     ArticleListSerializer, ArticleDetailSerializer,
@@ -160,6 +160,15 @@ class BookPublishView(APIView):
             change_summary=request.data.get('change_summary', ''),
             created_by_id=caller_id,
         )
+
+        # Award authorship CLE credit to the author, once per book (first publish).
+        if book.version_number == 2 and not CLECredit.objects.filter(
+            category='authorship', reference_id=str(book.id)
+        ).exists():
+            CLECredit.objects.create(
+                lawyer_id=book.author_id, category='authorship', credits=5,
+                title=book.title, reference_id=str(book.id),
+            )
 
         return Response(BookDetailSerializer(book).data)
 
@@ -396,3 +405,69 @@ class FeaturedBooksView(APIView):
     def get(self, request):
         qs = Book.objects.filter(status=Book.STATUS_PUBLISHED, is_featured=True).order_by('-published_at')[:8]
         return Response(BookListSerializer(qs, many=True).data)
+
+
+# ── CLE (Continuing Legal Education) ─────────────────────────────────────────
+
+READING_CREDITS = 2  # credits granted for completing a CamLex book
+
+
+class BookCompleteView(APIView):
+    """POST /books/{id}/complete/ — mark a book read, granting reading CLE (once)."""
+    def post(self, request, pk):
+        caller_id, caller_role, _ = get_caller(request)
+        if not caller_id:
+            return Response({'error': 'auth required'}, status=401)
+        try:
+            book = Book.objects.get(pk=pk)
+        except Book.DoesNotExist:
+            return Response({'error': 'not found'}, status=404)
+        completion, created = BookCompletion.objects.get_or_create(
+            lawyer_id=caller_id, book=book,
+        )
+        if created:
+            CLECredit.objects.create(
+                lawyer_id=caller_id, category='reading', credits=READING_CREDITS,
+                title=book.title, reference_id=str(book.id),
+            )
+        return Response({'completed': True, 'newly': created, 'credits': READING_CREDITS if created else 0})
+
+
+class CLESummaryView(APIView):
+    """GET /cle/summary/ — the caller's CLE credit total, breakdown and history."""
+    ANNUAL_TARGET = 20
+
+    def get(self, request):
+        caller_id, _, _ = get_caller(request)
+        if not caller_id:
+            return Response({'error': 'auth required'}, status=401)
+        from django.utils import timezone
+        credits = list(CLECredit.objects.filter(lawyer_id=caller_id))
+        total = sum(c.credits for c in credits)
+        year = timezone.now().year
+        this_year = sum(c.credits for c in credits if c.earned_at.year == year)
+        by_cat = {}
+        for c in credits:
+            by_cat[c.category] = by_cat.get(c.category, 0) + c.credits
+        completed_ids = set(
+            str(b) for b in BookCompletion.objects.filter(lawyer_id=caller_id).values_list('book_id', flat=True)
+        )
+        return Response({
+            'total_credits': total,
+            'this_year_credits': this_year,
+            'annual_target': self.ANNUAL_TARGET,
+            'by_category': [
+                {'category': k, 'label': dict(CLECredit.CATEGORY).get(k, k), 'credits': v}
+                for k, v in sorted(by_cat.items(), key=lambda x: -x[1])
+            ],
+            'completed_book_ids': list(completed_ids),
+            'history': [
+                {
+                    'id': str(c.id), 'category': c.category,
+                    'label': dict(CLECredit.CATEGORY).get(c.category, c.category),
+                    'credits': c.credits, 'title': c.title,
+                    'earned_at': c.earned_at.isoformat(),
+                }
+                for c in credits[:50]
+            ],
+        })

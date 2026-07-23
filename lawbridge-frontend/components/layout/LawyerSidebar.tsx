@@ -60,6 +60,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Library',         href: '/library',                        icon: BookOpenIcon },
       { label: 'My Publications', href: '/lawyer/library',                 icon: PencilIcon },
+      { label: 'CLE Credits',     href: '/lawyer/knowledge/cle',           icon: TrophyIcon },
       { label: 'Judgments',       href: '/lawyer/knowledge/judgments',     icon: GavelIcon },
       { label: 'Bookmarks',       href: '/lawyer/knowledge/bookmarks',     icon: BookmarkIcon },
     ],

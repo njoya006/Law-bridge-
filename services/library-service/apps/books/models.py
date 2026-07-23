@@ -173,3 +173,39 @@ class BookVersion(models.Model):
 
     def __str__(self):
         return f'{self.book.title} v{self.version_number}'
+
+
+class CLECredit(models.Model):
+    """Continuing Legal Education credit earned by a lawyer. Turns library
+    consumption + authorship into a tracked professional-development record —
+    the sector has no real CLE infrastructure, so this fills a genuine gap."""
+
+    CATEGORY = [
+        ('reading',     'Library Reading'),
+        ('authorship',  'Published Authorship'),
+        ('article',     'Published Article'),
+        ('contribution','Peer Contribution'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lawyer_id = models.UUIDField(db_index=True)
+    category = models.CharField(max_length=20, choices=CATEGORY)
+    credits = models.PositiveSmallIntegerField(default=1)
+    title = models.CharField(max_length=500)
+    reference_id = models.CharField(max_length=64, blank=True, default='')
+    earned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-earned_at']
+        indexes = [models.Index(fields=['lawyer_id', 'earned_at'])]
+
+
+class BookCompletion(models.Model):
+    """Records that a lawyer marked a book as read (once), granting reading CLE."""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    lawyer_id = models.UUIDField(db_index=True)
+    book = models.ForeignKey(Book, on_delete=models.CASCADE, related_name='completions')
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [('lawyer_id', 'book')]
