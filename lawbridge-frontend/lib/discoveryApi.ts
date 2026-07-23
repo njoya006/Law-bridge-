@@ -11,6 +11,7 @@ export type LawyerDiscovery = {
   rating_count: number
   active_cases: number
   total_cases: number
+  reputation_score?: number
   years_of_experience: number
   bio: string
   qualifications: string
@@ -39,7 +40,7 @@ export interface LawyerBrowseFilters {
   min_rating?: number
   urgent?: boolean
   verified_only?: boolean
-  sort?: 'rating' | 'experience' | 'fee_asc' | 'fee_desc'
+  sort?: 'reputation' | 'rating' | 'experience' | 'fee_asc' | 'fee_desc'
   q?: string
 }
 

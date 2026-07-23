@@ -111,6 +111,17 @@ services:
       DB_NAME: lawyer_db
       REDIS_URL: redis://redis:6379/0
 
+  # Recomputes every lawyer's reputation_score daily from platform signals
+  reputation-worker:
+    <<: *django-common
+    image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/lawyer-service:latest
+    command: python manage.py compute_reputation --loop
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: lawyer_db
+      REDIS_URL: redis://redis:6379/0
+
   case-service:
     <<: *django-common
     image: 820561684310.dkr.ecr.us-east-1.amazonaws.com/lawbridge/case-service:latest

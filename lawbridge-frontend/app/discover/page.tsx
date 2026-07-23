@@ -8,6 +8,7 @@ import { search } from '../../lib/searchApi'
 import { getOpenCases, applyForCase, type CaseItem } from '../../lib/casesApi'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
+import { ReputationBadge } from '../../components/ui/ReputationBadge'
 import { CheckIcon, ClockIcon, MapPinIcon, SlidersIcon, SearchIcon, BuildingIcon } from '../../components/icons/Icons'
 
 function isStaffPortal(): boolean {
@@ -104,9 +105,12 @@ function LawyerCard({ lawyer, isStaff }: { lawyer: LawyerDiscovery; isStaff: boo
           {lawyer.practice_circuit && <><span>·</span><MapPinIcon width={11} height={11} />{lawyer.practice_circuit}</>}
         </div>
 
-        {/* Star rating */}
-        <div className="mt-2 flex items-center gap-1">
+        {/* Star rating + reputation tier */}
+        <div className="mt-2 flex items-center gap-2 flex-wrap justify-center">
           <StarRating rating={lawyer.average_rating} count={lawyer.rating_count} />
+          {(lawyer.reputation_score ?? 0) > 0 && (
+            <ReputationBadge score={lawyer.reputation_score ?? 0} size="sm" showLabel={false} />
+          )}
         </div>
       </div>
 
@@ -533,8 +537,9 @@ export default function DiscoverPage() {
             </div>
             <div>
               <label className="text-xs text-neutral-500 mb-1 block">Sort By</label>
-              <select value={filters.sort || 'rating'} onChange={e => updateFilter('sort', e.target.value)}
+              <select value={filters.sort || 'reputation'} onChange={e => updateFilter('sort', e.target.value)}
                 className="w-full rounded-lg bg-primary-800/60 border border-neutral-700/40 px-2 py-1.5 text-xs text-neutral-200 focus:outline-none focus:border-gold-500/40">
+                <option value="reputation">Top Reputation</option>
                 <option value="rating">Highest Rated</option>
                 <option value="experience">Most Experienced</option>
                 <option value="fee_asc">Lowest Fee</option>

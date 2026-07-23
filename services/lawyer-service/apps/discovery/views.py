@@ -102,9 +102,12 @@ class LawyerBrowseView(APIView):
         if request.query_params.get('verified_only') == 'true':
             queryset = queryset.filter(verified_at__isnull=False)
 
-        # Sort order — verified lawyers always surface first, then by chosen criterion
-        sort = request.query_params.get('sort', 'rating')
+        # Sort order — verified lawyers always surface first, then by chosen criterion.
+        # 'reputation' is the default: a merit ranking beats a raw-rating ranking that
+        # a lawyer with one 5-star review could otherwise top.
+        sort = request.query_params.get('sort', 'reputation')
         sort_map = {
+            'reputation':  '-reputation_score',
             'rating':      '-average_rating',
             'experience':  '-years_of_experience',
             'fee_asc':     'consultation_fee',
@@ -112,7 +115,7 @@ class LawyerBrowseView(APIView):
         }
         queryset = queryset.order_by(
             F('verified_at').desc(nulls_last=True),
-            sort_map.get(sort, '-average_rating'),
+            sort_map.get(sort, '-reputation_score'),
         )
 
         try:

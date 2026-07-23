@@ -15,7 +15,7 @@ class LawyerDiscoverySerializer(serializers.ModelSerializer):
             'availability_status', 'practice_circuit', 'accepted_case_types',
             'accepts_urgent_cases', 'consultation_mode',
             'active_cases', 'total_cases', 'average_rating', 'rating_count',
-            'is_verified',
+            'reputation_score', 'is_verified',
         )
 
     def get_is_verified(self, obj):
