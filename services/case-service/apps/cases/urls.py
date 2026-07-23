@@ -20,6 +20,7 @@ from .casefile_views import (
     ProcedureStepListView, ProcedureStepDetailView,
     ConflictCheckView, CourtInfoView,
 )
+from .intelligence_views import CourtAnalyticsView
 
 urlpatterns = [
     path('', CaseListView.as_view(), name='case-list'),
@@ -45,6 +46,7 @@ urlpatterns = [
     # ── Case File 2.0 ────────────────────────────────────────────────────────
     path('procedure-templates/', ProcedureTemplateListView.as_view(), name='procedure-templates'),
     path('conflict-check/', ConflictCheckView.as_view(), name='conflict-check'),
+    path('intelligence/court-analytics/', CourtAnalyticsView.as_view(), name='court-analytics'),
     path('<uuid:case_id>/court/', CourtInfoView.as_view(), name='case-court-info'),
     path('<uuid:case_id>/adjournments/', AdjournmentListView.as_view(), name='case-adjournments'),
     path('<uuid:case_id>/adjournments/<uuid:item_id>/', AdjournmentDetailView.as_view(), name='case-adjournment-detail'),

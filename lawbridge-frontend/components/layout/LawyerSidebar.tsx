@@ -68,6 +68,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Discover',      href: '/lawyer/discover',           icon: CompassIcon },
       { label: 'Analytics',     href: '/lawyer/growth/analytics',   icon: TrendingUpIcon },
+      { label: 'Court Intel',   href: '/lawyer/growth/court-intel', icon: GavelIcon },
       { label: 'Opportunities', href: '/lawyer/growth/opportunities', icon: BriefcaseStarIcon },
       { label: 'Awards',        href: '/lawyer/growth/awards',      icon: TrophyIcon },
       { label: 'Get Verified',  href: '/lawyer/verify',             icon: BadgeCheckIcon },
