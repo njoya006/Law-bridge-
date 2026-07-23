@@ -18,14 +18,21 @@ export type Referral = {
   case_type: string
   notes: string
   status: 'pending' | 'accepted' | 'declined' | 'completed'
+  fee_split_pct: number
+  outcome_note: string
+  responded_at: string | null
   created_at: string
   updated_at: string
 }
 
+export type FeedItemType =
+  | 'article' | 'referral_accepted' | 'referral_completed' | 'follow' | 'partnership'
+  | 'case_won' | 'case_settled' | 'lawyer_verified' | 'tier_reached' | 'capacity_open'
+
 export type FeedItem = {
   id: string
   actor_id: string
-  item_type: 'article' | 'referral_accepted' | 'follow' | 'partnership'
+  item_type: FeedItemType
   title: string
   body: string
   external_id: string
@@ -39,6 +46,7 @@ export type ReferralCreate = {
   client_email?: string
   case_type?: string
   notes?: string
+  fee_split_pct?: number
 }
 
 export async function getFollowing(token: string): Promise<Follow[]> {

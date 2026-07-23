@@ -121,6 +121,7 @@ services:
       DB_PORT: "5432"
       DB_NAME: lawyer_db
       REDIS_URL: redis://redis:6379/0
+      NETWORK_SERVICE_URL: http://network-service:8015
 
   case-service:
     <<: *django-common
@@ -133,6 +134,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       LAWYER_SERVICE_URL: http://lawyer-service:8003
       MONITORING_SERVICE_URL: http://monitoring-service:8009
+      NETWORK_SERVICE_URL: http://network-service:8015
 
   # Scans case deadlines & detention limits hourly, pushes alerts via monitoring-service
   deadline-checker:
@@ -281,6 +283,7 @@ services:
       DB_PORT: "5432"
       DB_NAME: network_db
       REDIS_URL: redis://redis:6379/0
+      MONITORING_SERVICE_URL: http://monitoring-service:8009
 
   network-consumer:
     <<: *django-common

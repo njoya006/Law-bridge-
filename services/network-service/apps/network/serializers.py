@@ -18,9 +18,10 @@ class ReferralSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'referrer_id', 'referred_lawyer_id',
             'client_name', 'client_email', 'case_type', 'notes',
-            'status', 'created_at', 'updated_at',
+            'status', 'fee_split_pct', 'outcome_note', 'responded_at',
+            'created_at', 'updated_at',
         )
-        read_only_fields = ('id', 'referrer_id', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'referrer_id', 'responded_at', 'created_at', 'updated_at')
 
 
 class FeedItemSerializer(serializers.ModelSerializer):

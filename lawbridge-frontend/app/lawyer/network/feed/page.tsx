@@ -4,13 +4,19 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { getFeed, type FeedItem } from '../../../../lib/networkApi'
 import { SkeletonCard } from '../../../../components/ui/Skeleton'
-import { DocumentIcon, HandshakeIcon, UserIcon, BuildingIcon, NetworkIcon } from '../../../../components/icons/Icons'
+import { DocumentIcon, HandshakeIcon, UserIcon, BuildingIcon, NetworkIcon, GavelIcon, BadgeCheckIcon, TrophyIcon, BriefcaseIcon } from '../../../../components/icons/Icons'
 
 const TYPE_META: Record<string, { label: string; dot: string; Icon: React.ComponentType<{ className?: string }> }> = {
-  article:           { label: 'Article',          dot: 'bg-gold-400',    Icon: DocumentIcon },
-  referral_accepted: { label: 'Referral Accepted', dot: 'bg-emerald-400', Icon: HandshakeIcon },
-  follow:            { label: 'New Follower',      dot: 'bg-primary-400', Icon: UserIcon },
-  partnership:       { label: 'Partnership',       dot: 'bg-amber-400',   Icon: BuildingIcon },
+  article:            { label: 'Article',            dot: 'bg-gold-400',    Icon: DocumentIcon },
+  referral_accepted:  { label: 'Referral Accepted', dot: 'bg-emerald-400', Icon: HandshakeIcon },
+  referral_completed: { label: 'Referral Completed',dot: 'bg-emerald-400', Icon: HandshakeIcon },
+  follow:             { label: 'New Follower',       dot: 'bg-primary-400', Icon: UserIcon },
+  partnership:        { label: 'Partnership',        dot: 'bg-amber-400',   Icon: BuildingIcon },
+  case_won:           { label: 'Verdict Won',        dot: 'bg-emerald-400', Icon: GavelIcon },
+  case_settled:       { label: 'Matter Settled',     dot: 'bg-emerald-400', Icon: HandshakeIcon },
+  lawyer_verified:    { label: 'Verified',           dot: 'bg-primary-400', Icon: BadgeCheckIcon },
+  tier_reached:       { label: 'Reputation Tier',    dot: 'bg-gold-400',    Icon: TrophyIcon },
+  capacity_open:      { label: 'Open to Matters',    dot: 'bg-emerald-400', Icon: BriefcaseIcon },
 }
 
 function timeAgo(iso: string) {

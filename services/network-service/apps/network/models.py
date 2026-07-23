@@ -34,6 +34,11 @@ class Referral(models.Model):
     case_type = models.CharField(max_length=100, blank=True)
     notes = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS, default='pending', db_index=True)
+    # Referral economy: fee-sharing between advocates is normal Cameroonian practice.
+    fee_split_pct = models.PositiveSmallIntegerField(default=0,
+        help_text="Referrer's agreed share of the professional fee, 0-100%")
+    outcome_note = models.TextField(blank=True, default='')
+    responded_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -45,8 +50,14 @@ class FeedItem(models.Model):
     TYPES = [
         ('article', 'Article'),
         ('referral_accepted', 'Referral Accepted'),
+        ('referral_completed', 'Referral Completed'),
         ('follow', 'New Follow'),
         ('partnership', 'Partnership'),
+        ('case_won', 'Case Won / Verdict'),
+        ('case_settled', 'Case Settled'),
+        ('lawyer_verified', 'Lawyer Verified'),
+        ('tier_reached', 'Reputation Tier Reached'),
+        ('capacity_open', 'Open to New Matters'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid4, editable=False)

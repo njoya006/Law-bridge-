@@ -465,6 +465,27 @@ class CaseStatusUpdateView(APIView):
         except Exception as notif_err:
             logger.error("Notification failed for status update on case %s: %s", case_id, notif_err)
 
+        # A verdict/settlement is public professional achievement → network feed event
+        # for the assigned lawyer, so followers see momentum (and it feeds reputation).
+        if new_status in ('verdict', 'settled') and case.assigned_lawyer_id:
+            try:
+                network_url = config('NETWORK_SERVICE_URL', default='http://network-service:8015').rstrip('/')
+                feed_payload = json.dumps({
+                    'actor_id': str(case.assigned_lawyer_id),
+                    'item_type': 'case_won' if new_status == 'verdict' else 'case_settled',
+                    'title': 'Verdict rendered' if new_status == 'verdict' else 'Matter settled',
+                    'body': f'{case.case_type.replace("_", " ").title()} matter concluded.',
+                }).encode()
+                feed_req = Request(
+                    f'{network_url}/api/v1/network/feed/internal/',
+                    data=feed_payload,
+                    headers={'Content-Type': 'application/json', 'X-Internal-Key': config('INTERNAL_API_KEY', default='dev-internal-key')},
+                    method='POST',
+                )
+                urlopen(feed_req, timeout=3)
+            except Exception as feed_err:
+                logger.warning("Feed emit failed for case %s: %s", case_id, feed_err)
+
         return Response(CaseSerializer(case).data)
 
 
