@@ -22,4 +22,6 @@ urlpatterns = [
     path('books/featured/', views.FeaturedBooksView.as_view()),
     # CLE — Continuing Legal Education
     path('cle/summary/', views.CLESummaryView.as_view()),
+    # Admin metrics
+    path('stats/', views.LibraryStatsView.as_view()),
 ]

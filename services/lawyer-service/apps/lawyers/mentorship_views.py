@@ -22,6 +22,36 @@ from .models import LawyerProfile, MentorshipRequest
 logger = logging.getLogger(__name__)
 
 
+class LawyerStatsView(APIView):
+    """GET /api/v1/lawyers/stats/ — supply-side + trust metrics for the admin view."""
+
+    def get(self, request):
+        payload = getattr(request, 'auth_payload', {}) or {}
+        if payload.get('role', '') not in ('admin', 'support'):
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        from django.db.models import Count, Q
+        total = LawyerProfile.objects.count()
+        verified = LawyerProfile.objects.filter(verified_at__isnull=False).count()
+        # Reputation tier distribution
+        tiers = {'Elite': 0, 'Expert': 0, 'Senior': 0, 'Active': 0, 'Rising': 0}
+        for s in LawyerProfile.objects.values_list('reputation_score', flat=True):
+            s = s or 0
+            if s >= 85: tiers['Elite'] += 1
+            elif s >= 70: tiers['Expert'] += 1
+            elif s >= 50: tiers['Senior'] += 1
+            elif s >= 30: tiers['Active'] += 1
+            else: tiers['Rising'] += 1
+        return Response({
+            'total_lawyers': total,
+            'verified_lawyers': verified,
+            'verification_rate': round(100 * verified / total) if total else 0,
+            'open_to_mentoring': LawyerProfile.objects.filter(open_to_mentoring=True).count(),
+            'seeking_mentor': LawyerProfile.objects.filter(seeking_mentor=True).count(),
+            'mentorship_connections': MentorshipRequest.objects.filter(status='accepted').count(),
+            'reputation_tiers': [{'tier': k, 'count': v} for k, v in tiers.items()],
+        })
+
+
 def _user_id(request):
     payload = getattr(request, 'auth_payload', {}) or {}
     raw = payload.get('user_id') or payload.get('sub')

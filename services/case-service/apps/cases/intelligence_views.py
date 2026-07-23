@@ -29,6 +29,30 @@ def _round(v, n=1):
     return round(v, n) if v else 0
 
 
+class CaseStatsView(APIView):
+    """GET /api/v1/cases/stats/ — case-volume metrics for the admin/investor view."""
+
+    def get(self, request):
+        payload = extract_token_payload(request)
+        if payload.get('role', 'client') not in ('admin', 'support'):
+            return Response({'detail': 'Admin only'}, status=status.HTTP_403_FORBIDDEN)
+        from django.utils import timezone
+        now = timezone.now()
+        total = Case.objects.count()
+        this_month = Case.objects.filter(created_at__year=now.year, created_at__month=now.month).count()
+        closed = Case.objects.filter(status__in=Case.TERMINAL_STATUSES).count()
+        active = total - closed
+        with_lawyer = Case.objects.filter(assigned_lawyer_id__isnull=False).count()
+        return Response({
+            'total_cases': total,
+            'cases_this_month': this_month,
+            'active_cases': active,
+            'closed_cases': closed,
+            'assigned_cases': with_lawyer,
+            'assignment_rate': round(100 * with_lawyer / total) if total else 0,
+        })
+
+
 class CourtAnalyticsView(APIView):
     """GET /api/v1/cases/intelligence/court-analytics/
     Aggregate, anonymized court-performance metrics for practitioners."""

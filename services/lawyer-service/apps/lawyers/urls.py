@@ -2,12 +2,13 @@ from django.urls import path
 from .views import LawyerProfileView, LawyerAvailabilityView, LawyerPublicDetailView
 from .mentorship_views import (
     MentorshipPrefsView, MentorshipMatchesView,
-    MentorshipRequestListView, MentorshipRequestDetailView,
+    MentorshipRequestListView, MentorshipRequestDetailView, LawyerStatsView,
 )
 
 urlpatterns = [
     path('me/', LawyerProfileView.as_view(), name='lawyer-profile'),
     path('me/availability/', LawyerAvailabilityView.as_view(), name='lawyer-availability'),
+    path('stats/', LawyerStatsView.as_view(), name='lawyer-stats'),
     # Mentorship — registered before the <uuid> catch-all so 'mentorship' isn't
     # mistaken for a lawyer id.
     path('mentorship/prefs/', MentorshipPrefsView.as_view(), name='mentorship-prefs'),

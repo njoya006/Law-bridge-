@@ -56,10 +56,11 @@ const ADMIN_NAV_GROUPS: NavGroup[] = [
   {
     section: 'OVERVIEW',
     items: [
-      { label: 'Dashboard',    href: '/admin',              icon: () => <DashboardIcon width={16} height={16} />, exact: true },
-      { label: 'Intelligence', href: '/admin/intelligence', icon: () => <SparklesIcon width={16} height={16} /> },
-      { label: 'Risk Monitor', href: '/admin/risks',        icon: () => <ShieldIcon width={16} height={16} /> },
-      { label: 'Analytics',   href: '/admin/analytics',    icon: () => <BarChart2Icon width={16} height={16} /> },
+      { label: 'Dashboard',       href: '/admin',              icon: () => <DashboardIcon width={16} height={16} />, exact: true },
+      { label: 'Platform Metrics',href: '/admin/metrics',      icon: () => <BarChart2Icon width={16} height={16} /> },
+      { label: 'Intelligence',    href: '/admin/intelligence', icon: () => <SparklesIcon width={16} height={16} /> },
+      { label: 'Risk Monitor',    href: '/admin/risks',        icon: () => <ShieldIcon width={16} height={16} /> },
+      { label: 'Analytics',       href: '/admin/analytics',    icon: () => <BarChart2Icon width={16} height={16} /> },
     ],
   },
   {

@@ -25,6 +25,42 @@ def extract_user_id_from_token(request):
     return str(request.user.id)
 
 
+def _token_role(request):
+    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    if auth_header.startswith('Bearer '):
+        try:
+            token = auth_header.split(' ')[1]
+            signing_key = settings.SIMPLE_JWT.get('SIGNING_KEY', settings.SECRET_KEY)
+            payload = jwt.decode(token, signing_key, algorithms=['HS256'], options={'verify_aud': False})
+            return payload.get('role', '')
+        except Exception:
+            pass
+    return getattr(getattr(request, 'user', None), 'role', '')
+
+
+class PaymentStatsView(APIView):
+    """GET /api/v1/payments/stats/ — platform GMV metrics. Admin/support only."""
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        if _token_role(request) not in ('admin', 'support'):
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        from django.db.models import Sum, Count
+        from django.utils import timezone
+        confirmed = Payment.objects.filter(status='confirmed')
+        agg = confirmed.aggregate(gmv=Sum('amount'), n=Count('id'))
+        now = timezone.now()
+        month = confirmed.filter(confirmed_at__year=now.year, confirmed_at__month=now.month).aggregate(
+            gmv=Sum('amount'), n=Count('id'))
+        return Response({
+            'gmv_total': float(agg['gmv'] or 0),
+            'payments_confirmed': agg['n'] or 0,
+            'gmv_this_month': float(month['gmv'] or 0),
+            'payments_this_month': month['n'] or 0,
+            'currency': 'XAF',
+        })
+
+
 class PaymentCreateView(APIView):
     """Create a payment request"""
     

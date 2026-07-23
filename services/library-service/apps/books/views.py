@@ -471,3 +471,27 @@ class CLESummaryView(APIView):
                 for c in credits[:50]
             ],
         })
+
+
+class LibraryStatsView(APIView):
+    """GET /library/stats/ — knowledge-engagement metrics for the admin/investor view."""
+    def get(self, request):
+        _, role, _ = get_caller(request)
+        if role not in ('admin', 'support'):
+            return Response({'error': 'forbidden'}, status=403)
+        from django.db.models import Sum, Count
+        published_books = Book.objects.filter(status=Book.STATUS_PUBLISHED).count()
+        published_articles = Article.objects.filter(status='published').count()
+        total_views = Book.objects.aggregate(v=Sum('views'))['v'] or 0
+        cle = CLECredit.objects.aggregate(c=Sum('credits'), n=Count('id'))
+        completions = BookCompletion.objects.count()
+        distinct_cle_lawyers = CLECredit.objects.values('lawyer_id').distinct().count()
+        return Response({
+            'published_books': published_books,
+            'published_articles': published_articles,
+            'total_book_views': total_views,
+            'cle_credits_issued': cle['c'] or 0,
+            'cle_awards': cle['n'] or 0,
+            'book_completions': completions,
+            'lawyers_earning_cle': distinct_cle_lawyers,
+        })

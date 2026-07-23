@@ -145,6 +145,33 @@ class FeedItemListView(APIView):
         return Response(FeedItemSerializer(items, many=True).data)
 
 
+class NetworkStatsView(APIView):
+    """GET /api/v1/network/stats/ — network-density metrics for the admin/investor view."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        payload = getattr(request, 'auth_payload', {}) or {}
+        if payload.get('role', '') not in ('admin', 'support'):
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        from django.db.models import Count
+        total_follows = Follow.objects.count()
+        distinct_followers = Follow.objects.values('follower_id').distinct().count()
+        referrals = Referral.objects.count()
+        completed = Referral.objects.filter(status='completed').count()
+        accepted = Referral.objects.filter(status__in=['accepted', 'completed']).count()
+        feed_items = FeedItem.objects.count()
+        return Response({
+            'total_follows': total_follows,
+            'lawyers_following': distinct_followers,
+            'avg_follows_per_active': round(total_follows / distinct_followers, 1) if distinct_followers else 0,
+            'total_referrals': referrals,
+            'referrals_accepted': accepted,
+            'referrals_completed': completed,
+            'referral_acceptance_rate': round(100 * accepted / referrals) if referrals else 0,
+            'feed_events': feed_items,
+        })
+
+
 class InternalFeedEmitView(APIView):
     """
     POST /api/v1/network/feed/internal/  (internal-key; blocked at the public edge)
