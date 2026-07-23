@@ -36,15 +36,24 @@ export default function FollowingPage() {
       )}
 
       {!loading && following.length === 0 && (
-        <div className="rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-700/40 text-neutral-300">
-            <TeamIcon width={28} height={28} />
+        <div className="rounded-2xl border border-dashed border-white/12 bg-primary-800/20 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-portal-soft text-portal"><TeamIcon width={22} height={22} /></div>
+            <div>
+              <h3 className="font-semibold text-neutral-200">Not following anyone yet</h3>
+              <p className="text-xs text-neutral-500">Following colleagues fills your Feed with their wins, publications and milestones.</p>
+            </div>
           </div>
-          <h3 className="font-semibold text-neutral-200">Not following anyone yet</h3>
-          <p className="mt-1.5 text-sm text-neutral-500">Discover lawyers and follow them to stay updated with their work.</p>
-          <a href="/discover"
-            className="mt-5 inline-flex items-center gap-2 rounded-xl border border-gold-500/30 bg-gold-500/10 px-5 py-2.5 text-sm font-semibold text-gold-400 hover:bg-gold-500/20 transition-colors">
-            Discover Lawyers →
+          <ol className="space-y-2 mb-5">
+            {['Open Discover and find a lawyer whose work you want to track', 'On their profile, tap the Follow button next to their name', 'Their activity then appears in your Network → Feed'].map((s, i) => (
+              <li key={i} className="flex gap-2.5 text-sm text-neutral-400">
+                <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-portal-soft text-portal text-[11px] font-bold">{i + 1}</span>{s}
+              </li>
+            ))}
+          </ol>
+          <a href="/lawyer/discover"
+            className="inline-flex items-center gap-2 rounded-xl border border-portal bg-portal-soft px-5 py-2.5 text-sm font-semibold text-portal hover:opacity-90 transition-colors">
+            Browse lawyers to follow →
           </a>
         </div>
       )}

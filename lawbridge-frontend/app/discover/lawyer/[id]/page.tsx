@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { getLawyerById, type LawyerDiscovery, type AvailabilitySlot } from '../../../../lib/discoveryApi'
 import { getReviews, submitReview, type Review, type ReviewsResponse } from '../../../../lib/reviewsApi'
+import { getFollowing, followLawyer, unfollowLawyer, getFollowerCount } from '../../../../lib/networkApi'
+import { toastSuccess, toastError } from '../../../../lib/toast'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -72,6 +74,12 @@ export default function LawyerDetailPage() {
   const [reviewDone, setReviewDone] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const [showReviewForm, setShowReviewForm] = useState(false)
+  // Follow (lawyer-to-lawyer only)
+  const [isStaff, setIsStaff] = useState(false)
+  const [myUserId, setMyUserId] = useState('')
+  const [followId, setFollowId] = useState<string | null>(null)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followBusy, setFollowBusy] = useState(false)
 
   const loadReviews = useCallback(async (id: string) => {
     try {
@@ -86,6 +94,8 @@ export default function LawyerDetailPage() {
   useEffect(() => {
     const role = localStorage.getItem('portalRole')
     setIsClient(!role || role === 'client')
+    setIsStaff(role === 'lawyer')
+    setMyUserId(localStorage.getItem('authUserId') || '')
   }, [])
 
   useEffect(() => {
@@ -95,6 +105,15 @@ export default function LawyerDetailPage() {
         const data = await getLawyerById(params.id, token)
         setLawyer(data)
         void loadReviews(params.id)
+        // Follow state — only relevant for lawyers viewing a colleague
+        const role = localStorage.getItem('portalRole')
+        if (role === 'lawyer' && token && data.user_id) {
+          void getFollowerCount(data.user_id, token).then(setFollowerCount)
+          void getFollowing(token).then(list => {
+            const f = list.find(x => x.following_id === data.user_id)
+            setFollowId(f ? f.id : null)
+          })
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load lawyer profile')
       } finally {
@@ -103,6 +122,26 @@ export default function LawyerDetailPage() {
     }
     if (params.id) void run()
   }, [params.id, loadReviews])
+
+  const toggleFollow = async () => {
+    const token = localStorage.getItem('access')
+    if (!token || !lawyer?.user_id || followBusy) return
+    setFollowBusy(true)
+    try {
+      if (followId) {
+        await unfollowLawyer(followId, token)
+        setFollowId(null); setFollowerCount(c => Math.max(0, c - 1))
+      } else {
+        await followLawyer(lawyer.user_id, token)
+        setFollowerCount(c => c + 1)
+        const list = await getFollowing(token)
+        const f = list.find(x => x.following_id === lawyer.user_id)
+        setFollowId(f ? f.id : 'pending')
+        toastSuccess(`Following ${lawyer.name} — their activity now shows in your feed`)
+      }
+    } catch { toastError('Could not update follow') }
+    finally { setFollowBusy(false) }
+  }
 
   const handleSubmitReview = async () => {
     if (reviewRating === 0) { setReviewError('Please select a star rating'); return }
@@ -194,6 +233,34 @@ export default function LawyerDetailPage() {
             </div>
             <p className="text-gold-400 font-medium mb-2">{lawyer.specialization}</p>
             <StarRating rating={lawyer.average_rating} count={lawyer.rating_count} />
+
+            {/* Follow — lawyer-to-lawyer only, not on your own profile */}
+            {isStaff && lawyer.user_id && lawyer.user_id !== myUserId && (
+              <div className="flex items-center gap-3 mt-3">
+                <button
+                  onClick={toggleFollow}
+                  disabled={followBusy}
+                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all disabled:opacity-50 ${
+                    followId
+                      ? 'border border-white/15 text-neutral-300 hover:border-crimson-500/40 hover:text-crimson-400'
+                      : 'bg-gold-500/15 border border-gold-500/40 text-gold-300 hover:bg-gold-500/25'
+                  }`}
+                >
+                  {followId ? (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>
+                      Following
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
+                      Follow
+                    </>
+                  )}
+                </button>
+                <span className="text-xs text-neutral-500">{followerCount} follower{followerCount !== 1 ? 's' : ''}</span>
+              </div>
+            )}
             <div className="flex flex-wrap gap-4 mt-3 text-sm text-neutral-400">
               <span>{lawyer.years_of_experience} years of experience</span>
               <span>·</span>

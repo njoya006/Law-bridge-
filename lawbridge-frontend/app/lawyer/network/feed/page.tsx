@@ -51,17 +51,24 @@ export default function NetworkFeedPage() {
       )}
 
       {!loading && feed.length === 0 && (
-        <div className="rounded-2xl border border-white/8 bg-primary-800/20 px-6 py-16 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gold-500/10 text-gold-400">
-            <NetworkIcon width={28} height={28} />
+        <div className="rounded-2xl border border-dashed border-white/12 bg-primary-800/20 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-portal-soft text-portal"><NetworkIcon width={22} height={22} /></div>
+            <div>
+              <h3 className="font-semibold text-neutral-200">Your feed is quiet</h3>
+              <p className="text-xs text-neutral-500">The feed shows professional activity from lawyers you follow.</p>
+            </div>
           </div>
-          <h3 className="font-semibold text-neutral-200">Your feed is empty</h3>
-          <p className="mt-1.5 max-w-xs mx-auto text-sm text-neutral-500 leading-relaxed">
-            Follow lawyers and build your network to see their activity here.
-          </p>
-          <Link href="/lawyer/network/following"
-            className="mt-5 inline-flex items-center gap-2 rounded-xl border border-gold-500/30 bg-gold-500/10 px-5 py-2.5 text-sm font-semibold text-gold-400 hover:bg-gold-500/20 transition-colors">
-            Find Lawyers to Follow
+          <ol className="space-y-2 mb-5">
+            {['Open Discover and follow a few colleagues', 'When they win a verdict, publish to CamLex, or reach a new reputation tier, it lands here', 'Your own milestones appear here too, so your followers see them'].map((s, i) => (
+              <li key={i} className="flex gap-2.5 text-sm text-neutral-400">
+                <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-portal-soft text-portal text-[11px] font-bold">{i + 1}</span>{s}
+              </li>
+            ))}
+          </ol>
+          <Link href="/lawyer/discover"
+            className="inline-flex items-center gap-2 rounded-xl border border-portal bg-portal-soft px-5 py-2.5 text-sm font-semibold text-portal hover:opacity-90 transition-colors">
+            Find lawyers to follow →
           </Link>
         </div>
       )}
