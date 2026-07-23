@@ -9,8 +9,9 @@ import {
 } from './primitives'
 import {
   BuildingIcon, UsersIcon, GavelIcon, ClockIcon, PaymentIcon, ShieldIcon,
-  HandshakeIcon, ClipboardIcon, AlertTriangleIcon, CheckIcon,
+  HandshakeIcon, ClipboardIcon, AlertTriangleIcon, CheckIcon, BookOpenIcon, SearchIcon,
 } from '../icons/Icons'
+import { listBooks, type BookItem } from '../../lib/libraryApi'
 
 type Props = { caseId: string; caseType: string; token: string }
 
@@ -22,6 +23,7 @@ const TABS = [
   { key: 'disbursements',label: 'Expenses',     Icon: PaymentIcon },
   { key: 'detention',    label: 'Detention',    Icon: ShieldIcon },
   { key: 'conciliation', label: 'Conciliation', Icon: HandshakeIcon },
+  { key: 'authorities',  label: 'Authorities',  Icon: BookOpenIcon },
   { key: 'procedures',   label: 'Procedures',   Icon: ClipboardIcon },
 ] as const
 
@@ -71,6 +73,7 @@ export default function CaseFileWorkspace({ caseId, caseType, token }: Props) {
         {tab === 'disbursements' && <DisbursementsSection caseId={caseId} token={token} />}
         {tab === 'detention' && <DetentionSection caseId={caseId} token={token} />}
         {tab === 'conciliation' && <ConciliationSection caseId={caseId} token={token} />}
+        {tab === 'authorities' && <AuthoritiesSection caseId={caseId} token={token} />}
         {tab === 'procedures' && <ProceduresSection caseId={caseId} caseType={caseType} token={token} />}
       </div>
     </div>
@@ -777,6 +780,138 @@ function ConciliationSection({ caseId, token }: { caseId: string; token: string 
                 </select>
                 <DeleteBtn onClick={() => remove(r.id)} />
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══ AUTHORITIES (knowledge-in-context) ═════════════════════════════════════════
+
+function AuthoritiesSection({ caseId, token }: { caseId: string; token: string }) {
+  const [items, setItems] = useState<cf.CaseAuthority[]>([])
+  const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [draft, setDraft] = useState<Partial<cf.CaseAuthority>>({ source_type: 'statute', title: '', reference: '' })
+  const [libQuery, setLibQuery] = useState('')
+  const [libResults, setLibResults] = useState<BookItem[]>([])
+  const [searching, setSearching] = useState(false)
+
+  const load = useCallback(() => {
+    cf.getAuthorities(caseId, token).then(setItems).catch(() => {}).finally(() => setLoading(false))
+  }, [caseId, token])
+  useEffect(load, [load])
+
+  async function searchLibrary(q: string) {
+    setLibQuery(q)
+    if (q.trim().length < 3) { setLibResults([]); return }
+    setSearching(true)
+    try {
+      const books = await listBooks(token, { search: q })
+      setLibResults(Array.isArray(books) ? books.slice(0, 6) : [])
+    } catch { setLibResults([]) }
+    finally { setSearching(false) }
+  }
+
+  function pickLibrary(b: BookItem) {
+    setDraft(d => ({ ...d, source_type: 'library_book', title: b.title, library_id: b.id, url: `/library/${b.id}` }))
+    setLibResults([]); setLibQuery('')
+  }
+
+  const add = async () => {
+    if (!draft.title?.trim()) { toastError('An authority title is required'); return }
+    setSaving(true)
+    try {
+      await cf.addAuthority(caseId, draft, token)
+      toastSuccess('Authority attached to the matter')
+      setAdding(false); setDraft({ source_type: 'statute', title: '', reference: '' }); load()
+    } catch { toastError('Could not attach authority') }
+    finally { setSaving(false) }
+  }
+  const remove = async (id: string) => {
+    try { await cf.deleteAuthority(caseId, id, token); setItems(x => x.filter(a => a.id !== id)) }
+    catch { toastError('Could not remove authority') }
+  }
+
+  return (
+    <div className="space-y-4">
+      <SectionHeader
+        title="Authorities & Citations"
+        subtitle="Attach the statutes, OHADA acts, judgments and CamLex references this matter turns on"
+        action={!adding && <AddButton onClick={() => setAdding(true)} label="Add Authority" />}
+      />
+
+      {adding && (
+        <InlineForm onSave={add} onCancel={() => setAdding(false)} saving={saving} saveLabel="Attach Authority">
+          {/* Search CamLex to attach a real library item */}
+          <Field label="Search the CamLex library (optional)">
+            <div className="relative">
+              <SearchIcon width={14} height={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+              <input value={libQuery} onChange={e => searchLibrary(e.target.value)}
+                placeholder="Find a book to cite…"
+                className="w-full rounded-lg bg-primary-900/60 border border-white/10 pl-9 pr-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-600 focus:outline-none focus:border-portal-solid" />
+            </div>
+          </Field>
+          {searching && <p className="text-[11px] text-neutral-500">Searching…</p>}
+          {libResults.length > 0 && (
+            <div className="rounded-lg border border-white/8 bg-primary-900/40 divide-y divide-white/5">
+              {libResults.map(b => (
+                <button key={b.id} onClick={() => pickLibrary(b)} className="w-full text-left px-3 py-2 hover:bg-white/5 transition-colors">
+                  <p className="text-xs font-medium text-neutral-200 truncate">{b.title}</p>
+                  <p className="text-[10px] text-neutral-600">{b.author_name}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Type">
+              <Select value={draft.source_type} onChange={e => setDraft(d => ({ ...d, source_type: e.target.value }))}>
+                {cf.AUTHORITY_SOURCES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </Select>
+            </Field>
+            <Field label="Pinpoint Reference">
+              <TextInput value={draft.reference ?? ''} onChange={e => setDraft(d => ({ ...d, reference: e.target.value }))} placeholder='e.g. AUDSC Art. 200-204' />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Title"><TextInput value={draft.title ?? ''} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} placeholder="Authority name" /></Field>
+            </div>
+            <div className="sm:col-span-2">
+              <Field label="Why it's relevant"><Textarea rows={2} value={draft.note ?? ''} onChange={e => setDraft(d => ({ ...d, note: e.target.value }))} placeholder="How this authority applies to the matter…" /></Field>
+            </div>
+          </div>
+        </InlineForm>
+      )}
+
+      {loading ? <EmptyRow text="Loading…" /> : items.length === 0 && !adding ? (
+        <div className="rounded-2xl border border-dashed border-white/12 bg-primary-800/20 p-6">
+          <p className="text-sm font-semibold text-neutral-200 mb-3">No authorities cited yet</p>
+          <ol className="space-y-2">
+            {['Click “Add Authority” above', 'Search the CamLex library to attach a book, or type a statute / OHADA act / judgment', 'Add the pinpoint reference and why it applies — it stays with the matter'].map((s, i) => (
+              <li key={i} className="flex gap-2.5 text-sm text-neutral-400">
+                <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-portal-soft text-portal text-[11px] font-bold">{i + 1}</span>{s}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {items.map((a, i) => (
+            <div key={a.id} className="stagger-child flex items-start gap-3 rounded-lg border border-white/6 bg-primary-900/30 p-3" style={{ '--i': Math.min(i, 8) } as React.CSSProperties}>
+              <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-portal-soft text-portal"><BookOpenIcon width={15} height={15} /></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-neutral-100">{a.title}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <span className="text-[10px] uppercase tracking-wide text-neutral-600">{a.source_label}</span>
+                  {a.reference && <span className="text-[11px] font-mono text-portal">{a.reference}</span>}
+                </div>
+                {a.note && <p className="text-xs text-neutral-500 mt-1">{a.note}</p>}
+                {a.url && <a href={a.url} className="text-[11px] text-portal hover:opacity-80 mt-1 inline-block">Open reference →</a>}
+              </div>
+              <DeleteBtn onClick={() => remove(a.id)} />
             </div>
           ))}
         </div>

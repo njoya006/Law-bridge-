@@ -14,11 +14,12 @@ from rest_framework import status
 from .models import (
     Case, Adjournment, CaseParty, CaseDeadline, Disbursement,
     HearingOutcome, DetentionRecord, ConciliationRecord, CaseProcedureStep,
+    CaseAuthority,
 )
 from .casefile_serializers import (
     AdjournmentSerializer, CasePartySerializer, CaseDeadlineSerializer,
     DisbursementSerializer, HearingOutcomeSerializer, DetentionRecordSerializer,
-    ConciliationRecordSerializer, CaseProcedureStepSerializer,
+    ConciliationRecordSerializer, CaseProcedureStepSerializer, CaseAuthoritySerializer,
 )
 from .procedures import get_template, list_templates
 from .views import (
@@ -368,6 +369,20 @@ class ProcedureStepDetailView(CaseSubResourceDetailView):
         if obj.status == 'done' and not obj.completed_at:
             obj.completed_at = timezone.now()
             obj.save(update_fields=['completed_at'])
+
+
+# ── Authorities (knowledge-in-context) ────────────────────────────────────────
+
+class CaseAuthorityListView(CaseSubResourceView):
+    model = CaseAuthority
+    serializer_class = CaseAuthoritySerializer
+    related_name = 'authorities'
+    recorded_by_field = 'added_by'
+
+
+class CaseAuthorityDetailView(CaseSubResourceDetailView):
+    model = CaseAuthority
+    serializer_class = CaseAuthoritySerializer
 
 
 # ── Court & registry identity ─────────────────────────────────────────────────

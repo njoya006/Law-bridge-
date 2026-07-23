@@ -532,6 +532,37 @@ class ConciliationRecord(models.Model):
         ordering = ['-created_at']
 
 
+class CaseAuthority(models.Model):
+    """A legal authority cited on a matter — a CamLex library book/article, a
+    statute, or a judgment. Makes the knowledge library load-bearing in real case
+    work instead of a separate walled garden."""
+
+    SOURCE_CHOICES = [
+        ('library_book',    'CamLex Book'),
+        ('library_article', 'CamLex Article'),
+        ('statute',         'Statute / Code'),
+        ('ohada_act',       'OHADA Uniform Act'),
+        ('judgment',        'Judgment / Case Law'),
+        ('external',        'External Source'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    case = models.ForeignKey(Case, on_delete=models.CASCADE, related_name='authorities')
+    source_type = models.CharField(max_length=32, choices=SOURCE_CHOICES, default='statute')
+    title = models.CharField(max_length=500)
+    reference = models.CharField(max_length=255, blank=True, default='',
+        help_text='Pinpoint citation, e.g. "AUDSC Art. 200-204" or "Labour Code s.39"')
+    library_id = models.CharField(max_length=64, blank=True, default='',
+        help_text='CamLex book/article id when cited from the library')
+    url = models.URLField(blank=True, default='')
+    note = models.TextField(blank=True, default='', help_text='Why this authority is relevant here')
+    added_by = models.UUIDField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
 class CaseProcedureStep(models.Model):
     """One step of an applied procedure template (e.g. OHADA injonction de payer).
     Applying a template seeds the checklist + auto-creates deadline entries."""

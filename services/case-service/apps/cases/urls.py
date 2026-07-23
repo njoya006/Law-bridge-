@@ -19,6 +19,7 @@ from .casefile_views import (
     ProcedureTemplateListView, ApplyProcedureTemplateView,
     ProcedureStepListView, ProcedureStepDetailView,
     ConflictCheckView, CourtInfoView,
+    CaseAuthorityListView, CaseAuthorityDetailView,
 )
 from .intelligence_views import CourtAnalyticsView
 
@@ -62,6 +63,8 @@ urlpatterns = [
     path('<uuid:case_id>/detention/<uuid:item_id>/', DetentionRecordDetailView.as_view(), name='case-detention-detail'),
     path('<uuid:case_id>/conciliation/', ConciliationListView.as_view(), name='case-conciliation'),
     path('<uuid:case_id>/conciliation/<uuid:item_id>/', ConciliationDetailView.as_view(), name='case-conciliation-detail'),
+    path('<uuid:case_id>/authorities/', CaseAuthorityListView.as_view(), name='case-authorities'),
+    path('<uuid:case_id>/authorities/<uuid:item_id>/', CaseAuthorityDetailView.as_view(), name='case-authority-detail'),
     path('<uuid:case_id>/apply-procedure/', ApplyProcedureTemplateView.as_view(), name='case-apply-procedure'),
     path('<uuid:case_id>/procedure-steps/', ProcedureStepListView.as_view(), name='case-procedure-steps'),
     path('<uuid:case_id>/procedure-steps/<uuid:item_id>/', ProcedureStepDetailView.as_view(), name='case-procedure-step-detail'),

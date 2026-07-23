@@ -312,6 +312,36 @@ export const applyProcedure = (caseId: string, templateKey: string, token: strin
 export const updateProcedureStep = (caseId: string, id: string, data: Partial<ProcedureStep>, token: string) =>
   api.patch<ProcedureStep>('case', `${base(caseId)}/procedure-steps/${id}/`, data, token)
 
+// ── Authorities (knowledge-in-context) ────────────────────────────────────────
+
+export type CaseAuthority = {
+  id: string
+  source_type: string
+  source_label: string
+  title: string
+  reference: string
+  library_id: string
+  url: string
+  note: string
+  created_at: string
+}
+
+export const AUTHORITY_SOURCES: { value: string; label: string }[] = [
+  { value: 'library_book', label: 'CamLex Book' },
+  { value: 'library_article', label: 'CamLex Article' },
+  { value: 'statute', label: 'Statute / Code' },
+  { value: 'ohada_act', label: 'OHADA Uniform Act' },
+  { value: 'judgment', label: 'Judgment / Case Law' },
+  { value: 'external', label: 'External Source' },
+]
+
+export const getAuthorities = (caseId: string, token: string) =>
+  api.get<CaseAuthority[]>('case', `${base(caseId)}/authorities/`, token)
+export const addAuthority = (caseId: string, data: Partial<CaseAuthority>, token: string) =>
+  api.post<CaseAuthority>('case', `${base(caseId)}/authorities/`, data, token)
+export const deleteAuthority = (caseId: string, id: string, token: string) =>
+  api.del('case', `${base(caseId)}/authorities/${id}/`, token)
+
 // ── Conflict check ────────────────────────────────────────────────────────────
 
 export type ConflictResult = {

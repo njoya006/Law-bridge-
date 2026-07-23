@@ -3,6 +3,7 @@ from rest_framework import serializers
 from .models import (
     Adjournment, CaseParty, CaseDeadline, Disbursement,
     HearingOutcome, DetentionRecord, ConciliationRecord, CaseProcedureStep,
+    CaseAuthority,
 )
 
 
@@ -97,3 +98,13 @@ class CaseProcedureStepSerializer(serializers.ModelSerializer):
                   'due_date', 'status', 'completed_at', 'created_at')
         read_only_fields = ('id', 'template_key', 'step_order', 'title',
                             'description', 'created_at')
+
+
+class CaseAuthoritySerializer(serializers.ModelSerializer):
+    source_label = serializers.CharField(source='get_source_type_display', read_only=True)
+
+    class Meta:
+        model = CaseAuthority
+        fields = ('id', 'source_type', 'source_label', 'title', 'reference',
+                  'library_id', 'url', 'note', 'created_at')
+        read_only_fields = ('id', 'created_at')
