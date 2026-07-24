@@ -22,12 +22,17 @@ class AuthProxyAuthentication(BaseAuthentication):
         except jwt.PyJWTError:
             raise exceptions.AuthenticationFailed('Invalid token')
 
+        # Identify by user_id (present even in refreshed tokens); fall back to email.
+        # SimpleJWT drops custom claims like `email` from refreshed access tokens, so
+        # requiring email broke every call after a token refresh.
         email = payload.get('email')
-        if not email:
-            raise exceptions.AuthenticationFailed('Token missing email')
+        user_id = payload.get('user_id') or payload.get('sub')
+        if not user_id and not email:
+            raise exceptions.AuthenticationFailed('Token missing identity')
 
+        username = email or f'uid-{user_id}'
         User = get_user_model()
-        user, _ = User.objects.get_or_create(username=email, defaults={'email': email})
+        user, _ = User.objects.get_or_create(username=username, defaults={'email': email or ''})
         try:
             request.auth_payload = payload
         except Exception:

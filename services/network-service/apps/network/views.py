@@ -53,7 +53,15 @@ class FollowViewSet(
 
     def perform_create(self, serializer):
         user_id = _get_user_id(self.request)
-        serializer.save(follower_id=user_id)
+        follow = serializer.save(follower_id=user_id)
+        # Notify the followed lawyer that they have a new follower.
+        payload = getattr(self.request, 'auth_payload', {}) or {}
+        follower_name = payload.get('full_name') or 'A colleague'
+        notify(
+            follow.following_id, 'new_follower',
+            'New follower',
+            f'{follower_name} started following you on LawBridge.',
+        )
 
 
 class ReferralViewSet(
