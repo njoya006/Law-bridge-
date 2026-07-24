@@ -9,6 +9,7 @@ import {
   BookOpenIcon, BalanceIcon, CompassIcon, ClipboardIcon, BookmarkIcon,
 } from '../icons/Icons'
 import { clearSession } from '../../lib/authSession'
+import { useUnreadCounts } from '../../lib/useUnreadCounts'
 
 // ── Nav items ─────────────────────────────────────────────────────────────────
 
@@ -53,29 +54,14 @@ const MORE_ITEMS = [
 function DesktopSidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('dark')
-  const [unreadCount, setUnreadCount] = useState(0)
+  const { messages: unreadMessages, notifications: unreadNotifs } = useUnreadCounts()
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [avatarInitials, setAvatarInitials] = useState('C')
   const pathname = usePathname()
   const router = useRouter()
 
-  useEffect(() => {
-    async function fetchUnread() {
-      const token = localStorage.getItem('access')
-      if (!token) return
-      try {
-        const res = await fetch('/api/v1/messages/threads/', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!res.ok) return
-        const threads = (await res.json()) as Array<{ unread_count?: number }>
-        setUnreadCount(threads.reduce((s, t) => s + (t.unread_count || 0), 0))
-      } catch { /* silent */ }
-    }
-    fetchUnread()
-    const iv = setInterval(fetchUnread, 30000)
-    return () => clearInterval(iv)
-  }, [])
+  const badgeFor = (label: string) =>
+    label === 'Messages' ? unreadMessages : label === 'Notifications' ? unreadNotifs : 0
 
   useEffect(() => {
     // Load avatar from cache, then refresh from API
@@ -186,13 +172,19 @@ function DesktopSidebar() {
                   <Icon width={18} height={18} />
                 </span>
               </span>
-              {!collapsed && <span className="relative z-10 font-medium text-sm">{item.label}</span>}
-              {!collapsed && item.label === 'Messages' && unreadCount > 0 && (
-                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-crimson-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.4)]">
-                  {unreadCount > 9 ? '9+' : unreadCount}
+              {/* Collapsed: show a compact count bubble on the icon itself */}
+              {collapsed && badgeFor(item.label) > 0 && (
+                <span className="absolute -top-0.5 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-crimson-500 px-0.5 text-[9px] font-bold text-white ring-2 ring-primary-900">
+                  {badgeFor(item.label) > 9 ? '9+' : badgeFor(item.label)}
                 </span>
               )}
-              {active && !collapsed && item.label !== 'Messages' && (
+              {!collapsed && <span className="relative z-10 font-medium text-sm">{item.label}</span>}
+              {!collapsed && badgeFor(item.label) > 0 && (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-crimson-500 px-1 text-[10px] font-bold text-white shadow-[0_0_8px_rgba(239,68,68,0.4)]">
+                  {badgeFor(item.label) > 9 ? '9+' : badgeFor(item.label)}
+                </span>
+              )}
+              {active && !collapsed && badgeFor(item.label) === 0 && (
                 <span className="ml-auto h-2 w-2 rounded-full dot-portal animate-pulse-subtle" />
               )}
             </Link>
@@ -247,25 +239,7 @@ function MobileBottomNav() {
   const pathname = usePathname()
   const router = useRouter()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
-
-  useEffect(() => {
-    async function fetchUnread() {
-      const token = localStorage.getItem('access')
-      if (!token) return
-      try {
-        const res = await fetch('/api/v1/messages/threads/', {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!res.ok) return
-        const threads = (await res.json()) as Array<{ unread_count?: number }>
-        setUnreadCount(threads.reduce((s, t) => s + (t.unread_count || 0), 0))
-      } catch { /* silent */ }
-    }
-    fetchUnread()
-    const iv = setInterval(fetchUnread, 30000)
-    return () => clearInterval(iv)
-  }, [])
+  const { messages: unreadCount, notifications: unreadNotifs } = useUnreadCounts()
 
   function handleLogout() {
     clearSession()
@@ -317,13 +291,20 @@ function MobileBottomNav() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-150 active:scale-95 ${
+                  className={`relative flex flex-col items-center gap-1.5 p-3 rounded-2xl transition-all duration-150 active:scale-95 ${
                     active
                       ? 'bg-portal-soft text-portal'
                       : 'bg-white/5 text-neutral-400 hover:bg-white/10 hover:text-neutral-200'
                   }`}
                 >
-                  <Icon width={22} height={22} />
+                  <span className="relative">
+                    <Icon width={22} height={22} />
+                    {item.label === 'Alerts' && unreadNotifs > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-crimson-500 px-0.5 text-[9px] font-bold text-white ring-2 ring-primary-900">
+                        {unreadNotifs > 9 ? '9+' : unreadNotifs}
+                      </span>
+                    )}
+                  </span>
                   <span className="text-[9px] font-semibold uppercase tracking-wider leading-none">{item.label}</span>
                   {active && <span className="h-1 w-1 rounded-full dot-portal" />}
                 </Link>
@@ -384,8 +365,13 @@ function MobileBottomNav() {
             {(drawerOpen || moreActive) && (
               <span className="absolute top-0 left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-portal-accent shadow-portal-accent" />
             )}
-            <span className={`flex items-center justify-center transition-transform duration-200 ${drawerOpen ? 'rotate-90 scale-110' : ''}`}>
+            <span className={`relative flex items-center justify-center transition-transform duration-200 ${drawerOpen ? 'rotate-90 scale-110' : ''}`}>
               <GridIcon width={20} height={20} />
+              {!drawerOpen && unreadNotifs > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-crimson-500 px-0.5 text-[9px] font-bold text-white">
+                  {unreadNotifs > 9 ? '9+' : unreadNotifs}
+                </span>
+              )}
             </span>
             <span className="text-[9px] font-semibold uppercase tracking-wider">More</span>
           </button>

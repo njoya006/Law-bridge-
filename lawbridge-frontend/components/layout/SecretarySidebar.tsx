@@ -7,6 +7,7 @@ import { DashboardIcon, DocumentIcon, PaymentIcon, CollapseIcon, ExpandIcon, Sun
 import { getMyFirmMemberships } from '../../lib/firmsApi'
 import { getReportRequests } from '../../lib/monitoringApi'
 import { clearSession } from '../../lib/authSession'
+import { useUnreadCounts } from '../../lib/useUnreadCounts'
 
 const secretaryNav = [
   { label: 'Dashboard',     href: '/secretary/dashboard',    icon: DashboardIcon },
@@ -28,10 +29,18 @@ export default function SecretarySidebar() {
   const [isMobile, setIsMobile] = useState(false)
   const [avatarInitials, setAvatarInitials] = useState('S')
   const [pendingShipped, setPendingShipped] = useState(0)
+  const { messages: unreadMessages, notifications: unreadNotifications } = useUnreadCounts()
   const pathname = usePathname()
   const router = useRouter()
 
   const collapsed = isMobile ? !mobileOpen : desktopCollapsed
+
+  const badgeFor = (href: string) => {
+    if (href === '/secretary/reports') return pendingShipped
+    if (href === '/messages') return unreadMessages
+    if (href === '/notifications') return unreadNotifications
+    return 0
+  }
 
   const handleLogout = () => {
     clearSession()
@@ -156,8 +165,7 @@ export default function SecretarySidebar() {
         {secretaryNav.map(item => {
           const Icon = item.icon
           const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
-          const isReports = item.href === '/secretary/reports'
-          const badge = isReports && pendingShipped > 0 ? pendingShipped : 0
+          const badge = badgeFor(item.href)
           return (
             <Link
               key={item.href}

@@ -15,6 +15,7 @@ import {
 import { getFirmMembers, getMyFirmMemberships, type FirmMembership } from '../../lib/firmsApi'
 import { getReportRequests } from '../../lib/monitoringApi'
 import { clearSession } from '../../lib/authSession'
+import { useUnreadCounts } from '../../lib/useUnreadCounts'
 
 type NavItem = {
   label: string
@@ -104,7 +105,7 @@ export default function LawyerSidebar() {
   const [associates, setAssociates]       = useState<FirmMembership[]>([])
   const [isFirmAdmin, setIsFirmAdmin]     = useState(false)
   const [pendingReports, setPendingReports] = useState(0)
-  const [unreadMessages, setUnreadMessages] = useState(0)
+  const { messages: unreadMessages, notifications: unreadNotifications } = useUnreadCounts()
 
   const collapsed = isMobile ? !mobileOpen : desktopCollapsed
 
@@ -195,21 +196,8 @@ export default function LawyerSidebar() {
     }
     void loadFirm()
 
-    // Unread messages — poll every 30s
-    const fetchUnread = () => {
-      fetch('/api/v1/messages/threads/', { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.ok ? r.json() : [])
-        .then((threads: Array<{ unread_count?: number }>) => {
-          if (!cancelled) setUnreadMessages(threads.reduce((s, t) => s + (t.unread_count ?? 0), 0))
-        })
-        .catch(() => {})
-    }
-    fetchUnread()
-    const msgInterval = setInterval(fetchUnread, 30_000)
-
     return () => {
       cancelled = true
-      clearInterval(msgInterval)
       mq.removeEventListener('change', syncVP)
       window.removeEventListener('lawbridge:open-sidebar', openSidebar)
       window.removeEventListener('lawbridge:avatar-updated', onAvatarUpdated)
@@ -225,6 +213,7 @@ export default function LawyerSidebar() {
   function getBadge(href: string) {
     if (href === '/lawyer/reports' && pendingReports > 0) return pendingReports
     if (href === '/messages' && unreadMessages > 0) return unreadMessages
+    if (href === '/notifications' && unreadNotifications > 0) return unreadNotifications
     return 0
   }
 

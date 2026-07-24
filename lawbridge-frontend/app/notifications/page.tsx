@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { listNotifications, markNotificationRead, markAllNotificationsRead, type NotificationItem } from '../../lib/notificationsApi'
+import { refreshUnreadCounts } from '../../lib/useUnreadCounts'
 import { SkeletonCard } from '../../components/ui/Skeleton'
 import { EmptyState } from '../../components/ui/EmptyState'
 import {
@@ -58,6 +59,7 @@ export default function NotificationsPage() {
     try {
       await markNotificationRead(id, access)
       setItems(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+      refreshUnreadCounts()
     } catch {
       // silently update optimistically; backend may still have processed it
     }
@@ -72,6 +74,7 @@ export default function NotificationsPage() {
       return Promise.allSettled(unread.map(n => markNotificationRead(n.id, access)))
     })
     setItems(prev => prev.map(n => ({ ...n, is_read: true })))
+    refreshUnreadCounts()
     setMarkingAll(false)
   }
 
