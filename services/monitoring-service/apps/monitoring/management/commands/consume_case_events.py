@@ -154,14 +154,24 @@ def _create_case_notifications(data, snapshot, created):
         elif not created:
             status_label = STATUS_LABELS.get(status, status.replace('_', ' ').title())
 
-            if status == 'assigned' and client_uuid:
-                notifs.append(Notification(
-                    recipient_id=client_uuid,
-                    notification_type='case_assigned',
-                    title='Lawyer assigned to your case',
-                    body=f'A lawyer has been assigned to your case "{title}".',
-                    case_id=case_id,
-                ))
+            if status == 'assigned':
+                if client_uuid:
+                    notifs.append(Notification(
+                        recipient_id=client_uuid,
+                        notification_type='case_assigned',
+                        title='Lawyer assigned to your case',
+                        body=f'A lawyer has been assigned to your case "{title}".',
+                        case_id=case_id,
+                    ))
+                # The lawyer needs to know a new matter has landed on their desk.
+                if lawyer_uuid:
+                    notifs.append(Notification(
+                        recipient_id=lawyer_uuid,
+                        notification_type='case_assigned',
+                        title='New case assigned to you',
+                        body=f'You have been assigned to "{title}". Review the matter and open the case file.',
+                        case_id=case_id,
+                    ))
 
             elif status in TERMINAL_STATUSES:
                 if client_uuid:
@@ -190,14 +200,25 @@ def _create_case_notifications(data, snapshot, created):
                     case_id=case_id,
                 ))
 
-            elif client_uuid and status not in ('draft',):
-                notifs.append(Notification(
-                    recipient_id=client_uuid,
-                    notification_type='case_updated',
-                    title=f'Case update: {status_label}',
-                    body=f'Your case "{title}" has a new status: {status_label}.',
-                    case_id=case_id,
-                ))
+            elif status not in ('draft',):
+                # General status update — notify BOTH the client and the lawyer
+                # handling the matter, so lawyers get a live feed of their cases.
+                if client_uuid:
+                    notifs.append(Notification(
+                        recipient_id=client_uuid,
+                        notification_type='case_updated',
+                        title=f'Case update: {status_label}',
+                        body=f'Your case "{title}" has a new status: {status_label}.',
+                        case_id=case_id,
+                    ))
+                if lawyer_uuid:
+                    notifs.append(Notification(
+                        recipient_id=lawyer_uuid,
+                        notification_type='case_updated',
+                        title=f'Case update: {status_label}',
+                        body=f'Matter "{title}" moved to: {status_label}.',
+                        case_id=case_id,
+                    ))
 
         if notifs:
             Notification.objects.bulk_create(notifs, ignore_conflicts=True)
