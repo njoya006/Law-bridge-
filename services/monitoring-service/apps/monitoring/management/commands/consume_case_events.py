@@ -221,6 +221,26 @@ def _create_case_notifications(data, snapshot, created):
                     ))
 
         if notifs:
+            # Dedupe: the same case.updated event reaches us via BOTH the Redis
+            # consumer and the direct HTTP push (InternalCaseSyncView), so without
+            # this guard every status change writes each notification twice. Skip a
+            # candidate if an identical (recipient, case, title) row was written in
+            # the last 2 minutes — whichever path runs second no-ops.
+            from datetime import timedelta
+            cutoff = timezone.now() - timedelta(minutes=2)
+            fresh = []
+            for n in notifs:
+                if Notification.objects.filter(
+                    recipient_id=n.recipient_id,
+                    case_id=n.case_id,
+                    title=n.title,
+                    created_at__gte=cutoff,
+                ).exists():
+                    continue
+                fresh.append(n)
+            notifs = fresh
+
+        if notifs:
             Notification.objects.bulk_create(notifs, ignore_conflicts=True)
             for n in notifs:
                 _send_notification_email(str(n.recipient_id), n.title, n.body)
